@@ -348,7 +348,8 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbz_895ZUhbRdARsQ_KwHtcDhsZKVCQSRVplzIKgJD5wakdd7MV4SbGg-fSaU-Iv8BzRYQ/exec";
+        // 💡 已更新為最新的正確 GAS 網頁應用程式執行網址
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw-L7kxDKW0MzijnAxcXMhNUZ-5X1ZQkooaRihHAX8qSEzuApxrpJmN_1SxvrsiPcfZzA/exec";
 
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
@@ -1300,7 +1301,6 @@
 
             saveOrderToHistory(orderPayload);
 
-            // 💡 已移除 no-cors，改為標準 POST 發送，確保 GAS 能完美讀取 JSON
             try {
                 fetch(GAS_URL, {
                     method: "POST",
