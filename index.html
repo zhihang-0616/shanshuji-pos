@@ -36,6 +36,7 @@
         .header-btn:hover { filter: brightness(1.15); }
         .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); border: 1px solid #81c784; }
         .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
+        .soldout-list-btn { background: linear-gradient(135deg, #5c2c16, #33160a); color: #ffebcc; border: 1px solid var(--border-gold); }
         .admin-entry-btn { background: linear-gradient(135deg, #424242, #212121); color: #ffffff; border: 1px solid #757575; }
         .exit-edit-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
         
@@ -84,7 +85,6 @@
         /* Meal Mgmt Mode Highlight */
         body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #ff4444; }
         body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #888; }
-        body.edit-mode .pref-btn { border: 1px dashed #ff4444 !important; }
 
         /* Right Panel - Checkout / Order List */
         .checkout-container { flex: 3; display: flex; flex-direction: column; background: #1a120b; height: 100%; box-shadow: -4px 0 15px rgba(0,0,0,0.7); }
@@ -180,9 +180,10 @@
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
-                <!-- 依序為：接單管理、餐點管理、管理員模式 -->
+                <!-- 依序為：接單管理、餐點管理、售完品項、管理員模式 -->
                 <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單管理 (0)</button>
                 <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
+                <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完品項</button>
                 <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 管理員模式</button>
                 <button class="header-btn exit-edit-btn" id="exitEditBtn" style="display:none;" onclick="toggleMealMgmtMode()">餐點管理</button>
                 
@@ -317,6 +318,15 @@
         </div>
     </div>
 
+    <!-- 📋 售完品項快速管理 Modal -->
+    <div class="modal" id="soldoutListModal">
+        <div class="modal-content" style="width:420px; max-width:90vw;">
+            <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">📋 目前售完品項管理</h3>
+            <div id="soldoutListContainer" style="max-height:60vh; overflow-y:auto; margin-bottom:10px;"></div>
+            <button class="close-btn" onclick="closeSoldoutListModal()">關閉面板</button>
+        </div>
+    </div>
+
     <!-- Admin Order Manager Modal -->
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
@@ -367,7 +377,7 @@
             </div>
             <div style="text-align:center; margin-bottom:15px; font-weight:bold; color:#8b1e0f;" id="menuSelectPricePreview">單價：$0</div>
             <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="confirmAddSelectedItemToOrder()">確認加入</button>
-            <button class="close-btn" onclick="closeMenuSelectModal()">取消</button>
+            <button class="close-btn" onclick="closeMenuSelectModal()">cancel</button>
         </div>
     </div>
 
@@ -495,7 +505,7 @@
                 { id: "w4", name: "沙茶牛肉燴飯", price: 120, soldOut: false, needCustom: true },
                 { id: "w5", name: "炒羊肉", price: 150, soldOut: false, needCustom: true },
                 { id: "w6", name: "炒牛肉", price: 150, soldOut: false, needCustom: true },
-                { id: "w7", name: "炒青菜", price: 100, soldOut: false },
+                { id: "w7", name: "炒青菜", price: 100, soldOut: false, needCustom: true },
                 { id: "w8", name: "當歸羊肉湯", price: 80, soldOut: false },
                 { id: "w9", name: "當歸清湯", price: 40, soldOut: false }
             ]
@@ -660,8 +670,11 @@
             }
         }
 
-        function checkChickenInventoryLogic() {
+        /* 🍗 智慧聯動庫存邏輯 (煙燻雞腿連動煙燻半雞與套餐) */
+        function checkInventoryLogic(changedItemName, isSoldOut) {
             const chickenList = menuData["信仰雞本位主義 (主食)"];
+            const comboList = menuData["智能合約 (套餐)"];
+
             const m1 = chickenList.find(i => i.id === "m1");
             const m2 = chickenList.find(i => i.id === "m2");
             const m3 = chickenList.find(i => i.id === "m3");
@@ -669,8 +682,27 @@
             const m5 = chickenList.find(i => i.id === "m5");
             const m6 = chickenList.find(i => i.id === "m6");
 
-            if (m1.soldOut || m2.soldOut) m3.soldOut = true;
-            if (m4.soldOut || m5.soldOut) m6.soldOut = true;
+            // 鹹水連動
+            if (m1.soldOut || m2.soldOut) {
+                m3.soldOut = true;
+            } else {
+                m3.soldOut = false;
+            }
+
+            // 煙燻連動：若煙燻雞腿變更
+            if (changedItemName === "煙燻雞腿") {
+                if (isSoldOut) {
+                    m6.soldOut = true; // 煙燻半雞跟著關閉
+                    // 套餐中的煙燻選項自動關閉或標記
+                } else {
+                    m6.soldOut = false; // 煙燻半雞跟著打開
+                }
+            }
+
+            // 煙燻半雞連動煙燻雞腿 (若手動關閉半雞，腿也可以不一定要全關，但若半雞打開，腿打開)
+            if (changedItemName === "煙燻半雞" && !isSoldOut) {
+                m5.soldOut = false; // 打開半雞時自動打開煙燻雞腿
+            }
         }
 
         function toggleOrderList() {
@@ -699,6 +731,54 @@
             const btn = document.getElementById('quickAcceptHeaderBtn');
             if (btn) {
                 btn.innerText = `⚡ 接單管理 (${pendingList.length})`;
+            }
+        }
+
+        /* 📋 開啟「售完品項」快速管理面板 */
+        function openSoldoutListModal() {
+            const container = document.getElementById('soldoutListContainer');
+            container.innerHTML = '';
+
+            let soldoutItems = [];
+            for (let category in menuData) {
+                menuData[category].forEach(item => {
+                    if (item.soldOut) {
+                        soldoutItems.push({ category: category, item: item });
+                    }
+                });
+            }
+
+            if (soldoutItems.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">目前沒有任何售完品項 🎉</div>';
+            } else {
+                soldoutItems.forEach(entry => {
+                    const div = document.createElement('div');
+                    div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#140f0a; border:1px solid var(--border-gold); padding:8px 12px; border-radius:6px; margin-bottom:8px;";
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-weight:bold; color:#fff1cd;">${entry.item.name}</div>
+                            <div style="font-size:11px; color:#a89269;">分類：${entry.category}</div>
+                        </div>
+                        <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復供應</button>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            document.getElementById('soldoutListModal').style.display = 'flex';
+        }
+
+        function closeSoldoutListModal() {
+            document.getElementById('soldoutListModal').style.display = 'none';
+        }
+
+        function restoreSoldoutItem(category, itemId) {
+            const item = menuData[category].find(i => i.id === itemId);
+            if (item) {
+                item.soldOut = false;
+                checkInventoryLogic(item.name, false);
+                refreshActiveGrid();
+                openSoldoutListModal(); // 重新整理清單
             }
         }
 
@@ -743,7 +823,7 @@
             card.onclick = () => {
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
-                    checkChickenInventoryLogic();
+                    checkInventoryLogic(item.name, item.soldOut);
                     renderGrid(category);
                 } else {
                     if (!item.soldOut) handleItemClick(item, category);
@@ -803,7 +883,7 @@
                     const chickenList = menuData["信仰雞本位主義 (主食)"];
                     const breast = chickenList.find(i => i.id === "m1");
                     if (breast && breast.soldOut) {
-                        alert("鹹水雞胸已售完，無法點購此套餐！");
+                        alert("鹹水雞胸已售完, 無法點購此套餐！");
                         return;
                     }
                     addComboToCart(item, item.fixedChicken);
@@ -816,10 +896,10 @@
         }
 
         function showChickenChoiceModal(item) {
-            checkChickenInventoryLogic();
             const chickenList = menuData["信仰雞本位主義 (主食)"];
             const saltHalfSoldOut = chickenList.find(i => i.id === "m3").soldOut;
             const smokeHalfSoldOut = chickenList.find(i => i.id === "m6").soldOut;
+            const smokeLegSoldOut = chickenList.find(i => i.id === "m5").soldOut;
 
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
@@ -828,10 +908,10 @@
             item.chickenOptions.forEach(opt => {
                 let isDisabled = false;
                 if (opt === "鹹水半雞" && saltHalfSoldOut) isDisabled = true;
-                if (opt === "煙燻半雞" && smokeHalfSoldOut) isDisabled = true;
+                if (opt === "煙燻半雞" && (smokeHalfSoldOut || smokeLegSoldOut)) isDisabled = true;
                 if (opt === "全鹹水" && saltHalfSoldOut) isDisabled = true;
-                if (opt === "全煙燻" && smokeHalfSoldOut) isDisabled = true;
-                if (opt === "鹹水半雞 + 煙燻半雞" && (saltHalfSoldOut || smokeHalfSoldOut)) isDisabled = true;
+                if (opt === "全煙燻" && (smokeHalfSoldOut || smokeLegSoldOut)) isDisabled = true;
+                if (opt === "鹹水半雞 + 煙燻半雞" && (saltHalfSoldOut || smokeHalfSoldOut || smokeLegSoldOut)) isDisabled = true;
 
                 if (isDisabled) {
                     html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0;" disabled>${opt} (售完)</button>`;
@@ -927,7 +1007,6 @@
         }
 
         function renderGrid(category) {
-            checkChickenInventoryLogic();
             const displayArea = document.getElementById('menuDisplayArea');
             const noticeBox = document.getElementById('categoryNotice');
             displayArea.innerHTML = '';
