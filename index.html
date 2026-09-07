@@ -14,7 +14,6 @@
         }
         * { box-sizing: border-box; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 0; }
         
-        /* 桌機與平版預設樣式 */
         body { display: flex; height: 100vh; background-color: #f4edd9; color: var(--text-dark); overflow: hidden; }
         
         /* Left Panel - Menu Selection */
@@ -24,7 +23,7 @@
         .soldout-toggle-btn { background: #d9534f; color: white; border: 1px solid white; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .soldout-toggle-btn.active { background: #ffc107; color: #333; }
         
-        /* Top Navigation Tabs - Justified & Larger Font */
+        /* Top Navigation Tabs */
         .menu-tabs { display: flex; justify-content: space-between; background: #e0d0b0; border-bottom: 1px solid var(--border-color); -webkit-overflow-scrolling: touch; width: 100%; }
         .tab-btn { flex: 1; padding: 10px 4px; border: none; background: none; font-size: 15px; font-weight: bold; cursor: pointer; color: #555; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 4px solid var(--primary-color); }
@@ -35,11 +34,16 @@
         
         .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; -webkit-overflow-scrolling: touch; }
         
+        /* 特殊主食類 雙欄置中排版 */
+        .chicken-bawi-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center; font-weight: bold; font-size: 16px; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; }
+        .bawi-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
         /* Item Card Styling */
-        .item-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 85px; }
+        .item-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 85px; }
         .item-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
-        .item-name { font-size: 15px; font-weight: bold; margin-bottom: 4px; word-break: break-all; }
-        .item-price { color: var(--primary-color); font-weight: bold; font-size: 15px; }
+        .item-name { font-size: 15px; font-weight: bold; margin-bottom: 4px; word-break: break-all; text-align: center; }
+        .item-price { color: var(--primary-color); font-weight: bold; font-size: 15px; text-align: center; }
         .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
         
         /* Soldout Styling */
@@ -60,6 +64,7 @@
         .order-list.collapsed { display: none; }
         
         .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .order-item.sub-item { padding-left: 20px; font-size: 12px; color: #666; background: #fafafa; }
         .order-item-info { flex: 2; }
         .order-item-qty { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
         .qty-btn { width: 28px; height: 28px; background: #ddd; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
@@ -90,11 +95,13 @@
         .btn-submit:hover { background: #aa2211; }
 
         /* Modal / Receipt overlay */
-        .receipt-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
-        .receipt-content { background: white; padding: 20px; border-radius: 8px; width: 320px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: monospace; }
+        .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .receipt-header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 10px; margin-bottom: 10px; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
-        .close-receipt { width: 100%; padding: 10px; margin-top: 15px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .modal-opt-btn { padding: 8px 12px; margin: 4px; border: 1px solid #ccc; background: #f9f9f9; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .modal-opt-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 
         /* 📱 響應式手機排版修正 */
         @media (max-width: 768px) {
@@ -118,7 +125,7 @@
         </div>
         <div class="menu-tabs" id="menuTabs"></div>
         <div class="category-notice" id="categoryNotice"></div>
-        <div class="grid-container" id="menuGrid"></div>
+        <div id="menuDisplayArea" style="flex:1; display:flex; flex-direction:column; overflow:hidden;"></div>
     </div>
 
     <!-- Right Panel -->
@@ -184,9 +191,14 @@
         </div>
     </div>
 
+    <!-- Option Select Modal (For Combo Chicken Choice or Hot Food Spice/Salt) -->
+    <div class="modal" id="optModal">
+        <div class="modal-content" id="optModalContent"></div>
+    </div>
+
     <!-- Receipt Output Popup -->
-    <div class="receipt-modal" id="receiptModal">
-        <div class="receipt-content" id="receiptContent"></div>
+    <div class="modal" id="receiptModal">
+        <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
     </div>
 
     <script>
@@ -202,19 +214,39 @@
         // Full parsed menu database
         const menuData = {
             "信仰雞本位主義 (主食)": [
-                { id: "m1", name: "鹹水雞胸", price: 65, soldOut: false },
-                { id: "m2", name: "鹹水雞腿", price: 65, soldOut: false },
-                { id: "m3", name: "鹹水半雞", price: 130, soldOut: false },
-                { id: "m4", name: "煙燻雞胸", price: 75, soldOut: false },
-                { id: "m5", name: "煙燻雞腿", price: 75, soldOut: false },
-                { id: "m6", name: "煙燻半雞", price: 150, soldOut: false }
+                { id: "m2", name: "鹹水雞腿", price: 65, soldOut: false, type: "鹹本位" },
+                { id: "m5", name: "煙燻雞腿", price: 75, soldOut: false, type: "燻本位" },
+                { id: "m1", name: "鹹水雞胸", price: 65, soldOut: false, type: "鹹本位" },
+                { id: "m4", name: "煙燻雞胸", price: 75, soldOut: false, type: "燻本位" },
+                { id: "m3", name: "鹹水半雞", price: 130, soldOut: false, type: "鹹本位" },
+                { id: "m6", name: "煙燻半雞", price: 150, soldOut: false, type: "燻本位" }
             ],
             "智能合約 (套餐)": [
-                { id: "s1", name: "散戶輕倉個人餐", price: 260, soldOut: false },
-                { id: "s2", name: "巨鯨重倉肉多多餐", price: 390, soldOut: false },
-                { id: "s3", name: "DAO 節點下酒派對餐", price: 630, soldOut: false },
-                { id: "s4", name: "輕食減醣肉多餐", price: 239, soldOut: false },
-                { id: "s5", name: "輕食減醣餐", price: 139, soldOut: false }
+                { 
+                    id: "s1", name: "散戶輕倉個人餐", price: 260, soldOut: false,
+                    chickenOptions: ["鹹水半雞", "煙燻半雞"],
+                    items: ["豬耳朵", "雞冠", "豆干", "鴨肉丸", "珍珠蛋"]
+                },
+                { 
+                    id: "s2", name: "巨鯨重倉肉多多餐", price: 390, soldOut: false,
+                    chickenOptions: ["鹹水半雞", "煙燻半雞"],
+                    items: ["牛五花", "松阪豬", "雞冠", "雞腸", "雞軟骨", "鴨肉丸", "鑫鑫腸"]
+                },
+                { 
+                    id: "s3", name: "DAO 節點下酒派對餐", price: 630, soldOut: false,
+                    chickenOptions: ["全鹹水", "全煙燻", "鹹水半雞 + 煙燻半雞"],
+                    items: ["牛五花", "松阪豬", "豬耳朵", "珍珠蛋", "雞冠", "雞腸", "雞皮", "鴨肉丸", "貢丸", "水晶餃", "百頁豆腐"]
+                },
+                { 
+                    id: "s4", name: "輕食減醣套餐", price: 139, soldOut: false,
+                    fixedChicken: "鹹水雞胸",
+                    items: ["冬粉", "花椰菜", "玉米筍", "豆皮", "高麗菜"]
+                },
+                { 
+                    id: "s5", name: "輕食減醣肉多餐", price: 239, soldOut: false,
+                    fixedChicken: "鹹水雞胸 x 2",
+                    items: ["冬粉", "白蘿蔔", "高麗菜", "玉米筍", "龍鬚菜", "珍珠蛋"]
+                }
             ],
             "鏈上綠色資產 (蔬菜)": [
                 { id: "v1", name: "娃娃菜", price: 40, soldOut: false },
@@ -271,18 +303,19 @@
                 { id: "z2", name: "冬粉", price: 15, soldOut: false }
             ],
             "厝邊溫食(炒麵/燴飯)": [
-                { id: "w1", name: "沙茶羊肉炒麵", price: 120, soldOut: false },
-                { id: "w2", name: "沙茶牛肉炒麵", price: 120, soldOut: false },
-                { id: "w3", name: "沙茶羊肉燴飯", price: 120, soldOut: false },
-                { id: "w4", name: "沙茶牛肉燴飯", price: 120, soldOut: false },
-                { id: "w5", name: "炒羊肉", price: 150, soldOut: false },
-                { id: "w6", name: "炒牛肉", price: 150, soldOut: false },
+                { id: "w1", name: "沙茶羊肉炒麵", price: 120, soldOut: false, needCustom: true },
+                { id: "w2", name: "沙茶牛肉炒麵", price: 120, soldOut: false, needCustom: true },
+                { id: "w3", name: "沙茶羊肉燴飯", price: 120, soldOut: false, needCustom: true },
+                { id: "w4", name: "沙茶牛肉燴飯", price: 120, soldOut: false, needCustom: true },
+                { id: "w5", name: "炒羊肉", price: 150, soldOut: false, needCustom: true },
+                { id: "w6", name: "炒牛肉", price: 150, soldOut: false, needCustom: true },
                 { id: "w7", name: "炒青菜", price: 100, soldOut: false },
-                { id: "w8", name: "當歸羊肉湯", price: 80, soldOut: false }
+                { id: "w8", name: "當歸羊肉湯", price: 80, soldOut: false },
+                { id: "w9", name: "當歸清湯", price: 40, soldOut: false }
             ]
         };
 
-        let currentCart = {};
+        let currentCart = [];
         let orderPrefs = {
             flavor: "原味",
             spice: "中辣",
@@ -292,7 +325,7 @@
         let currentPayment = "現金";
         let isEditMode = false;
 
-        // Toggle Admin Mode with Password Check
+        // Toggle Admin Mode
         function toggleEditMode() {
             if (!isEditMode) {
                 let pwd = prompt("請輸入管理員密碼以進入管理模式:");
@@ -301,7 +334,6 @@
                     return;
                 }
             }
-            
             isEditMode = !isEditMode;
             const btn = document.getElementById('soldoutToggleBtn');
             if (isEditMode) {
@@ -315,7 +347,6 @@
             }
         }
 
-        // Toggle Expand / Collapse Order List
         function toggleOrderList() {
             const list = document.getElementById('orderList');
             const icon = document.getElementById('orderListToggleIcon');
@@ -328,7 +359,6 @@
             }
         }
 
-        // Helper: Format string with parentheses into main text and sub text
         function formatTitleWithBracket(text) {
             const match = text.match(/^(.*?)\s*\((.*?)\)$/);
             if (match) {
@@ -337,7 +367,6 @@
             return `<span>${text}</span>`;
         }
 
-        // Initialize App
         function initPOS() {
             const tabsContainer = document.getElementById('menuTabs');
             let firstCategory = true;
@@ -346,7 +375,7 @@
                 const btn = document.createElement('button');
                 btn.className = `tab-btn ${firstCategory ? 'active' : ''}`;
                 btn.innerHTML = formatTitleWithBracket(category);
-                btn.onclick = (e) => {
+                btn.onclick = () => {
                     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     renderGrid(category);
@@ -360,13 +389,143 @@
             updateCartUI();
         }
 
-        // Render Menu Items and Notice for selected category
-        function renderGrid(category) {
-            const grid = document.getElementById('menuGrid');
-            const noticeBox = document.getElementById('categoryNotice');
-            grid.innerHTML = '';
+        function createCardElement(item, category) {
+            const card = document.createElement('div');
+            card.className = `item-card ${item.soldOut ? 'sold-out' : ''}`;
             
-            // Manage Category Notice Display
+            card.onclick = () => {
+                if (isEditMode) {
+                    item.soldOut = !item.soldOut;
+                    renderGrid(category);
+                } else {
+                    if (!item.soldOut) {
+                        handleItemClick(item, category);
+                    }
+                }
+            };
+            
+            let count = currentCart.filter(c => c.id === item.id).reduce((sum, c) => sum + c.qty, 0);
+            const badgeHtml = (count > 0 && !item.soldOut) ? `<div class="badge">${count}</div>` : '';
+            const soldOutTag = item.soldOut ? `<div class="sold-out-overlay">已售完</div>` : '';
+            
+            card.innerHTML = `
+                ${badgeHtml}
+                ${soldOutTag}
+                <div class="item-name">${formatTitleWithBracket(item.name)}</div>
+                <div class="item-price">$${item.price}</div>
+            `;
+            return card;
+        }
+
+        function handleItemClick(item, category) {
+            if (category === "智能合約 (套餐)") {
+                if (item.chickenOptions) {
+                    showChickenChoiceModal(item);
+                } else {
+                    addComboToCart(item, item.fixedChicken);
+                }
+            } else if (item.needCustom) {
+                showHotFoodCustomModal(item);
+            } else {
+                addToCart({ id: item.id, name: item.name, price: item.price, qty: 1 });
+            }
+        }
+
+        function showChickenChoiceModal(item) {
+            const modal = document.getElementById('optModal');
+            const content = document.getElementById('optModalContent');
+            let html = `<h4 style="margin-bottom:12px; text-align:center;">選擇 【${item.name}】 雞肉品項</h4>`;
+            item.chickenOptions.forEach(opt => {
+                html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
+            });
+            html += `<button class="close-btn" onclick="closeOptModal()">取消</button>`;
+            content.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        function confirmChickenChoice(itemId, chosenChicken) {
+            const item = menuData["智能合約 (套餐)"].find(s => s.id === itemId);
+            addComboToCart(item, chosenChicken);
+            closeOptModal();
+        }
+
+        function addComboToCart(item, chickenChoice) {
+            let comboId = item.id + '_' + chickenChoice;
+            let subItems = [{ name: `└ 雞肉: ${chickenChoice}`, price: 0 }];
+            item.items.forEach(sub => {
+                subItems.push({ name: `└ ${sub}`, price: 0 });
+            });
+
+            currentCart.push({
+                id: comboId,
+                name: `${item.name} (${chickenChoice})`,
+                price: item.price,
+                qty: 1,
+                subItems: subItems
+            });
+            updateCartUI();
+            refreshActiveGrid();
+        }
+
+        function showHotFoodCustomModal(item) {
+            const modal = document.getElementById('optModal');
+            const content = document.getElementById('optModalContent');
+            
+            let selectedSpice = "不辣";
+            let selectedSalt = "正常";
+
+            content.innerHTML = `
+                <h4 style="margin-bottom:12px; text-align:center;">【${item.name}】 客製調味</h4>
+                <div style="margin-bottom:10px;">
+                    <strong>辣度：</strong><br>
+                    <button class="modal-opt-btn spice-btn active" onclick="selectModalOpt('spice', '不辣', this)">不辣</button>
+                    <button class="modal-opt-btn spice-btn" onclick="selectModalOpt('spice', '小辣', this)">小辣</button>
+                    <button class="modal-opt-btn spice-btn" onclick="selectModalOpt('spice', '中辣', this)">中辣</button>
+                    <button class="modal-opt-btn spice-btn" onclick="selectModalOpt('spice', '大辣', this)">大辣</button>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <strong>鹹度：</strong><br>
+                    <button class="modal-opt-btn salt-btn" onclick="selectModalOpt('salt', '清淡', this)">清淡</button>
+                    <button class="modal-opt-btn salt-btn active" onclick="selectModalOpt('salt', '正常', this)">正常</button>
+                    <button class="modal-opt-btn salt-btn" onclick="selectModalOpt('salt', '重鹹', this)">重鹹</button>
+                </div>
+                <button class="btn btn-submit" style="width:100%;" onclick="confirmHotFoodCustom('${item.id}', '${item.name}', ${item.price})">確認加入</button>
+                <button class="close-btn" onclick="closeOptModal()">取消</button>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        let tempSpice = "不辣";
+        let tempSalt = "正常";
+
+        function selectModalOpt(type, val, btn) {
+            if (type === 'spice') {
+                tempSpice = val;
+                document.querySelectorAll('.spice-btn').forEach(b => b.classList.remove('active'));
+            } else {
+                tempSalt = val;
+                document.querySelectorAll('.salt-btn').forEach(b => b.classList.remove('active'));
+            }
+            btn.classList.add('active');
+        }
+
+        function confirmHotFoodCustom(id, name, price) {
+            let fullName = `${name} [${tempSpice}/${tempSalt}]`;
+            addToCart({ id: id + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, qty: 1 });
+            closeOptModal();
+        }
+
+        function closeOptModal() {
+            document.getElementById('optModal').style.display = 'none';
+            tempSpice = "不辣";
+            tempSalt = "正常";
+        }
+
+        function renderGrid(category) {
+            const displayArea = document.getElementById('menuDisplayArea');
+            const noticeBox = document.getElementById('categoryNotice');
+            displayArea.innerHTML = '';
+            
             if (categoryNotices[category]) {
                 noticeBox.innerHTML = categoryNotices[category];
                 noticeBox.style.display = 'block';
@@ -374,51 +533,52 @@
                 noticeBox.style.display = 'none';
             }
 
-            menuData[category].forEach(item => {
-                const card = document.createElement('div');
-                card.className = `item-card ${item.soldOut ? 'sold-out' : ''}`;
-                
-                card.onclick = () => {
-                    if (isEditMode) {
-                        item.soldOut = !item.soldOut;
-                        renderGrid(category);
-                    } else {
-                        if (!item.soldOut) {
-                            addToCart(item);
-                        }
+            if (category === "信仰雞本位主義 (主食)") {
+                const container = document.createElement('div');
+                container.className = 'chicken-bawi-container';
+
+                const headerRow = document.createElement('div');
+                headerRow.className = 'bawi-header-row';
+                headerRow.innerHTML = '<div>鹹本位</div><div>燻本位</div>';
+                container.appendChild(headerRow);
+
+                const items = menuData[category];
+                for (let i = 0; i < items.length; i += 2) {
+                    const row = document.createElement('div');
+                    row.className = 'bawi-grid-row';
+                    row.appendChild(createCardElement(items[i], category));
+                    if (items[i+1]) {
+                        row.appendChild(createCardElement(items[i+1], category));
                     }
-                };
-                
-                const count = currentCart[item.id] ? currentCart[item.id].qty : 0;
-                const badgeHtml = (count > 0 && !item.soldOut) ? `<div class="badge">${count}</div>` : '';
-                const soldOutTag = item.soldOut ? `<div class="sold-out-overlay">已售完</div>` : '';
-                
-                card.innerHTML = `
-                    ${badgeHtml}
-                    ${soldOutTag}
-                    <div class="item-name">${formatTitleWithBracket(item.name)}</div>
-                    <div class="item-price">$${item.price}</div>
-                `;
-                grid.appendChild(card);
-            });
+                    container.appendChild(row);
+                }
+                displayArea.appendChild(container);
+            } else {
+                const grid = document.createElement('div');
+                grid.className = 'grid-container';
+                menuData[category].forEach(item => {
+                    grid.appendChild(createCardElement(item, category));
+                });
+                displayArea.appendChild(grid);
+            }
         }
 
-        // Cart Actions
-        function addToCart(item) {
-            if (currentCart[item.id]) {
-                currentCart[item.id].qty++;
+        function addToCart(itemObj) {
+            let existing = currentCart.find(c => c.id === itemObj.id);
+            if (existing) {
+                existing.qty++;
             } else {
-                currentCart[item.id] = { ...item, qty: 1 };
+                currentCart.push(itemObj);
             }
             updateCartUI();
             refreshActiveGrid();
         }
 
-        function changeQty(id, delta) {
-            if (currentCart[id]) {
-                currentCart[id].qty += delta;
-                if (currentCart[id].qty <= 0) {
-                    delete currentCart[id];
+        function changeQty(index, delta) {
+            if (currentCart[index]) {
+                currentCart[index].qty += delta;
+                if (currentCart[index].qty <= 0) {
+                    currentCart.splice(index, 1);
                 }
                 updateCartUI();
                 refreshActiveGrid();
@@ -438,8 +598,7 @@
             listContainer.innerHTML = '';
             let total = 0;
 
-            for (let id in currentCart) {
-                const item = currentCart[id];
+            currentCart.forEach((item, idx) => {
                 total += item.price * item.qty;
                 
                 const div = document.createElement('div');
@@ -450,16 +609,24 @@
                         <div style="font-size:12px; color:#777;">$${item.price} × ${item.qty}</div>
                     </div>
                     <div class="order-item-qty">
-                        <button class="qty-btn" onclick="changeQty('${id}', -1)">-</button>
+                        <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
                         <span>${item.qty}</span>
-                        <button class="qty-btn" onclick="changeQty('${id}', 1)">+</button>
+                        <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
                     </div>
                     <div class="order-item-price">$${item.price * item.qty}</div>
                 `;
                 listContainer.appendChild(div);
-            }
 
-            // Flavor adjustment calculation
+                if (item.subItems) {
+                    item.subItems.forEach(sub => {
+                        const subDiv = document.createElement('div');
+                        subDiv.className = 'order-item sub-item';
+                        subDiv.innerHTML = `<div>${sub.name}</div><div>$0</div>`;
+                        listContainer.appendChild(subDiv);
+                    });
+                }
+            });
+
             if (orderPrefs.flavor === "泰式(+5元)") {
                 total += 5;
             }
@@ -467,10 +634,8 @@
             document.getElementById('totalAmount').innerText = `$${total}`;
         }
 
-        // Set Preference Handlers
         function setPref(type, value, btnEl) {
             orderPrefs[type] = value;
-            // Manage UI active styles
             btnEl.parentNode.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('active'));
             btnEl.classList.add('active');
             updateCartUI();
@@ -494,16 +659,15 @@
         }
 
         function clearCart() {
-            currentCart = {};
+            currentCart = [];
             orderPrefs.extras = [];
             document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('addon-active'));
             updateCartUI();
             refreshActiveGrid();
         }
 
-        // Order complete and output Receipt text
         function submitOrder() {
-            if (Object.keys(currentCart).length === 0) {
+            if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
                 return;
             }
@@ -534,8 +698,7 @@
             `;
 
             let subtotal = 0;
-            for (let id in currentCart) {
-                let item = currentCart[id];
+            currentCart.forEach(item => {
                 let itemCost = item.price * item.qty;
                 subtotal += itemCost;
                 receiptHtml += `
@@ -544,7 +707,17 @@
                         <span>$${itemCost}</span>
                     </div>
                 `;
-            }
+                if (item.subItems) {
+                    item.subItems.forEach(sub => {
+                        receiptHtml += `
+                            <div class="receipt-line" style="padding-left:15px; font-size:12px; color:#555;">
+                                <span>${sub.name}</span>
+                                <span>$0</span>
+                            </div>
+                        `;
+                    });
+                }
+            });
 
             if (orderPrefs.flavor === "泰式(+5元)") {
                 subtotal += 5;
@@ -556,7 +729,7 @@
                     <span>總計金額:</span>
                     <span>$${subtotal}</span>
                 </div>
-                <button class="close-receipt" onclick="closeReceipt()">完成並關閉</button>
+                <button class="close-btn" onclick="closeReceipt()">完成並關閉</button>
             `;
 
             content.innerHTML = receiptHtml;
@@ -568,7 +741,6 @@
             clearCart();
         }
 
-        // Run
         window.onload = initPOS;
     </script>
 </body>
