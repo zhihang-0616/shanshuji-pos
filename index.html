@@ -17,7 +17,11 @@
         
         /* Left Panel - Menu Selection */
         .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--bg-light); border-right: 2px solid var(--border-color); height: 100%; }
-        .menu-header { background-color: var(--primary-color); color: white; padding: 15px; text-align: center; font-size: 22px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .menu-header { background-color: var(--primary-color); color: white; padding: 15px; text-align: center; font-size: 22px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .menu-header-title { flex: 1; text-align: center; }
+        .soldout-toggle-btn { background: #d9534f; color: white; border: 1px solid white; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .soldout-toggle-btn.active { background: #ffc107; color: #333; }
+        
         .menu-tabs { display: flex; background: #e0d0b0; overflow-x: auto; border-bottom: 1px solid var(--border-color); }
         .tab-btn { padding: 12px 20px; border: none; background: none; font-size: 16px; font-weight: bold; cursor: pointer; color: #555; white-space: nowrap; transition: 0.2s; }
         .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 4px solid var(--primary-color); }
@@ -34,6 +38,16 @@
         .item-price { color: var(--primary-color); font-weight: bold; font-size: 14px; }
         .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
         
+        /* Soldout Styling */
+        .item-card.sold-out { background: #e9ecef; border-color: #ccc; opacity: 0.6; cursor: not-allowed; }
+        .item-card.sold-out .item-name { text-decoration: line-through; color: #6c757d; }
+        .item-card.sold-out .item-price { color: #6c757d; }
+        .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(217, 83, 79, 0.9); color: white; padding: 2px 8px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; }
+        
+        /* Edit Mode Highlight */
+        body.edit-mode .item-card { border: 2px dashed #d9534f; }
+        body.edit-mode .item-card.sold-out { border: 2px dashed #6c757d; }
+
         /* Right Panel - Checkout / Order List */
         .checkout-container { flex: 3; display: flex; flex-direction: column; background: #fdfcf7; height: 100%; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
         .order-title { background: #5c4033; color: white; padding: 15px; font-size: 18px; font-weight: bold; text-align: center; }
@@ -79,7 +93,10 @@
 
     <!-- Left Panel -->
     <div class="menu-container">
-        <div class="menu-header">去中心鹹水雞 智慧POS點餐系統</div>
+        <div class="menu-header">
+            <span class="menu-header-title">去中心鹹水雞 智慧POS點餐系統</span>
+            <button class="soldout-toggle-btn" id="soldoutToggleBtn" onclick="toggleEditMode()">切換至售罄管理</button>
+        </div>
         <div class="menu-tabs" id="menuTabs"></div>
         <div class="category-notice" id="categoryNotice"></div>
         <div class="grid-container" id="menuGrid"></div>
@@ -156,83 +173,83 @@
         // Full parsed menu database
         const menuData = {
             "信仰雞本位主義 (主食)": [
-                { id: "m1", name: "鹹水雞胸", price: 65 },
-                { id: "m2", name: "鹹水雞腿", price: 65 },
-                { id: "m3", name: "鹹水半雞", price: 130 },
-                { id: "m4", name: "煙燻雞胸", price: 75 },
-                { id: "m5", name: "煙燻雞腿", price: 75 },
-                { id: "m6", name: "煙燻半雞", price: 150 }
+                { id: "m1", name: "鹹水雞胸", price: 65, soldOut: false },
+                { id: "m2", name: "鹹水雞腿", price: 65, soldOut: false },
+                { id: "m3", name: "鹹水半雞", price: 130, soldOut: false },
+                { id: "m4", name: "煙燻雞胸", price: 75, soldOut: false },
+                { id: "m5", name: "煙燻雞腿", price: 75, soldOut: false },
+                { id: "m6", name: "煙燻半雞", price: 150, soldOut: false }
             ],
             "智能合約 (套餐)": [
-                { id: "s1", name: "散戶輕倉個人餐", price: 260 },
-                { id: "s2", name: "巨鯨重倉肉多多餐", price: 390 },
-                { id: "s3", name: "DAO 節點下酒派對餐", price: 630 },
-                { id: "s4", name: "輕食減醣肉多餐", price: 239 },
-                { id: "s5", name: "輕食減醣餐", price: 139 }
+                { id: "s1", name: "散戶輕倉個人餐", price: 260, soldOut: false },
+                { id: "s2", name: "巨鯨重倉肉多多餐", price: 390, soldOut: false },
+                { id: "s3", name: "DAO 節點下酒派對餐", price: 630, soldOut: false },
+                { id: "s4", name: "輕食減醣肉多餐", price: 239, soldOut: false },
+                { id: "s5", name: "輕食減醣餐", price: 139, soldOut: false }
             ],
             "鏈上綠色資產 (蔬菜)": [
-                { id: "v1", name: "娃娃菜", price: 40 },
-                { id: "v2", name: "玉米筍", price: 30 },
-                { id: "v3", name: "筍片", price: 25 },
-                { id: "v4", name: "水蓮", price: 25 },
-                { id: "v5", name: "四季豆", price: 25 },
-                { id: "v6", name: "龍鬚菜", price: 25 },
-                { id: "v7", name: "花椰菜", price: 25 },
-                { id: "v8", name: "鴻喜菇", price: 25 },
-                { id: "v9", name: "杏鮑菇", price: 20 },
-                { id: "v10", name: "金針菇", price: 20 },
-                { id: "v11", name: "小黃瓜", price: 20 },
-                { id: "v12", name: "高麗菜", price: 20 },
-                { id: "v13", name: "白蘿蔔", price: 20 },
-                { id: "v14", name: "黑木耳", price: 20 },
-                { id: "v15", name: "洋蔥", price: 20 },
-                { id: "v16", name: "海帶", price: 20 }
+                { id: "v1", name: "娃娃菜", price: 40, soldOut: false },
+                { id: "v2", name: "玉米筍", price: 30, soldOut: false },
+                { id: "v3", name: "筍片", price: 25, soldOut: false },
+                { id: "v4", name: "水蓮", price: 25, soldOut: false },
+                { id: "v5", name: "四季豆", price: 25, soldOut: false },
+                { id: "v6", name: "龍鬚菜", price: 25, soldOut: false },
+                { id: "v7", name: "花椰菜", price: 25, soldOut: false },
+                { id: "v8", name: "鴻喜菇", price: 25, soldOut: false },
+                { id: "v9", name: "杏鮑菇", price: 20, soldOut: false },
+                { id: "v10", name: "金針菇", price: 20, soldOut: false },
+                { id: "v11", name: "小黃瓜", price: 20, soldOut: false },
+                { id: "v12", name: "高麗菜", price: 20, soldOut: false },
+                { id: "v13", name: "白蘿蔔", price: 20, soldOut: false },
+                { id: "v14", name: "黑木耳", price: 20, soldOut: false },
+                { id: "v15", name: "洋蔥", price: 20, soldOut: false },
+                { id: "v16", name: "海帶", price: 20, soldOut: false }
             ],
             "DAO去中心肉類 (肉類)": [
-                { id: "meat1", name: "松阪豬", price: 75 },
-                { id: "meat2", name: "牛五花", price: 70 },
-                { id: "meat3", name: "雞軟骨", price: 40 },
-                { id: "meat4", name: "雞心", price: 30 },
-                { id: "meat5", name: "雞胗", price: 30 },
-                { id: "meat6", name: "雞冠", price: 25 },
-                { id: "meat7", name: "雞腸", price: 25 },
-                { id: "meat8", name: "雞皮", price: 25 },
-                { id: "meat9", name: "珍珠蛋", price: 25 },
-                { id: "meat10", name: "鑫鑫腸", price: 25 }
+                { id: "meat1", name: "松阪豬", price: 75, soldOut: false },
+                { id: "meat2", name: "牛五花", price: 70, soldOut: false },
+                { id: "meat3", name: "雞軟骨", price: 40, soldOut: false },
+                { id: "meat4", name: "雞心", price: 30, soldOut: false },
+                { id: "meat5", name: "雞胗", price: 30, soldOut: false },
+                { id: "meat6", name: "雞冠", price: 25, soldOut: false },
+                { id: "meat7", name: "雞腸", price: 25, soldOut: false },
+                { id: "meat8", name: "雞皮", price: 25, soldOut: false },
+                { id: "meat9", name: "珍珠蛋", price: 25, soldOut: false },
+                { id: "meat10", name: "鑫鑫腸", price: 25, soldOut: false }
             ],
             "節點火鍋料": [
-                { id: "f1", name: "鴨肉丸", price: 30 },
-                { id: "f2", name: "貢丸", price: 30 },
-                { id: "f3", name: "水晶餃", price: 30 },
-                { id: "f4", name: "甜不辣", price: 25 },
-                { id: "f5", name: "蟹味棒", price: 25 },
-                { id: "f6", name: "皮蛋(溏心)", price: 25 },
-                { id: "f7", name: "鹹蛋(碎)", price: 25 },
-                { id: "f8", name: "豆干", price: 25 },
-                { id: "f9", name: "百頁豆腐", price: 20 },
-                { id: "f10", name: "蒟蒻絲", price: 20 },
-                { id: "f11", name: "豆皮衣(炸)", price: 20 },
-                { id: "f12", name: "豆皮", price: 20 },
-                { id: "f13", name: "米血", price: 20 }
+                { id: "f1", name: "鴨肉丸", price: 30, soldOut: false },
+                { id: "f2", name: "貢丸", price: 30, soldOut: false },
+                { id: "f3", name: "水晶餃", price: 30, soldOut: false },
+                { id: "f4", name: "甜不辣", price: 25, soldOut: false },
+                { id: "f5", name: "蟹味棒", price: 25, soldOut: false },
+                { id: "f6", name: "皮蛋(溏心)", price: 25, soldOut: false },
+                { id: "f7", name: "鹹蛋(碎)", price: 25, soldOut: false },
+                { id: "f8", name: "豆干", price: 25, soldOut: false },
+                { id: "f9", name: "百頁豆腐", price: 20, soldOut: false },
+                { id: "f10", name: "蒟蒻絲", price: 20, soldOut: false },
+                { id: "f11", name: "豆皮衣(炸)", price: 20, soldOut: false },
+                { id: "f12", name: "豆皮", price: 20, soldOut: false },
+                { id: "f13", name: "米血", price: 20, soldOut: false }
             ],
             "共識滷味協議": [
-                { id: "l1", name: "無骨鳳爪", price: 45 },
-                { id: "l2", name: "豬耳朵", price: 45 },
-                { id: "l3", name: "滷脆腸", price: 45 }
+                { id: "l1", name: "無骨鳳爪", price: 45, soldOut: false },
+                { id: "l2", name: "豬耳朵", price: 45, soldOut: false },
+                { id: "l3", name: "滷脆腸", price: 45, soldOut: false }
             ],
             "自由流通麵 (麵食)": [
-                { id: "z1", name: "王子麵", price: 15 },
-                { id: "z2", name: "冬粉", price: 15 }
+                { id: "z1", name: "王子麵", price: 15, soldOut: false },
+                { id: "z2", name: "冬粉", price: 15, soldOut: false }
             ],
             "厝邊溫食(炒麵/燴飯)": [
-                { id: "w1", name: "沙茶羊肉炒麵", price: 120 },
-                { id: "w2", name: "沙茶牛肉炒麵", price: 120 },
-                { id: "w3", name: "沙茶羊肉燴飯", price: 120 },
-                { id: "w4", name: "沙茶牛肉燴飯", price: 120 },
-                { id: "w5", name: "炒羊肉", price: 150 },
-                { id: "w6", name: "炒牛肉", price: 150 },
-                { id: "w7", name: "炒青菜", price: 100 },
-                { id: "w8", name: "當歸羊肉湯", price: 80 }
+                { id: "w1", name: "沙茶羊肉炒麵", price: 120, soldOut: false },
+                { id: "w2", name: "沙茶牛肉炒麵", price: 120, soldOut: false },
+                { id: "w3", name: "沙茶羊肉燴飯", price: 120, soldOut: false },
+                { id: "w4", name: "沙茶牛肉燴飯", price: 120, soldOut: false },
+                { id: "w5", name: "炒羊肉", price: 150, soldOut: false },
+                { id: "w6", name: "炒牛肉", price: 150, soldOut: false },
+                { id: "w7", name: "炒青菜", price: 100, soldOut: false },
+                { id: "w8", name: "當歸羊肉湯", price: 80, soldOut: false }
             ]
         };
 
@@ -244,6 +261,22 @@
             extras: []
         };
         let currentPayment = "現金";
+        let isEditMode = false;
+
+        // Toggle Soldout Edit Mode
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('soldoutToggleBtn');
+            if (isEditMode) {
+                btn.innerText = "退出售罄管理";
+                btn.classList.add('active');
+                document.body.classList.add('edit-mode');
+            } else {
+                btn.innerText = "切換至售罄管理";
+                btn.classList.remove('active');
+                document.body.classList.remove('edit-mode');
+            }
+        }
 
         // Initialize App
         function initPOS() {
@@ -284,14 +317,26 @@
 
             menuData[category].forEach(item => {
                 const card = document.createElement('div');
-                card.className = 'item-card';
-                card.onclick = () => addToCart(item);
+                card.className = `item-card ${item.soldOut ? 'sold-out' : ''}`;
+                
+                card.onclick = () => {
+                    if (isEditMode) {
+                        item.soldOut = !item.soldOut;
+                        renderGrid(category);
+                    } else {
+                        if (!item.soldOut) {
+                            addToCart(item);
+                        }
+                    }
+                };
                 
                 const count = currentCart[item.id] ? currentCart[item.id].qty : 0;
-                const badgeHtml = count > 0 ? `<div class="badge">${count}</div>` : '';
+                const badgeHtml = (count > 0 && !item.soldOut) ? `<div class="badge">${count}</div>` : '';
+                const soldOutTag = item.soldOut ? `<div class="sold-out-overlay">已售完</div>` : '';
                 
                 card.innerHTML = `
                     ${badgeHtml}
+                    ${soldOutTag}
                     <div class="item-name">${item.name}</div>
                     <div class="item-price">$${item.price}</div>
                 `;
