@@ -95,7 +95,7 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
-        /* Customer Info Box (四欄位版) */
+        /* Customer Info Box (連絡電話改為必填) */
         .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
         .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .input-row:last-child { margin-bottom: 0; }
@@ -187,15 +187,15 @@
         <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
 
-        <!-- 顧客取餐資訊區塊 (更新為四個獨立欄位) -->
+        <!-- 顧客取餐資訊區塊 (姓名、電話必填) -->
         <div class="customer-info-box">
             <div class="input-row">
                 <span class="input-label">訂購姓名*:</span>
                 <input type="text" id="custName" class="input-field" placeholder="請輸入姓名 (必填)">
             </div>
             <div class="input-row">
-                <span class="input-label">連絡電話:</span>
-                <input type="tel" id="custPhone" class="input-field" placeholder="請輸入連絡電話 (選填)">
+                <span class="input-label">連絡電話*:</span>
+                <input type="tel" id="custPhone" class="input-field" placeholder="請輸入連絡電話 (必填)">
             </div>
             <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
@@ -308,8 +308,21 @@
         <div class="modal-content" style="width:400px; max-width:90vw;">
             <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">修改訂單品項與金額</h4>
             <div id="itemEditContainer" style="max-height:50vh; overflow-y:auto; margin-bottom:10px;"></div>
-            <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="addNewItemToEditingOrder()">+ 新增單品</button>
+            <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="showMenuSelectModalForEdit()">+ 新增單品 (選單選擇)</button>
             <button class="btn btn-clear" style="width:100%;" onclick="closeItemEditModal()">完成確認</button>
+        </div>
+    </div>
+
+    <!-- Menu Item Picker Modal (新增品項專用下拉選單) -->
+    <div class="modal" id="menuSelectModal">
+        <div class="modal-content" style="width:360px; max-width:90vw;">
+            <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">選擇要新增的品項</h4>
+            <div style="margin-bottom:15px;">
+                <select id="menuSelectDropdown" class="input-field" style="width:100%; font-size:14px; background:#fff; color:#000;" onchange="updateSelectedMenuPricePreview()"></select>
+            </div>
+            <div style="text-align:center; margin-bottom:15px; font-weight:bold; color:#8b1e0f;" id="menuSelectPricePreview">單價：$0</div>
+            <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="confirmAddSelectedItemToOrder()">確認加入</button>
+            <button class="close-btn" onclick="closeMenuSelectModal()">取消</button>
         </div>
     </div>
 
@@ -437,6 +450,17 @@
             ]
         };
 
+        // 扁平化菜單清單 (供下拉選單使用)
+        let flatMenuOptions = [];
+        function initFlatMenuOptions() {
+            flatMenuOptions = [];
+            for (let category in menuData) {
+                menuData[category].forEach(item => {
+                    flatMenuOptions.push({ name: item.name, price: item.price, category: category });
+                });
+            }
+        }
+
         // 開倉調整關閉狀態管理
         let disabledPrefs = { flavor: [], spice: [], salt: [], extra: [] };
         let currentCart = [];
@@ -561,6 +585,7 @@
         }
 
         function initPOS() {
+            initFlatMenuOptions();
             const tabsContainer = document.getElementById('menuTabs');
             let firstCategory = true;
 
@@ -963,6 +988,12 @@
                 return;
             }
 
+            if (!custPhone) {
+                alert("請填寫【連絡電話】才可完成下單！");
+                document.getElementById('custPhone').focus();
+                return;
+            }
+
             if (!pickupTimeRaw) {
                 alert("請選擇【取餐時間】才可完成下單！");
                 document.getElementById('pickupTime').focus();
@@ -1048,7 +1079,7 @@
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
                 <div class="receipt-line"><span>訂購姓名:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
-                <div class="receipt-line"><span>連絡電話:</span> <span>${custPhone || '未提供'}</span></div>
+                <div class="receipt-line"><span>連絡電話:</span> <span style="font-weight:bold; color:#8B1E0F;">${custPhone}</span></div>
                 <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:#8B1E0F;">${formattedPickupTime}</span></div>
                 <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} (${weekDayStr}) ${timeStr}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
@@ -1199,7 +1230,7 @@
             renderOrderMgmtTable();
         }
 
-        /* 📦 品項彈出修改 Modal 邏輯 */
+        /* 📦 品項彈出修改 Modal 邏輯 (選單式新增) */
         function openItemEditModal(index) {
             currentEditingOrderIndex = index;
             renderItemEditList();
@@ -1237,13 +1268,50 @@
             calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
         }
 
-        function addNewItemToEditingOrder() {
-            let name = prompt("請輸入新增單品名稱:", "自訂品項");
-            if (!name) return;
-            let price = parseInt(prompt("請輸入單價金額:", "30") || "0");
-            localOrderHistory[currentEditingOrderIndex].items.push({ name: name, qty: 1, price: price, subItems: null });
-            calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-            renderItemEditList();
+        /* 🔽 新增品項下拉選單邏輯 */
+        function showMenuSelectModalForEdit() {
+            const dropdown = document.getElementById('menuSelectDropdown');
+            dropdown.innerHTML = '';
+            
+            flatMenuOptions.forEach((opt, idx) => {
+                let optionElem = document.createElement('option');
+                optionElem.value = idx;
+                optionElem.text = `[${opt.category}] ${opt.name} ($${opt.price})`;
+                dropdown.appendChild(optionElem);
+            });
+
+            updateSelectedMenuPricePreview();
+            document.getElementById('menuSelectModal').style.display = 'flex';
+        }
+
+        function updateSelectedMenuPricePreview() {
+            const dropdown = document.getElementById('menuSelectDropdown');
+            const selectedIdx = dropdown.value;
+            if (flatMenuOptions[selectedIdx]) {
+                document.getElementById('menuSelectPricePreview').innerText = `預設單價：$${flatMenuOptions[selectedIdx].price}`;
+            }
+        }
+
+        function confirmAddSelectedItemToOrder() {
+            const dropdown = document.getElementById('menuSelectDropdown');
+            const selectedIdx = dropdown.value;
+            const opt = flatMenuOptions[selectedIdx];
+
+            if (opt) {
+                localOrderHistory[currentEditingOrderIndex].items.push({
+                    name: opt.name,
+                    qty: 1,
+                    price: opt.price,
+                    subItems: null
+                });
+                calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+                renderItemEditList();
+                closeMenuSelectModal();
+            }
+        }
+
+        function closeMenuSelectModal() {
+            document.getElementById('menuSelectModal').style.display = 'none';
         }
 
         function removeItemFromEditingOrder(itemIdx) {
