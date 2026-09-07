@@ -180,7 +180,6 @@
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
-                <!-- 依序為：接單管理、餐點管理、售完品項、管理員模式 -->
                 <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單管理 (0)</button>
                 <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
                 <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完品項</button>
@@ -202,15 +201,12 @@
             <span id="orderListToggleIcon">▼</span>
         </div>
         
-        <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
 
-        <!-- 🔍 顧客專用訂單進度查詢列 -->
         <div class="status-check-box">
             <button class="header-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold);" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
         </div>
 
-        <!-- 顧客取餐資訊區塊 -->
         <div class="customer-info-box">
             <div class="input-row">
                 <span class="input-label">訂購人*:</span>
@@ -231,7 +227,6 @@
             </div>
         </div>
 
-        <!-- Preferences (辣度, 鹹度, 口味, 備註) -->
         <div class="preferences-box">
             <div class="pref-header">
                 <div>開倉調整</div>
@@ -266,7 +261,6 @@
             </div>
         </div>
 
-        <!-- Total & Checkout button -->
         <div class="summary-box">
             <div class="total-row">
                 <span>總金額:</span>
@@ -285,17 +279,14 @@
         </div>
     </div>
 
-    <!-- Option Select Modal -->
     <div class="modal" id="optModal">
         <div class="modal-content" id="optModalContent"></div>
     </div>
 
-    <!-- Receipt Output Popup -->
     <div class="modal" id="receiptModal">
         <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
     </div>
 
-    <!-- ⚙️ 管理員控制台 Modal (密碼輸入後開啟) -->
     <div class="modal" id="adminMenuModal">
         <div class="modal-content" style="width:320px; text-align:center;">
             <h3 style="color:#3d2b1a; margin-bottom:20px;">⚙️ 管理員控制台</h3>
@@ -309,7 +300,6 @@
         </div>
     </div>
 
-    <!-- ⚡ 接單管理 Modal -->
     <div class="modal" id="quickAcceptModal">
         <div class="modal-content" style="width:450px; max-width:90vw;">
             <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">⚡ 店家接單管理面板</h3>
@@ -318,7 +308,6 @@
         </div>
     </div>
 
-    <!-- 📋 售完品項快速管理 Modal -->
     <div class="modal" id="soldoutListModal">
         <div class="modal-content" style="width:420px; max-width:90vw;">
             <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">📋 目前售完品項管理</h3>
@@ -327,7 +316,6 @@
         </div>
     </div>
 
-    <!-- Admin Order Manager Modal -->
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
             <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:15px;">📋 歷史訂單紀錄與審核修改</h3>
@@ -358,7 +346,6 @@
         </div>
     </div>
 
-    <!-- Items Edit Modal -->
     <div class="modal" id="itemEditModal">
         <div class="modal-content" style="width:400px; max-width:90vw;">
             <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">修改訂單品項與金額</h4>
@@ -368,7 +355,6 @@
         </div>
     </div>
 
-    <!-- Menu Item Picker Modal -->
     <div class="modal" id="menuSelectModal">
         <div class="modal-content" style="width:360px; max-width:90vw;">
             <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">選擇要新增的品項</h4>
@@ -377,17 +363,16 @@
             </div>
             <div style="text-align:center; margin-bottom:15px; font-weight:bold; color:#8b1e0f;" id="menuSelectPricePreview">單價：$0</div>
             <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="confirmAddSelectedItemToOrder()">確認加入</button>
-            <button class="close-btn" onclick="closeMenuSelectModal()">cancel</button>
+            <button class="close-btn" onclick="closeMenuSelectModal()">取消</button>
         </div>
     </div>
 
     <script>
-        // 最新 GAS 部署網址 (自動推播至 LINE 群組)
+        // 請將此處的 GAS_URL 替換為您的最新部署網址
         const GAS_URL = "https://script.google.com/macros/s/AKfycbz_895ZUhbRdARsQ_KwHtcDhsZKVCQSRVplzIKgJD5wakdd7MV4SbGg-fSaU-Iv8BzRYQ/exec";
 
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
-        // 管理員密碼管理（預設 8888，支援 LocalStorage 保存變更）
         function getAdminPassword() {
             return localStorage.getItem('pos_admin_password') || '8888';
         }
@@ -396,13 +381,11 @@
             localStorage.setItem('pos_admin_password', newPwd);
         }
 
-        // Category Specific Notices
         const categoryNotices = {
             "厝邊溫食(炒麵/燴飯)": "炒麵類 預設使用芥藍菜 若遇缺貨將調整為油菜或高麗菜<br>炒青菜 為當季時令蔬菜 品項隨季節調整 恕無法指定",
             "智能合約 (套餐)": "套餐內容物如遇缺貨 將自動更換等值商品 恕無法指定變更"
         };
 
-        // Full parsed menu database
         const menuData = {
             "信仰雞本位主義 (主食)": [
                 { id: "m2", name: "鹹水雞腿", price: 65, soldOut: false, type: "鹹本位" },
@@ -511,7 +494,6 @@
             ]
         };
 
-        // 扁平化菜單清單
         let flatMenuOptions = [];
         function initFlatMenuOptions() {
             flatMenuOptions = [];
@@ -550,7 +532,6 @@
             badge.innerText = "星期--";
         }
 
-        /* 🔐 管理員控制台驗證與開啟 */
         function openAdminMenu() {
             let pwd = prompt("進入管理員模式，請輸入密碼:");
             if (pwd === null) return;
@@ -565,7 +546,6 @@
             document.getElementById('adminMenuModal').style.display = 'none';
         }
 
-        /* 從管理員面板觸發的各項功能 */
         function openOrderManagerFromAdmin() {
             closeAdminMenu();
             openOrderManager();
@@ -581,7 +561,6 @@
             exportMonthlyReport();
         }
 
-        /* 🍔 切換「餐點管理」模式 (開啟/關閉) */
         function toggleMealMgmtMode() {
             isEditMode = !isEditMode;
             const mealBtn = document.getElementById('mealMgmtBtn');
@@ -597,34 +576,28 @@
             }
         }
 
-        /* 🔑 修改管理員密碼 */
         function changeAdminPassword() {
             let currentInput = prompt("請輸入當前管理員密碼:");
             if (currentInput === null) return;
-            
             if (currentInput !== getAdminPassword()) {
                 alert("目前密碼輸入錯誤，無法更換密碼！");
                 return;
             }
-
             let newPwd = prompt("請輸入新管理員密碼:");
             if (!newPwd || newPwd.trim() === '') {
                 alert("密碼不可為空！");
                 return;
             }
-
             let confirmPwd = prompt("請再次輸入新管理員密碼確認:");
             if (newPwd !== confirmPwd) {
                 alert("兩次密碼輸入不一致，修改失敗！");
                 return;
             }
-
             setAdminPassword(newPwd.trim());
             alert("管理員密碼已成功修改！");
             closeAdminMenu();
         }
 
-        /* 🏪 開啟店家專屬接單畫面 */
         function enableStoreMode() {
             document.body.classList.add('admin-mode');
             alert("已切換為店家接單介面！");
@@ -670,38 +643,30 @@
             }
         }
 
-        /* 🍗 智慧聯動庫存邏輯 (煙燻雞腿連動煙燻半雞與套餐) */
         function checkInventoryLogic(changedItemName, isSoldOut) {
             const chickenList = menuData["信仰雞本位主義 (主食)"];
-            const comboList = menuData["智能合約 (套餐)"];
-
             const m1 = chickenList.find(i => i.id === "m1");
             const m2 = chickenList.find(i => i.id === "m2");
             const m3 = chickenList.find(i => i.id === "m3");
-            const m4 = chickenList.find(i => i.id === "m4");
             const m5 = chickenList.find(i => i.id === "m5");
             const m6 = chickenList.find(i => i.id === "m6");
 
-            // 鹹水連動
             if (m1.soldOut || m2.soldOut) {
                 m3.soldOut = true;
             } else {
                 m3.soldOut = false;
             }
 
-            // 煙燻連動：若煙燻雞腿變更
             if (changedItemName === "煙燻雞腿") {
                 if (isSoldOut) {
-                    m6.soldOut = true; // 煙燻半雞跟著關閉
-                    // 套餐中的煙燻選項自動關閉或標記
+                    m6.soldOut = true;
                 } else {
-                    m6.soldOut = false; // 煙燻半雞跟著打開
+                    m6.soldOut = false;
                 }
             }
 
-            // 煙燻半雞連動煙燻雞腿 (若手動關閉半雞，腿也可以不一定要全關，但若半雞打開，腿打開)
             if (changedItemName === "煙燻半雞" && !isSoldOut) {
-                m5.soldOut = false; // 打開半雞時自動打開煙燻雞腿
+                m5.soldOut = false; 
             }
         }
 
@@ -734,7 +699,6 @@
             }
         }
 
-        /* 📋 開啟「售完品項」快速管理面板 */
         function openSoldoutListModal() {
             const container = document.getElementById('soldoutListContainer');
             container.innerHTML = '';
@@ -778,11 +742,10 @@
                 item.soldOut = false;
                 checkInventoryLogic(item.name, false);
                 refreshActiveGrid();
-                openSoldoutListModal(); // 重新整理清單
+                openSoldoutListModal();
             }
         }
 
-        /* 🔍 自動檢查網址參數判斷是否開啟店家模式 */
         function checkAdminModeFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('mode') === 'admin') {
@@ -883,7 +846,7 @@
                     const chickenList = menuData["信仰雞本位主義 (主食)"];
                     const breast = chickenList.find(i => i.id === "m1");
                     if (breast && breast.soldOut) {
-                        alert("鹹水雞胸已售完, 無法點購此套餐！");
+                        alert("鹹水雞胸已售完，無法點購此套餐！");
                         return;
                     }
                     addComboToCart(item, item.fixedChicken);
@@ -1179,7 +1142,6 @@
             updatePendingCountHeader();
         }
 
-        /* 🔍 顧客輸入電話查詢接單進度 */
         function checkOrderStatusByPhone() {
             let phoneQuery = prompt("請輸入下單時填寫的連絡電話:");
             if (!phoneQuery) return;
@@ -1207,7 +1169,6 @@
             alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n總金額: $${lastOrder.total}\n目前接單進度：${statusText}`);
         }
 
-        /* ⚡ 接單管理面板邏輯 */
         function openQuickAcceptModal() {
             renderQuickAcceptList();
             document.getElementById('quickAcceptModal').style.display = 'flex';
@@ -1435,7 +1396,6 @@
             clearCart();
         }
 
-        /* 📋 訂單審核與修改管理邏輯 */
         function openOrderManager() {
             localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             renderOrderMgmtTable();
@@ -1494,8 +1454,8 @@
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${index}, 'phone', this.value)"></td>
                     <td>
                         <div class="discount-container">
-                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.discountPercent}" placeholder="80" onchange="updateHistoryDiscount(${index}, 'discountPercent', this.value)"> %</div>
-                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.deductAmount}" placeholder="3" onchange="updateHistoryDiscount(${index}, 'deductAmount', this.value)"></div>
+                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px;" value="${ord.discountPercent}" onchange="updateHistoryDiscount(${index}, 'discountPercent', this.value)"> %</div>
+                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px;" value="${ord.deductAmount}" onchange="updateHistoryDiscount(${index}, 'deductAmount', this.value)"></div>
                         </div>
                     </td>
                     <td style="font-weight:bold; color:var(--primary-gold);">$${ord.total}</td>
@@ -1507,7 +1467,7 @@
                             <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
                         </select>
                     </td>
-                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項內容 (${ord.items.length})</button></td>
+                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項 (${ord.items.length})</button></td>
                     <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${index}, 'flavor', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${index}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${index})">刪除</button></td>
@@ -1530,7 +1490,6 @@
             renderOrderMgmtTable();
         }
 
-        /* 📦 品項彈出修改 Modal 邏輯 */
         function openItemEditModal(index) {
             currentEditingOrderIndex = index;
             renderItemEditList();
@@ -1571,14 +1530,12 @@
         function showMenuSelectModalForEdit() {
             const dropdown = document.getElementById('menuSelectDropdown');
             dropdown.innerHTML = '';
-            
             flatMenuOptions.forEach((opt, idx) => {
                 let optionElem = document.createElement('option');
                 optionElem.value = idx;
                 optionElem.text = `[${opt.category}] ${opt.name} ($${opt.price})`;
                 dropdown.appendChild(optionElem);
             });
-
             updateSelectedMenuPricePreview();
             document.getElementById('menuSelectModal').style.display = 'flex';
         }
@@ -1595,7 +1552,6 @@
             const dropdown = document.getElementById('menuSelectDropdown');
             const selectedIdx = dropdown.value;
             const opt = flatMenuOptions[selectedIdx];
-
             if (opt) {
                 localOrderHistory[currentEditingOrderIndex].items.push({
                     name: opt.name,
@@ -1632,7 +1588,6 @@
             updatePendingCountHeader();
         }
 
-        /* 📊 Excel 報表匯出邏輯 */
         function downloadCSV(csvContent, fileName) {
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -1649,18 +1604,15 @@
             order.items.forEach(item => {
                 let nameStr = item.qty > 1 ? `${item.name}*${item.qty}` : item.name;
                 itemList.push({ name: nameStr, price: item.price * item.qty });
-
                 if (item.subItems) {
                     item.subItems.forEach(sub => {
                         itemList.push({ name: sub.name, price: 0 });
                     });
                 }
             });
-
             if (order.prefs && order.prefs.flavor === "泰式+5元") {
                 itemList.push({ name: "泰式醬料加價", price: 5 });
             }
-
             return itemList;
         }
 
@@ -1669,11 +1621,9 @@
             let now = new Date();
             let defaultDate = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}`;
             let targetDate = prompt("請輸入要匯出的日報日期 (格式：YYYY/MM/DD):", defaultDate);
-
             if (!targetDate) return;
 
             const filteredOrders = history.filter(o => o.date === targetDate);
-
             if (filteredOrders.length === 0) {
                 alert(`找不到 ${targetDate} 的訂單紀錄！`);
                 return;
@@ -1692,31 +1642,26 @@
             csv += ",口味,備註\n";
 
             let dayTotalAmount = 0;
-
             filteredOrders.forEach(o => {
                 calculateOrderFinalTotal(o);
                 dayTotalAmount += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
+                let flavorText = o.prefs ? `${o.prefs.flavor}/${o.prefs.spice}/${o.prefs.salt}` : "原味";
                 let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
                 
                 let notesArr = [];
                 if (payNotes) notesArr.push(payNotes);
                 if (o.custNotes) notesArr.push(o.custNotes);
                 if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
-
                 let notesText = notesArr.join(" ");
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
-
                 let formattedItems = formatOrderItemsForCSV(o);
-                formattedItems.forEach(item => {
+                formattedItems.execute && formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
                 });
-
                 for (let i = formattedItems.length; i < maxItemsCount; i++) {
                     line += `,"",""`;
                 }
-
                 line += `,"${flavorText}","${notesText}"\n`;
                 csv += line;
             });
@@ -1724,7 +1669,6 @@
             let dateParts = targetDate.split('/');
             let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
             csv += `"${shortDateTag}","","","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
-
             downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
         }
 
@@ -1733,11 +1677,9 @@
             let now = new Date();
             let defaultMonth = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}`;
             let targetMonth = prompt("請輸入要匯出的月報月份 (格式：YYYY/MM):", defaultMonth);
-
             if (!targetMonth) return;
 
             const filteredOrders = history.filter(o => o.date && o.date.startsWith(targetMonth));
-
             if (filteredOrders.length === 0) {
                 alert(`找不到 ${targetMonth} 的月報訂單紀錄！`);
                 return;
@@ -1756,37 +1698,31 @@
             csv += ",口味,備註\n";
 
             let grandTotal = 0;
-
             filteredOrders.forEach(o => {
                 calculateOrderFinalTotal(o);
                 grandTotal += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
+                let flavorText = o.prefs ? `${o.prefs.flavor}/${o.prefs.spice}/${o.prefs.salt}` : "原味";
                 let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
 
                 let notesArr = [];
                 if (payNotes) notesArr.push(payNotes);
                 if (o.custNotes) notesArr.push(o.custNotes);
                 if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
-
                 let notesText = notesArr.join(" ");
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
-
                 let formattedItems = formatOrderItemsForCSV(o);
                 formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
                 });
-
                 for (let i = formattedItems.length; i < maxItemsCount; i++) {
                     line += `,"",""`;
                 }
-
                 line += `,"${flavorText}","${notesText}"\n`;
                 csv += line;
             });
 
             csv += `"當月總計","","","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
-
             downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g,'-')}.csv`);
         }
 
