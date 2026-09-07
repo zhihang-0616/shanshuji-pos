@@ -95,7 +95,7 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
-        /* Customer Info Box (連絡電話改為必填) */
+        /* Customer Info Box (訂購人與電話皆為必填) */
         .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
         .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .input-row:last-child { margin-bottom: 0; }
@@ -187,14 +187,14 @@
         <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
 
-        <!-- 顧客取餐資訊區塊 (姓名、電話必填) -->
+        <!-- 顧客取餐資訊區塊 -->
         <div class="customer-info-box">
             <div class="input-row">
-                <span class="input-label">訂購姓名*:</span>
-                <input type="text" id="custName" class="input-field" placeholder="請輸入姓名 (必填)">
+                <span class="input-label">訂購人*:</span>
+                <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
             </div>
             <div class="input-row">
-                <span class="input-label">連絡電話*:</span>
+                <span class="input-label">電話*:</span>
                 <input type="tel" id="custPhone" class="input-field" placeholder="請輸入連絡電話 (必填)">
             </div>
             <div class="input-row">
@@ -285,8 +285,8 @@
                     <thead>
                         <tr>
                             <th>時間</th>
-                            <th>姓名</th>
-                            <th>連絡電話</th>
+                            <th>訂購人</th>
+                            <th>電話</th>
                             <th style="width:110px;">折扣/折讓調整</th>
                             <th style="width:70px;">實收總額</th>
                             <th>付款</th>
@@ -313,7 +313,7 @@
         </div>
     </div>
 
-    <!-- Menu Item Picker Modal (新增品項專用下拉選單) -->
+    <!-- Menu Item Picker Modal -->
     <div class="modal" id="menuSelectModal">
         <div class="modal-content" style="width:360px; max-width:90vw;">
             <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">選擇要新增的品項</h4>
@@ -450,7 +450,7 @@
             ]
         };
 
-        // 扁平化菜單清單 (供下拉選單使用)
+        // 扁平化菜單清單
         let flatMenuOptions = [];
         function initFlatMenuOptions() {
             flatMenuOptions = [];
@@ -461,7 +461,6 @@
             }
         }
 
-        // 開倉調整關閉狀態管理
         let disabledPrefs = { flavor: [], spice: [], salt: [], extra: [] };
         let currentCart = [];
         let orderPrefs = { flavor: "原味", spice: "中辣", salt: "正常", extras: [] };
@@ -983,13 +982,13 @@
             const custNotes = document.getElementById('custNotes').value.trim();
 
             if (!custName) {
-                alert("請填寫【訂購姓名】才可完成下單！");
+                alert("請填寫【訂購人】才可完成下單！");
                 document.getElementById('custName').focus();
                 return;
             }
 
             if (!custPhone) {
-                alert("請填寫【連絡電話】才可完成下單！");
+                alert("請填寫【電話】才可完成下單！");
                 document.getElementById('custPhone').focus();
                 return;
             }
@@ -1078,8 +1077,8 @@
                     <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
-                <div class="receipt-line"><span>訂購姓名:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
-                <div class="receipt-line"><span>連絡電話:</span> <span style="font-weight:bold; color:#8B1E0F;">${custPhone}</span></div>
+                <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
+                <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:#8B1E0F;">${custPhone}</span></div>
                 <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:#8B1E0F;">${formattedPickupTime}</span></div>
                 <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} (${weekDayStr}) ${timeStr}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
@@ -1230,7 +1229,7 @@
             renderOrderMgmtTable();
         }
 
-        /* 📦 品項彈出修改 Modal 邏輯 (選單式新增) */
+        /* 📦 品項彈出修改 Modal 邏輯 */
         function openItemEditModal(index) {
             currentEditingOrderIndex = index;
             renderItemEditList();
@@ -1268,7 +1267,6 @@
             calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
         }
 
-        /* 🔽 新增品項下拉選單邏輯 */
         function showMenuSelectModalForEdit() {
             const dropdown = document.getElementById('menuSelectDropdown');
             dropdown.innerHTML = '';
@@ -1332,7 +1330,7 @@
             alert("訂單修改內容已成功儲存！");
         }
 
-        /* 📊 Excel 報表匯出邏輯 (對齊圖片格式 + 呈現電話與折扣備註) */
+        /* 📊 Excel 報表匯出邏輯 (精確欄位順序：日期, 星期, 時間, 訂購人, 電話, 總額, (單品, 單價)×N, 口味, 備註) */
         function downloadCSV(csvContent, fileName) {
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -1385,7 +1383,7 @@
                 if (formattedItems.length > maxItemsCount) maxItemsCount = formattedItems.length;
             });
 
-            let csv = "日期,星期,時間,總額";
+            let csv = "日期,星期,時間,訂購人,電話,總額";
             for (let i = 0; i < maxItemsCount; i++) {
                 csv += ",單品,單價";
             }
@@ -1401,13 +1399,12 @@
                 
                 let notesArr = [];
                 if (payNotes) notesArr.push(payNotes);
-                if (o.phone) notesArr.push(`電話:${o.phone}`);
                 if (o.custNotes) notesArr.push(o.custNotes);
                 if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
 
                 let notesText = notesArr.join(" ");
 
-                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
+                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
 
                 let formattedItems = formatOrderItemsForCSV(o);
                 formattedItems.forEach(item => {
@@ -1424,7 +1421,7 @@
 
             let dateParts = targetDate.split('/');
             let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
-            csv += `"${shortDateTag}","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
+            csv += `"${shortDateTag}","","","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
 
             downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
         }
@@ -1450,7 +1447,7 @@
                 if (formattedItems.length > maxItemsCount) maxItemsCount = formattedItems.length;
             });
 
-            let csv = "日期,星期,時間,總額";
+            let csv = "日期,星期,時間,訂購人,電話,總額";
             for (let i = 0; i < maxItemsCount; i++) {
                 csv += ",單品,單價";
             }
@@ -1466,13 +1463,12 @@
 
                 let notesArr = [];
                 if (payNotes) notesArr.push(payNotes);
-                if (o.phone) notesArr.push(`電話:${o.phone}`);
                 if (o.custNotes) notesArr.push(o.custNotes);
                 if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
 
                 let notesText = notesArr.join(" ");
 
-                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
+                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
 
                 let formattedItems = formatOrderItemsForCSV(o);
                 formattedItems.forEach(item => {
@@ -1487,7 +1483,7 @@
                 csv += line;
             });
 
-            csv += `"當月總計","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
+            csv += `"當月總計","","","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
 
             downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g,'-')}.csv`);
         }
