@@ -17,24 +17,26 @@
         
         /* Left Panel - Menu Selection */
         .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--bg-light); border-right: 2px solid var(--border-color); height: 100%; }
-        .menu-header { background-color: var(--primary-color); color: white; padding: 15px; text-align: center; font-size: 22px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .menu-header { background-color: var(--primary-color); color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
         .menu-header-title { flex: 1; text-align: center; }
         .soldout-toggle-btn { background: #d9534f; color: white; border: 1px solid white; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .soldout-toggle-btn.active { background: #ffc107; color: #333; }
         
+        /* Top Navigation Tabs - Smaller Font & Centered Subtitle */
         .menu-tabs { display: flex; background: #e0d0b0; overflow-x: auto; border-bottom: 1px solid var(--border-color); }
-        .tab-btn { padding: 12px 20px; border: none; background: none; font-size: 16px; font-weight: bold; cursor: pointer; color: #555; white-space: nowrap; transition: 0.2s; }
-        .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 4px solid var(--primary-color); }
-        
+        .tab-btn { padding: 8px 14px; border: none; background: none; font-size: 13px; font-weight: bold; cursor: pointer; color: #555; white-space: nowrap; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 3px solid var(--primary-color); }
+        .sub-text { font-size: 11px; font-weight: normal; opacity: 0.85; margin-top: 2px; }
+
         /* Category Banner Notice */
-        .category-notice { display: none; background-color: #fff3cd; color: #856404; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid #ffeeba; line-height: 1.5; }
+        .category-notice { display: none; background-color: #fff3cd; color: #856404; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid #ffeeba; line-height: 1.5; text-align: center; }
         
         .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; }
         
         /* Item Card Styling */
         .item-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .item-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
-        .item-name { font-size: 15px; font-weight: bold; margin-bottom: 6px; word-break: break-all; }
+        .item-name { font-size: 14px; font-weight: bold; margin-bottom: 4px; word-break: break-all; }
         .item-price { color: var(--primary-color); font-weight: bold; font-size: 14px; }
         .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
         
@@ -44,14 +46,17 @@
         .item-card.sold-out .item-price { color: #6c757d; }
         .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(217, 83, 79, 0.9); color: white; padding: 2px 8px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; }
         
-        /* Edit Mode Highlight */
+        /* Admin Edit Mode Highlight */
         body.edit-mode .item-card { border: 2px dashed #d9534f; }
         body.edit-mode .item-card.sold-out { border: 2px dashed #6c757d; }
 
         /* Right Panel - Checkout / Order List */
         .checkout-container { flex: 3; display: flex; flex-direction: column; background: #fdfcf7; height: 100%; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
-        .order-title { background: #5c4033; color: white; padding: 15px; font-size: 18px; font-weight: bold; text-align: center; }
-        .order-list { flex: 1; overflow-y: auto; padding: 10px; border-bottom: 2px dashed var(--border-color); }
+        .order-title { background: #5c4033; color: white; padding: 14px; font-size: 16px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .order-title:hover { background: #4a3328; }
+        .order-list { flex: 1; overflow-y: auto; padding: 10px; border-bottom: 2px dashed var(--border-color); transition: max-height 0.3s ease; }
+        .order-list.collapsed { display: none; }
+        
         .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 14px; }
         .order-item-info { flex: 2; }
         .order-item-qty { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
@@ -95,7 +100,7 @@
     <div class="menu-container">
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 智慧POS點餐系統</span>
-            <button class="soldout-toggle-btn" id="soldoutToggleBtn" onclick="toggleEditMode()">切換至售罄管理</button>
+            <button class="soldout-toggle-btn" id="soldoutToggleBtn" onclick="toggleEditMode()">管理員模式</button>
         </div>
         <div class="menu-tabs" id="menuTabs"></div>
         <div class="category-notice" id="categoryNotice"></div>
@@ -104,8 +109,14 @@
 
     <!-- Right Panel -->
     <div class="checkout-container">
-        <div class="order-title">當前點訂單明細</div>
+        <div class="order-title" onclick="toggleOrderList()">
+            <span>當前點訂單明細</span>
+            <span id="orderListToggleIcon">▼</span>
+        </div>
         
+        <!-- Order list items -->
+        <div class="order-list" id="orderList"></div>
+
         <!-- Preferences (辣度, 鹹度, 口味, 備註) -->
         <div class="preferences-box">
             <div class="pref-group">
@@ -136,9 +147,6 @@
             </div>
         </div>
 
-        <!-- Order list items -->
-        <div class="order-list" id="orderList"></div>
-
         <!-- Total & Checkout button -->
         <div class="summary-box">
             <div class="total-row">
@@ -164,6 +172,9 @@
     </div>
 
     <script>
+        // Admin Password Configuration
+        const ADMIN_PASSWORD = "8888";
+
         // Category Specific Notices
         const categoryNotices = {
             "厝邊溫食(炒麵/燴飯)": "炒麵類 預設使用芥藍菜 若遇缺貨將調整為油菜或高麗菜<br>炒青菜 為當季時令蔬菜 品項隨季節調整 恕無法指定",
@@ -263,19 +274,49 @@
         let currentPayment = "現金";
         let isEditMode = false;
 
-        // Toggle Soldout Edit Mode
+        // Toggle Admin Mode with Password Check
         function toggleEditMode() {
+            if (!isEditMode) {
+                let pwd = prompt("請輸入管理員密碼以進入管理模式:");
+                if (pwd !== ADMIN_PASSWORD) {
+                    alert("密碼錯誤！無法開啟管理模式。");
+                    return;
+                }
+            }
+            
             isEditMode = !isEditMode;
             const btn = document.getElementById('soldoutToggleBtn');
             if (isEditMode) {
-                btn.innerText = "退出售罄管理";
+                btn.innerText = "退出管理員模式";
                 btn.classList.add('active');
                 document.body.classList.add('edit-mode');
             } else {
-                btn.innerText = "切換至售罄管理";
+                btn.innerText = "管理員模式";
                 btn.classList.remove('active');
                 document.body.classList.remove('edit-mode');
             }
+        }
+
+        // Toggle Expand / Collapse Order List
+        function toggleOrderList() {
+            const list = document.getElementById('orderList');
+            const icon = document.getElementById('orderListToggleIcon');
+            if (list.classList.contains('collapsed')) {
+                list.classList.remove('collapsed');
+                icon.innerText = "▼";
+            } else {
+                list.classList.add('collapsed');
+                icon.innerText = "▲";
+            }
+        }
+
+        // Helper: Format string with parentheses into main text and sub text
+        function formatTitleWithBracket(text) {
+            const match = text.match(/^(.*?)\s*\((.*?)\)$/);
+            if (match) {
+                return `<span>${match[1]}</span><span class="sub-text">(${match[2]})</span>`;
+            }
+            return `<span>${text}</span>`;
         }
 
         // Initialize App
@@ -286,7 +327,7 @@
             for (let category in menuData) {
                 const btn = document.createElement('button');
                 btn.className = `tab-btn ${firstCategory ? 'active' : ''}`;
-                btn.innerText = category;
+                btn.innerHTML = formatTitleWithBracket(category);
                 btn.onclick = (e) => {
                     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
@@ -337,7 +378,7 @@
                 card.innerHTML = `
                     ${badgeHtml}
                     ${soldOutTag}
-                    <div class="item-name">${item.name}</div>
+                    <div class="item-name">${formatTitleWithBracket(item.name)}</div>
                     <div class="item-price">$${item.price}</div>
                 `;
                 grid.appendChild(card);
@@ -368,7 +409,10 @@
 
         function refreshActiveGrid() {
             const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab) renderGrid(activeTab.innerText);
+            if (activeTab) {
+                const activeCategory = Object.keys(menuData).find(cat => activeTab.innerText.includes(cat.split(' ')[0]));
+                if (activeCategory) renderGrid(activeCategory);
+            }
         }
 
         function updateCartUI() {
