@@ -24,20 +24,24 @@
         
         /* Left Panel - Menu Selection */
         .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--panel-bg); border-right: 2px solid var(--border-gold); height: 100%; overflow: hidden; }
-        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 6px; }
         .menu-header-title { flex: 1; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
         
         /* Header Buttons - 店家專用按鈕預設隱藏 */
-        .admin-action-group { display: flex; gap: 8px; align-items: center; }
+        .admin-action-group { display: flex; gap: 6px; align-items: center; }
         .admin-only { display: none !important; }
         body.admin-mode .admin-only { display: inline-block !important; }
 
-        .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-        .quick-accept-btn:hover { background: #388e3c; }
-        .soldout-toggle-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-        .soldout-toggle-btn.active { background: var(--gold-gradient); color: #201000; border-color: #fff; }
-        .excel-export-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-        .excel-export-btn:hover { background: #28a745; }
+        .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .header-btn:hover { background: #28a745; }
+        .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: #e6ffe6; border: 1px solid #81c784; }
+        .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
+        .meal-mgmt-btn.active { background: var(--gold-gradient); color: #201000; border-color: #fff; }
+        .pwd-btn { background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff; }
+        .logout-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
+        .store-login-trigger { background: transparent; color: #554128; border: none; font-size: 11px; cursor: pointer; padding: 2px 4px; opacity: 0.6; }
+        .store-login-trigger:hover { opacity: 1; color: var(--primary-gold); }
+        body.admin-mode .store-login-trigger { display: none; }
 
         /* Top Navigation Tabs */
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
@@ -77,7 +81,7 @@
         .item-card.sold-out .item-price, .combo-card.sold-out .combo-price { color: #8a7356; }
         .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(139, 0, 0, 0.85); color: #fff; padding: 3px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; border: 1px solid #ff9999; }
         
-        /* Admin Edit Mode Highlight */
+        /* Meal Mgmt Mode Highlight */
         body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #ff4444; }
         body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #888; }
         body.edit-mode .pref-btn { border: 1px dashed #ff4444 !important; }
@@ -176,11 +180,15 @@
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
-                <button class="quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 快速接單 (0)</button>
-                <button class="excel-export-btn admin-only" onclick="openOrderManager()">📋 訂單紀錄管理</button>
-                <button class="excel-export-btn admin-only" onclick="exportDailyReport()">📊 匯出日報</button>
-                <button class="excel-export-btn admin-only" onclick="exportMonthlyReport()">📅 匯出月報</button>
-                <button class="soldout-toggle-btn admin-only" id="soldoutToggleBtn" onclick="toggleEditMode()">估價/估餐模式</button>
+                <!-- 店家專用功能按鈕群（依序：快速接單、餐點管理、訂單紀錄管理、匯出日報、匯出月報、修改密碼、退出） -->
+                <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 快速接單 (0)</button>
+                <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
+                <button class="header-btn admin-only" onclick="openOrderManager()">📋 訂單紀錄管理</button>
+                <button class="header-btn admin-only" onclick="exportDailyReport()">📊 匯出日報</button>
+                <button class="header-btn admin-only" onclick="exportMonthlyReport()">📅 匯出月報</button>
+                <button class="header-btn pwd-btn admin-only" onclick="changeAdminPassword()">🔑 修改密碼</button>
+                <button class="header-btn logout-btn admin-only" onclick="exitAdminMode()">🚪 退出店家</button>
+                <button class="store-login-trigger" onclick="promptStoreLogin()" title="店家登入">店</button>
             </div>
         </div>
         <div class="menu-tabs" id="menuTabs"></div>
@@ -200,7 +208,7 @@
 
         <!-- 🔍 顧客專用訂單進度查詢列 -->
         <div class="status-check-box">
-            <button class="excel-export-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold);" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
+            <button class="header-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold);" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
         </div>
 
         <!-- 顧客取餐資訊區塊 -->
@@ -303,7 +311,7 @@
             <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:15px;">📋 歷史訂單紀錄與審核修改</h3>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span id="mgmtOrderCount" style="font-weight:bold;">載入中...</span>
-                <button class="excel-export-btn" style="display:inline-block;" onclick="saveEditedOrdersHistory()">💾 儲存所有修改</button>
+                <button class="header-btn" style="display:inline-block;" onclick="saveEditedOrdersHistory()">💾 儲存所有修改</button>
             </div>
             <div style="max-height: 60vh; overflow-y: auto;">
                 <table class="order-mgmt-table" id="mgmtTable">
@@ -356,6 +364,15 @@
         const GAS_URL = "https://script.google.com/macros/s/AKfycbz_895ZUhbRdARsQ_KwHtcDhsZKVCQSRVplzIKgJD5wakdd7MV4SbGg-fSaU-Iv8BzRYQ/exec";
 
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+
+        // 管理員密碼管理（預設 8888，支援 LocalStorage 保存變更）
+        function getAdminPassword() {
+            return localStorage.getItem('pos_admin_password') || '8888';
+        }
+
+        function setAdminPassword(newPwd) {
+            localStorage.setItem('pos_admin_password', newPwd);
+        }
 
         // Category Specific Notices
         const categoryNotices = {
@@ -511,17 +528,64 @@
             badge.innerText = "星期--";
         }
 
-        function toggleEditMode() {
+        /* 🍔 切換「餐點管理」模式 (原估價/估餐模式) */
+        function toggleMealMgmtMode() {
             isEditMode = !isEditMode;
-            const btn = document.getElementById('soldoutToggleBtn');
+            const btn = document.getElementById('mealMgmtBtn');
             if (isEditMode) {
-                btn.innerText = "退出估價模式";
+                btn.innerText = "退出餐點管理";
                 btn.classList.add('active');
                 document.body.classList.add('edit-mode');
             } else {
-                btn.innerText = "估價/估餐模式";
+                btn.innerText = "🍔 餐點管理";
                 btn.classList.remove('active');
                 document.body.classList.remove('edit-mode');
+            }
+        }
+
+        /* 🔑 修改管理員密碼 */
+        function changeAdminPassword() {
+            let currentInput = prompt("請輸入當前管理員密碼:");
+            if (currentInput === null) return;
+            
+            if (currentInput !== getAdminPassword()) {
+                alert("目前密碼輸入錯誤，無法更換密碼！");
+                return;
+            }
+
+            let newPwd = prompt("請輸入新管理員密碼:");
+            if (!newPwd || newPwd.trim() === '') {
+                alert("密碼不可為空！");
+                return;
+            }
+
+            let confirmPwd = prompt("請再次輸入新管理員密碼確認:");
+            if (newPwd !== confirmPwd) {
+                alert("兩次密碼輸入不一致，修改失敗！");
+                return;
+            }
+
+            setAdminPassword(newPwd.trim());
+            alert("管理員密碼已成功修改！");
+        }
+
+        /* 🚪 退出店家模式 */
+        function exitAdminMode() {
+            if (confirm("確定要退出店家模式嗎？")) {
+                document.body.classList.remove('admin-mode');
+                if (isEditMode) toggleMealMgmtMode();
+            }
+        }
+
+        /* 🔐 隱藏式店家登入觸發 */
+        function promptStoreLogin() {
+            let pwd = prompt("請輸入管理員密碼以開啟店家模式:");
+            if (pwd === null) return;
+            if (pwd === getAdminPassword()) {
+                document.body.classList.add('admin-mode');
+                alert("成功進入店家管理模式！");
+            } else {
+                alert("密碼錯誤！");
             }
         }
 
