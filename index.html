@@ -142,9 +142,9 @@
     </div>
 
     <script>
-        // Full parsed menu database based accurately on the menu image
+        // Full parsed menu database based accurately on the updated categories and ordering
         const menuData = {
-            "鹹本位/煙燻": [
+            "信仰雞本位主義 (主食)": [
                 { id: "m1", name: "鹹水雞胸", price: 65 },
                 { id: "m2", name: "鹹水雞腿", price: 65 },
                 { id: "m3", name: "鹹水半雞", price: 130 },
@@ -152,14 +152,14 @@
                 { id: "m5", name: "煙燻雞腿", price: 75 },
                 { id: "m6", name: "煙燻半雞", price: 150 }
             ],
-            "熱門套餐類": [
-                { id: "s1", name: "散戶輕奢個人餐", price: 260 },
-                { id: "s2", name: "巨鱷重倉肉多多餐", price: 390 },
-                { id: "s3", name: "DAO爺點下酒派對餐", price: 630 },
-                { id: "s4", name: "輕奢減醣肉多餐", price: 239 },
-                { id: "s5", name: "輕奢減醣餐", price: 139 }
+            "智能合約 (套餐)": [
+                { id: "s1", name: "散戶輕倉個人餐", price: 260 },
+                { id: "s2", name: "巨鯨重倉肉多多餐", price: 390 },
+                { id: "s3", name: "DAO 節點下酒派對餐", price: 630 },
+                { id: "s4", name: "輕食減醣肉多餐", price: 239 },
+                { id: "s5", name: "輕食減醣餐", price: 139 }
             ],
-            "攤上資產-蔬菜": [
+            "鏈上綠色資產 (蔬菜)": [
                 { id: "v1", name: "娃娃菜", price: 40 },
                 { id: "v2", name: "玉米筍", price: 30 },
                 { id: "v3", name: "筍片", price: 25 },
@@ -177,7 +177,7 @@
                 { id: "v15", name: "洋蔥", price: 20 },
                 { id: "v16", name: "海帶", price: 20 }
             ],
-            "去中心肉類": [
+            "DAO去中心肉類 (肉類)": [
                 { id: "meat1", name: "松阪豬", price: 75 },
                 { id: "meat2", name: "牛五花", price: 70 },
                 { id: "meat3", name: "雞軟骨", price: 40 },
@@ -204,6 +204,15 @@
                 { id: "f12", name: "豆皮", price: 20 },
                 { id: "f13", name: "米血", price: 20 }
             ],
+            "共識滷味協議": [
+                { id: "l1", name: "無骨鳳爪", price: 45 },
+                { id: "l2", name: "豬耳朵", price: 45 },
+                { id: "l3", name: "滷脆腸", price: 45 }
+            ],
+            "自由流通麵 (麵食)": [
+                { id: "z1", name: "王子麵", price: 15 },
+                { id: "z2", name: "冬粉", price: 15 }
+            ],
             "厝邊溫食": [
                 { id: "w1", name: "沙茶羊肉炒麵", price: 120 },
                 { id: "w2", name: "沙茶牛肉炒麵", price: 120 },
@@ -212,14 +221,7 @@
                 { id: "w5", name: "炒羊肉", price: 150 },
                 { id: "w6", name: "炒牛肉", price: 150 },
                 { id: "w7", name: "炒青菜", price: 100 },
-                { id: "w8", name: "當歸羊肉湯", price: 80 },
-                { id: "z1", name: "王子麵", price: 15 },
-                { id: "z2", name: "冬粉", price: 15 }
-            ],
-            "共識滷味": [
-                { id: "l1", name: "無骨鳳爪", price: 45 },
-                { id: "l2", name: "豬耳朵", price: 45 },
-                { id: "l3", name: "滷脆腸", price: 45 }
+                { id: "w8", name: "當歸羊肉湯", price: 80 }
             ]
         };
 
