@@ -95,7 +95,7 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
-        /* Customer Info Box (訂購人與電話皆為必填) */
+        /* Customer Info Box (包含訂單查詢區塊) */
         .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
         .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .input-row:last-child { margin-bottom: 0; }
@@ -103,6 +103,13 @@
         .input-field { flex: 1; padding: 6px 10px; background: #150d07; border: 1px solid var(--border-gold); border-radius: 4px; color: #f5e4b3; font-size: 13px; outline: none; }
         .input-field:focus { border-color: #f3e5ab; box-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
         .weekday-badge { font-size: 12px; font-weight: bold; color: #f3e5ab; background: #3d2b1a; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-gold); white-space: nowrap; }
+
+        /* 🔍 訂單進度查詢按鈕與狀態樣式 */
+        .status-check-box { padding: 8px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; }
+        .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .status-pending { background: #8a6d0b; color: #fff; }
+        .status-accepted { background: #1b5e20; color: #81c784; border: 1px solid #81c784; }
+        .status-completed { background: #0d47a1; color: #90caf9; border: 1px solid #90caf9; }
 
         /* Preference Configurations */
         .preferences-box { padding: 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
@@ -140,7 +147,7 @@
         .modal-opt-btn.disabled { background: #aaa; color: #666; text-decoration: line-through; cursor: not-allowed; }
 
         /* Admin Order Manager Table Modal */
-        .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1150px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
+        .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1200px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
         .order-mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         .order-mgmt-table th, .order-mgmt-table td { border: 1px solid var(--border-gold); padding: 6px; text-align: center; }
         .order-mgmt-table th { background: #3d2b1a; color: var(--primary-gold); }
@@ -186,6 +193,11 @@
         
         <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
+
+        <!-- 🔍 顧客專用訂單進度查詢列 -->
+        <div class="status-check-box">
+            <button class="excel-export-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold);" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
+        </div>
 
         <!-- 顧客取餐資訊區塊 -->
         <div class="customer-info-box">
@@ -284,6 +296,7 @@
                 <table class="order-mgmt-table" id="mgmtTable">
                     <thead>
                         <tr>
+                            <th>接單狀態</th>
                             <th>時間</th>
                             <th>訂購人</th>
                             <th>電話</th>
@@ -970,6 +983,38 @@
             localStorage.setItem('pos_order_history', JSON.stringify(history));
         }
 
+        /* 🔍 顧客輸入電話查詢接單進度 */
+        function checkOrderStatusByPhone() {
+            let phoneQuery = prompt("請輸入下單時填寫的連絡電話:");
+            if (!phoneQuery) return;
+            phoneQuery = phoneQuery.trim();
+
+            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            const matches = history.filter(o => o.phone && o.phone.trim() === phoneQuery);
+
+            if (matches.length === 0) {
+                alert(`查無電話【${phoneQuery}】的訂單紀錄，請確認電話是否輸入正確。`);
+                return;
+            }
+
+            let lastOrder = matches[matches.length - 1];
+            let statusText = "";
+            let statusBadgeClass = "";
+
+            if (lastOrder.status === "已完成") {
+                statusText = "🔵 餐點已完成 (可前來取餐)";
+                statusBadgeClass = "status-completed";
+            } else if (lastOrder.status === "已接單") {
+                statusText = "🟢 店家已接單 (餐點製作中)";
+                statusBadgeClass = "status-accepted";
+            } else {
+                statusText = "🟡 等待店家接單中";
+                statusBadgeClass = "status-pending";
+            }
+
+            alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n總金額: $${lastOrder.total}\n目前接單進度：${statusText}`);
+        }
+
         async function submitOrder() {
             if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
@@ -1028,6 +1073,7 @@
 
             const orderPayload = {
                 id: Date.now(),
+                status: "等待接單", // 預設接單狀態
                 date: dateStr,
                 weekDay: weekDayStr,
                 time: timeStr,
@@ -1076,6 +1122,9 @@
                 <div class="receipt-header">
                     <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
+                </div>
+                <div style="background:#fff3cd; color:#856404; padding:6px; font-size:12px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
+                    💡 您可以隨時點擊「查詢訂單接單進度」並輸入電話 (${custPhone}) 查看店家是否已接單！
                 </div>
                 <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
                 <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:#8B1E0F;">${custPhone}</span></div>
@@ -1184,10 +1233,18 @@
             localOrderHistory.forEach((ord, index) => {
                 if (ord.discountPercent === undefined) ord.discountPercent = 100;
                 if (ord.deductAmount === undefined) ord.deductAmount = 0;
+                if (!ord.status) ord.status = "等待接單";
                 calculateOrderFinalTotal(ord);
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
+                    <td>
+                        <select class="edit-input" style="font-weight:bold; color:${ord.status === '已接單' ? '#81c784' : ord.status === '已完成' ? '#90caf9' : '#f3e5ab'};" onchange="updateHistoryItem(${index}, 'status', this.value)">
+                            <option value="等待接單" ${ord.status === '等待接單' ? 'selected' : ''}>🟡 等待接單</option>
+                            <option value="已接單" ${ord.status === '已接單' ? 'selected' : ''}>🟢 已接單</option>
+                            <option value="已完成" ${ord.status === '已完成' ? 'selected' : ''}>🔵 已完成</option>
+                        </select>
+                    </td>
                     <td>${ord.date}<br>${ord.time}</td>
                     <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${index}, 'customer', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${index}, 'phone', this.value)"></td>
@@ -1217,6 +1274,9 @@
 
         function updateHistoryItem(index, key, val) {
             localOrderHistory[index][key] = val;
+            if (key === 'status') {
+                saveEditedOrdersHistory();
+            }
         }
 
         function updateHistoryPrefItem(index, key, val) {
@@ -1327,7 +1387,6 @@
 
         function saveEditedOrdersHistory() {
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
-            alert("訂單修改內容已成功儲存！");
         }
 
         /* 📊 Excel 報表匯出邏輯 (精確欄位順序：日期, 星期, 時間, 訂購人, 電話, 總額, (單品, 單價)×N, 口味, 備註) */
