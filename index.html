@@ -95,7 +95,7 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
-        /* Customer Info Box */
+        /* Customer Info Box (四欄位版) */
         .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
         .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .input-row:last-child { margin-bottom: 0; }
@@ -139,12 +139,13 @@
         .modal-opt-btn.active { background: #8b1e0f; color: white; border-color: #8b1e0f; }
         .modal-opt-btn.disabled { background: #aaa; color: #666; text-decoration: line-through; cursor: not-allowed; }
 
-        /* Admin Manage Orders Table Modal */
-        .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 90vw; max-width: 1000px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
-        .order-mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-        .order-mgmt-table th, .order-mgmt-table td { border: 1px solid var(--border-gold); padding: 8px; text-align: center; }
+        /* Admin Order Manager Table Modal */
+        .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1150px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
+        .order-mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        .order-mgmt-table th, .order-mgmt-table td { border: 1px solid var(--border-gold); padding: 6px; text-align: center; }
         .order-mgmt-table th { background: #3d2b1a; color: var(--primary-gold); }
         .edit-input { width: 100%; background: #140f0a; border: 1px solid var(--border-gold); color: #fff; padding: 4px; font-size: 12px; text-align: center; }
+        .discount-container { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 
         /* 📱 響應式手機排版修正 */
         @media (max-width: 768px) {
@@ -186,11 +187,15 @@
         <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
 
-        <!-- 取餐資訊與顧客需求 (必填) -->
+        <!-- 顧客取餐資訊區塊 (更新為四個獨立欄位) -->
         <div class="customer-info-box">
             <div class="input-row">
                 <span class="input-label">訂購姓名*:</span>
                 <input type="text" id="custName" class="input-field" placeholder="請輸入姓名 (必填)">
+            </div>
+            <div class="input-row">
+                <span class="input-label">連絡電話:</span>
+                <input type="tel" id="custPhone" class="input-field" placeholder="請輸入連絡電話 (選填)">
             </div>
             <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
@@ -257,7 +262,7 @@
         </div>
     </div>
 
-    <!-- Option Select Modal (For Combo Chicken Choice or Hot Food Spice/Salt) -->
+    <!-- Option Select Modal -->
     <div class="modal" id="optModal">
         <div class="modal-content" id="optModalContent"></div>
     </div>
@@ -273,7 +278,7 @@
             <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:15px;">📋 歷史訂單紀錄與審核修改</h3>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span id="mgmtOrderCount" style="font-weight:bold;">載入中...</span>
-                <button class="excel-export-btn" style="display:inline-block;" onclick="saveEditedOrdersHistory()">💾 儲存修改</button>
+                <button class="excel-export-btn" style="display:inline-block;" onclick="saveEditedOrdersHistory()">💾 儲存所有修改</button>
             </div>
             <div style="max-height: 60vh; overflow-y: auto;">
                 <table class="order-mgmt-table" id="mgmtTable">
@@ -281,10 +286,12 @@
                         <tr>
                             <th>時間</th>
                             <th>姓名</th>
-                            <th>總額</th>
+                            <th>連絡電話</th>
+                            <th style="width:110px;">折扣/折讓調整</th>
+                            <th style="width:70px;">實收總額</th>
                             <th>付款</th>
-                            <th>口味</th>
-                            <th>辣度/鹹度</th>
+                            <th>品項與單價修改</th>
+                            <th>口味/調味</th>
                             <th>備註</th>
                             <th>操作</th>
                         </tr>
@@ -293,6 +300,16 @@
                 </table>
             </div>
             <button class="close-btn" onclick="closeOrderManager()">關閉離開</button>
+        </div>
+    </div>
+
+    <!-- Items Edit Modal -->
+    <div class="modal" id="itemEditModal">
+        <div class="modal-content" style="width:400px; max-width:90vw;">
+            <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">修改訂單品項與金額</h4>
+            <div id="itemEditContainer" style="max-height:50vh; overflow-y:auto; margin-bottom:10px;"></div>
+            <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="addNewItemToEditingOrder()">+ 新增單品</button>
+            <button class="btn btn-clear" style="width:100%;" onclick="closeItemEditModal()">完成確認</button>
         </div>
     </div>
 
@@ -421,25 +438,14 @@
         };
 
         // 開倉調整關閉狀態管理
-        let disabledPrefs = {
-            flavor: [],
-            spice: [],
-            salt: [],
-            extra: []
-        };
-
+        let disabledPrefs = { flavor: [], spice: [], salt: [], extra: [] };
         let currentCart = [];
-        let orderPrefs = {
-            flavor: "原味",
-            spice: "中辣",
-            salt: "正常",
-            extras: []
-        };
+        let orderPrefs = { flavor: "原味", spice: "中辣", salt: "正常", extras: [] };
         let currentPayment = "現金";
         let isEditMode = false;
         let localOrderHistory = [];
+        let currentEditingOrderIndex = null;
 
-        // 設定預設取餐時間為當前時間，並自動計算星期幾
         function setDefaultPickupTime() {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -447,7 +453,6 @@
             updateWeekdayBadge();
         }
 
-        // 自動更新取餐時間旁顯示的「星期幾」
         function updateWeekdayBadge() {
             const val = document.getElementById('pickupTime').value;
             const badge = document.getElementById('weekdayBadge');
@@ -461,7 +466,6 @@
             badge.innerText = "星期--";
         }
 
-        // Toggle Admin Mode
         function toggleEditMode() {
             if (!isEditMode) {
                 let pwd = prompt("請輸入管理員密碼以進入管理模式:");
@@ -483,7 +487,6 @@
             }
         }
 
-        // 開倉調整庫存關閉邏輯
         function handlePrefClick(type, val, btnEl) {
             if (isEditMode) {
                 const idx = disabledPrefs[type].indexOf(val);
@@ -524,22 +527,17 @@
             }
         }
 
-        // 庫存自動連動檢查：半雞 = 腿 + 胸
         function checkChickenInventoryLogic() {
             const chickenList = menuData["信仰雞本位主義 (主食)"];
-            const m1 = chickenList.find(i => i.id === "m1"); // 鹹水雞胸
-            const m2 = chickenList.find(i => i.id === "m2"); // 鹹水雞腿
-            const m3 = chickenList.find(i => i.id === "m3"); // 鹹水半雞
-            const m4 = chickenList.find(i => i.id === "m4"); // 煙燻雞胸
-            const m5 = chickenList.find(i => i.id === "m5"); // 煙燻雞腿
-            const m6 = chickenList.find(i => i.id === "m6"); // 煙燻半雞
+            const m1 = chickenList.find(i => i.id === "m1");
+            const m2 = chickenList.find(i => i.id === "m2");
+            const m3 = chickenList.find(i => i.id === "m3");
+            const m4 = chickenList.find(i => i.id === "m4");
+            const m5 = chickenList.find(i => i.id === "m5");
+            const m6 = chickenList.find(i => i.id === "m6");
 
-            if (m1.soldOut || m2.soldOut) {
-                m3.soldOut = true;
-            }
-            if (m4.soldOut || m5.soldOut) {
-                m6.soldOut = true;
-            }
+            if (m1.soldOut || m2.soldOut) m3.soldOut = true;
+            if (m4.soldOut || m5.soldOut) m6.soldOut = true;
         }
 
         function toggleOrderList() {
@@ -595,9 +593,7 @@
                     checkChickenInventoryLogic();
                     renderGrid(category);
                 } else {
-                    if (!item.soldOut) {
-                        handleItemClick(item, category);
-                    }
+                    if (!item.soldOut) handleItemClick(item, category);
                 }
             };
             
@@ -623,9 +619,7 @@
                     item.soldOut = !item.soldOut;
                     renderGrid(category);
                 } else {
-                    if (!item.soldOut) {
-                        handleItemClick(item, category);
-                    }
+                    if (!item.soldOut) handleItemClick(item, category);
                 }
             };
             
@@ -938,6 +932,7 @@
             currentCart = [];
             orderPrefs.extras = [];
             document.getElementById('custName').value = '';
+            document.getElementById('custPhone').value = '';
             document.getElementById('custNotes').value = '';
             setDefaultPickupTime();
             document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('addon-active'));
@@ -945,7 +940,6 @@
             refreshActiveGrid();
         }
 
-        // 本地儲存歷史點單
         function saveOrderToHistory(orderData) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
@@ -953,14 +947,13 @@
         }
 
         async function submitOrder() {
-            // 1. 必填驗證：購物車檢查
             if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
                 return;
             }
 
-            // 2. 必填驗證：姓名與取餐時間檢查
             const custName = document.getElementById('custName').value.trim();
+            const custPhone = document.getElementById('custPhone').value.trim();
             const pickupTimeRaw = document.getElementById('pickupTime').value;
             const custNotes = document.getElementById('custNotes').value.trim();
 
@@ -976,12 +969,10 @@
                 return;
             }
 
-            // 計算取餐日期的星期幾
             const pickupDateObj = new Date(pickupTimeRaw);
             const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
             const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
 
-            // 計算營業日 (跨日邏輯：00:00 - 02:00 歸類在前一營業日)
             let now = new Date();
             let bizDateObj = new Date(now);
             if (now.getHours() >= 0 && now.getHours() < 2) {
@@ -1000,13 +991,11 @@
                 subtotal += 5;
             }
 
-            // 整合特殊要求與顧客備註
             let allExtras = [...orderPrefs.extras];
             if (custNotes) {
                 allExtras.push(`顧客備註:${custNotes}`);
             }
 
-            // 3. 組裝發送到 LINE 的 Payload 資料結構
             const orderPayload = {
                 id: Date.now(),
                 date: dateStr,
@@ -1014,9 +1003,14 @@
                 time: timeStr,
                 fullTime: `${dateStr} ${timeStr}`,
                 customer: custName,
+                phone: custPhone,
                 pickupTime: formattedPickupTime,
                 custNotes: custNotes,
+                originalTotal: subtotal,
                 total: subtotal,
+                discountPercent: 100,
+                deductAmount: 0,
+                discountNote: "",
                 payment: currentPayment,
                 prefs: {
                     flavor: orderPrefs.flavor,
@@ -1032,10 +1026,8 @@
                 }))
             };
 
-            // 儲存於本地歷史資料庫供 Excel 匯出
             saveOrderToHistory(orderPayload);
 
-            // 4. 背景發送 POST 請求給 GAS (Webhook 推播至 LINE)
             try {
                 fetch(GAS_URL, {
                     method: "POST",
@@ -1047,7 +1039,6 @@
                 console.error("LINE 通知發送失敗:", err);
             }
 
-            // 5. 顯示收據視窗
             const modal = document.getElementById('receiptModal');
             const content = document.getElementById('receiptContent');
             
@@ -1057,6 +1048,7 @@
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
                 <div class="receipt-line"><span>訂購姓名:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
+                <div class="receipt-line"><span>連絡電話:</span> <span>${custPhone || '未提供'}</span></div>
                 <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:#8B1E0F;">${formattedPickupTime}</span></div>
                 <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} (${weekDayStr}) ${timeStr}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
@@ -1123,17 +1115,59 @@
             document.getElementById('adminMgmtModal').style.display = 'none';
         }
 
+        function calculateOrderFinalTotal(ord) {
+            let baseTotal = 0;
+            ord.items.forEach(it => {
+                baseTotal += (it.price * it.qty);
+            });
+            ord.originalTotal = baseTotal;
+
+            let currentTotal = baseTotal;
+
+            let p = parseFloat(ord.discountPercent);
+            if (!isNaN(p) && p > 0 && p < 100) {
+                currentTotal = Math.round(currentTotal * (p / 100));
+            }
+
+            let d = parseInt(ord.deductAmount);
+            if (!isNaN(d) && d > 0) {
+                currentTotal = Math.max(0, currentTotal - d);
+            }
+
+            ord.total = currentTotal;
+
+            let notes = [];
+            if (!isNaN(p) && p > 0 && p < 100) {
+                notes.push(`折扣${p}%(-$${baseTotal - Math.round(baseTotal * (p / 100))})`);
+            }
+            if (!isNaN(d) && d > 0) {
+                notes.push(`折讓-$${d}`);
+            }
+            ord.discountNote = notes.join(" ");
+        }
+
         function renderOrderMgmtTable() {
             const tbody = document.getElementById('mgmtTableBody');
             tbody.innerHTML = '';
             document.getElementById('mgmtOrderCount').innerText = `總訂單筆數：${localOrderHistory.length} 筆`;
 
             localOrderHistory.forEach((ord, index) => {
+                if (ord.discountPercent === undefined) ord.discountPercent = 100;
+                if (ord.deductAmount === undefined) ord.deductAmount = 0;
+                calculateOrderFinalTotal(ord);
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${ord.date} ${ord.time}</td>
+                    <td>${ord.date}<br>${ord.time}</td>
                     <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${index}, 'customer', this.value)"></td>
-                    <td><input type="number" class="edit-input" value="${ord.total}" onchange="updateHistoryItem(${index}, 'total', parseInt(this.value))"></td>
+                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${index}, 'phone', this.value)"></td>
+                    <td>
+                        <div class="discount-container">
+                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.discountPercent}" placeholder="80" onchange="updateHistoryDiscount(${index}, 'discountPercent', this.value)"> %</div>
+                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.deductAmount}" placeholder="3" onchange="updateHistoryDiscount(${index}, 'deductAmount', this.value)"></div>
+                        </div>
+                    </td>
+                    <td style="font-weight:bold; color:var(--primary-gold);">$${ord.total}</td>
                     <td>
                         <select class="edit-input" onchange="updateHistoryItem(${index}, 'payment', this.value)">
                             <option value="現金" ${ord.payment === '現金' ? 'selected' : ''}>現金</option>
@@ -1142,11 +1176,8 @@
                             <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
                         </select>
                     </td>
+                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項內容 (${ord.items.length})</button></td>
                     <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${index}, 'flavor', this.value)"></td>
-                    <td>
-                        <input type="text" class="edit-input" style="width:48%; inline-block;" value="${ord.prefs.spice}" onchange="updateHistoryPrefItem(${index}, 'spice', this.value)">
-                        <input type="text" class="edit-input" style="width:48%; inline-block;" value="${ord.prefs.salt}" onchange="updateHistoryPrefItem(${index}, 'salt', this.value)">
-                    </td>
                     <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${index}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${index})">刪除</button></td>
                 `;
@@ -1162,6 +1193,65 @@
             localOrderHistory[index].prefs[key] = val;
         }
 
+        function updateHistoryDiscount(index, key, val) {
+            localOrderHistory[index][key] = val;
+            calculateOrderFinalTotal(localOrderHistory[index]);
+            renderOrderMgmtTable();
+        }
+
+        /* 📦 品項彈出修改 Modal 邏輯 */
+        function openItemEditModal(index) {
+            currentEditingOrderIndex = index;
+            renderItemEditList();
+            document.getElementById('itemEditModal').style.display = 'flex';
+        }
+
+        function closeItemEditModal() {
+            document.getElementById('itemEditModal').style.display = 'none';
+            renderOrderMgmtTable();
+        }
+
+        function renderItemEditList() {
+            const container = document.getElementById('itemEditContainer');
+            container.innerHTML = '';
+            let ord = localOrderHistory[currentEditingOrderIndex];
+
+            ord.items.forEach((item, itemIdx) => {
+                const div = document.createElement('div');
+                div.style.cssText = "display:flex; gap:5px; align-items:center; margin-bottom:8px;";
+                div.innerHTML = `
+                    <input type="text" class="edit-input" style="flex:2;" value="${item.name}" onchange="updateItemDetail(${itemIdx}, 'name', this.value)">
+                    <span style="font-size:12px;">數量:</span>
+                    <input type="number" class="edit-input" style="width:45px;" value="${item.qty}" onchange="updateItemDetail(${itemIdx}, 'qty', parseInt(this.value))">
+                    <span style="font-size:12px;">單價:</span>
+                    <input type="number" class="edit-input" style="width:55px;" value="${item.price}" onchange="updateItemDetail(${itemIdx}, 'price', parseInt(this.value))">
+                    <button style="background:#8b1e0f; color:#fff; border:none; padding:4px 6px; border-radius:4px; cursor:pointer;" onclick="removeItemFromEditingOrder(${itemIdx})">✕</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateItemDetail(itemIdx, field, value) {
+            let item = localOrderHistory[currentEditingOrderIndex].items[itemIdx];
+            item[field] = value;
+            calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+        }
+
+        function addNewItemToEditingOrder() {
+            let name = prompt("請輸入新增單品名稱:", "自訂品項");
+            if (!name) return;
+            let price = parseInt(prompt("請輸入單價金額:", "30") || "0");
+            localOrderHistory[currentEditingOrderIndex].items.push({ name: name, qty: 1, price: price, subItems: null });
+            calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+            renderItemEditList();
+        }
+
+        function removeItemFromEditingOrder(itemIdx) {
+            localOrderHistory[currentEditingOrderIndex].items.splice(itemIdx, 1);
+            calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+            renderItemEditList();
+        }
+
         function deleteHistoryOrder(index) {
             if (confirm("確定要刪除這筆訂單嗎？")) {
                 localOrderHistory.splice(index, 1);
@@ -1174,7 +1264,7 @@
             alert("訂單修改內容已成功儲存！");
         }
 
-        /* 📊 Excel 報表匯出邏輯 (完全對齊圖片格式) */
+        /* 📊 Excel 報表匯出邏輯 (對齊圖片格式 + 呈現電話與折扣備註) */
         function downloadCSV(csvContent, fileName) {
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -1186,7 +1276,6 @@
             document.body.removeChild(link);
         }
 
-        // 將單筆訂單展開為圖片相同的品項陣列 (品項*數量 與 單價小計)
         function formatOrderItemsForCSV(order) {
             let itemList = [];
             order.items.forEach(item => {
@@ -1200,14 +1289,13 @@
                 }
             });
 
-            if (order.prefs.flavor === "泰式+5元") {
+            if (order.prefs && order.prefs.flavor === "泰式+5元") {
                 itemList.push({ name: "泰式醬料加價", price: 5 });
             }
 
             return itemList;
         }
 
-        // 匯出日報 Excel
         function exportDailyReport() {
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             let now = new Date();
@@ -1223,7 +1311,6 @@
                 return;
             }
 
-            // 計算最大單品數量，以動態產生欄位 Header
             let maxItemsCount = 0;
             filteredOrders.forEach(o => {
                 let formattedItems = formatOrderItemsForCSV(o);
@@ -1239,12 +1326,18 @@
             let dayTotalAmount = 0;
 
             filteredOrders.forEach(o => {
+                calculateOrderFinalTotal(o);
                 dayTotalAmount += o.total;
-                let flavorText = `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}`;
-                let notesText = o.payment === "現金" ? "" : o.payment.toLowerCase();
-                if (o.custNotes) {
-                    notesText = notesText ? `${notesText} (${o.custNotes})` : o.custNotes;
-                }
+                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
+                let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
+                
+                let notesArr = [];
+                if (payNotes) notesArr.push(payNotes);
+                if (o.phone) notesArr.push(`電話:${o.phone}`);
+                if (o.custNotes) notesArr.push(o.custNotes);
+                if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
+
+                let notesText = notesArr.join(" ");
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
 
@@ -1261,7 +1354,6 @@
                 csv += line;
             });
 
-            // 末端插入「當日總計」列 (對齊圖片格式)
             let dateParts = targetDate.split('/');
             let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
             csv += `"${shortDateTag}","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
@@ -1269,7 +1361,6 @@
             downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
         }
 
-        // 匯出月報 Excel
         function exportMonthlyReport() {
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             let now = new Date();
@@ -1300,12 +1391,18 @@
             let grandTotal = 0;
 
             filteredOrders.forEach(o => {
+                calculateOrderFinalTotal(o);
                 grandTotal += o.total;
-                let flavorText = `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}`;
-                let notesText = o.payment === "現金" ? "" : o.payment.toLowerCase();
-                if (o.custNotes) {
-                    notesText = notesText ? `${notesText} (${o.custNotes})` : o.custNotes;
-                }
+                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
+                let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
+
+                let notesArr = [];
+                if (payNotes) notesArr.push(payNotes);
+                if (o.phone) notesArr.push(`電話:${o.phone}`);
+                if (o.custNotes) notesArr.push(o.custNotes);
+                if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
+
+                let notesText = notesArr.join(" ");
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
 
