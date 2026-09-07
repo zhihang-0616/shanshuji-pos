@@ -21,6 +21,10 @@
         .menu-tabs { display: flex; background: #e0d0b0; overflow-x: auto; border-bottom: 1px solid var(--border-color); }
         .tab-btn { padding: 12px 20px; border: none; background: none; font-size: 16px; font-weight: bold; cursor: pointer; color: #555; white-space: nowrap; transition: 0.2s; }
         .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 4px solid var(--primary-color); }
+        
+        /* Category Banner Notice */
+        .category-notice { display: none; background-color: #fff3cd; color: #856404; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid #ffeeba; line-height: 1.5; }
+        
         .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; }
         
         /* Item Card Styling */
@@ -77,6 +81,7 @@
     <div class="menu-container">
         <div class="menu-header">去中心鹹水雞 智慧POS點餐系統</div>
         <div class="menu-tabs" id="menuTabs"></div>
+        <div class="category-notice" id="categoryNotice"></div>
         <div class="grid-container" id="menuGrid"></div>
     </div>
 
@@ -142,7 +147,13 @@
     </div>
 
     <script>
-        // Full parsed menu database based accurately on the updated categories and ordering
+        // Category Specific Notices
+        const categoryNotices = {
+            "厝邊溫食(炒麵/燴飯)": "炒麵類 預設使用芥藍菜 若遇缺貨將調整為油菜或高麗菜<br>炒青菜 為當季時令蔬菜 品項隨季節調整 恕無法指定",
+            "智能合約 (套餐)": "套餐內容物如遇缺貨 將自動更換等值商品 恕無法指定變更"
+        };
+
+        // Full parsed menu database
         const menuData = {
             "信仰雞本位主義 (主食)": [
                 { id: "m1", name: "鹹水雞胸", price: 65 },
@@ -213,7 +224,7 @@
                 { id: "z1", name: "王子麵", price: 15 },
                 { id: "z2", name: "冬粉", price: 15 }
             ],
-            "厝邊溫食": [
+            "厝邊溫食(炒麵/燴飯)": [
                 { id: "w1", name: "沙茶羊肉炒麵", price: 120 },
                 { id: "w2", name: "沙茶牛肉炒麵", price: 120 },
                 { id: "w3", name: "沙茶羊肉燴飯", price: 120 },
@@ -257,11 +268,20 @@
             updateCartUI();
         }
 
-        // Render Menu Items for selected category
+        // Render Menu Items and Notice for selected category
         function renderGrid(category) {
             const grid = document.getElementById('menuGrid');
+            const noticeBox = document.getElementById('categoryNotice');
             grid.innerHTML = '';
             
+            // Manage Category Notice Display
+            if (categoryNotices[category]) {
+                noticeBox.innerHTML = categoryNotices[category];
+                noticeBox.style.display = 'block';
+            } else {
+                noticeBox.style.display = 'none';
+            }
+
             menuData[category].forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'item-card';
