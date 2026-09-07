@@ -6,122 +6,128 @@
     <title>去中心鹹水雞 X 厝邊溫食 POS 系統</title>
     <style>
         :root {
-            --primary-color: #8B1E0F;
-            --secondary-color: #f7e1b5;
-            --text-dark: #333;
-            --bg-light: #fdfaf4;
-            --border-color: #d1b48c;
+            --primary-gold: #d4af37;
+            --primary-gold-dark: #aa7c11;
+            --gold-gradient: linear-gradient(135deg, #f3e5ab 0%, #c59b27 50%, #7a580c 100%);
+            --header-bg: linear-gradient(180deg, #2b1f14 0%, #150f09 100%);
+            --bg-dark: #140f0a;
+            --panel-bg: #221910;
+            --paper-bg: #cbb281;
+            --paper-card-bg: #dfca9f;
+            --border-gold: #8c6a27;
+            --text-gold: #f5e4b3;
+            --text-dark: #211608;
         }
-        * { box-sizing: border-box; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 0; }
+        * { box-sizing: border-box; font-family: "PingFang TC", "Microsoft JhengHei", serif, sans-serif; margin: 0; padding: 0; }
         
-        body { display: flex; height: 100vh; background-color: #f4edd9; color: var(--text-dark); overflow: hidden; }
+        body { display: flex; height: 100vh; background-color: var(--bg-dark); color: var(--text-gold); overflow: hidden; }
         
         /* Left Panel - Menu Selection */
-        .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--bg-light); border-right: 2px solid var(--border-color); height: 100%; overflow: hidden; }
-        .menu-header { background-color: var(--primary-color); color: white; padding: 12px 15px; text-align: center; font-size: 18px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .menu-header-title { flex: 1; text-align: center; }
-        .soldout-toggle-btn { background: #d9534f; color: white; border: 1px solid white; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
-        .soldout-toggle-btn.active { background: #ffc107; color: #333; }
+        .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--panel-bg); border-right: 2px solid var(--border-gold); height: 100%; overflow: hidden; }
+        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 14px 18px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; }
+        .menu-header-title { flex: 1; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
+        .soldout-toggle-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; padding: 6px 14px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .soldout-toggle-btn.active { background: var(--gold-gradient); color: #201000; border-color: #fff; }
         
         /* Top Navigation Tabs */
-        .menu-tabs { display: flex; justify-content: space-between; background: #e0d0b0; border-bottom: 1px solid var(--border-color); -webkit-overflow-scrolling: touch; width: 100%; }
-        .tab-btn { flex: 1; padding: 10px 4px; border: none; background: none; font-size: 15px; font-weight: bold; cursor: pointer; color: #555; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 4px solid var(--primary-color); }
-        .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 2px; }
+        .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
+        .tab-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
+        .sub-text { font-size: 11px; font-weight: normal; opacity: 0.85; margin-top: 2px; }
 
         /* Category Banner Notice */
-        .category-notice { display: none; background-color: #fff3cd; color: #856404; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid #ffeeba; line-height: 1.5; text-align: center; }
+        .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
         
-        .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; -webkit-overflow-scrolling: touch; }
+        .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; -webkit-overflow-scrolling: touch; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
         
         /* 特殊主食類 雙欄置中排版 */
-        .chicken-bawi-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center; font-weight: bold; font-size: 16px; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; }
+        .chicken-bawi-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
+        .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center; font-weight: bold; font-size: 17px; color: var(--primary-gold); border-bottom: 2px solid var(--border-gold); padding-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .bawi-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
         /* 套餐直列式專用容器 */
-        .combo-vertical-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-        .combo-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; flex-direction: column; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .combo-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
-        .combo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; margin-bottom: 8px; }
-        .combo-name { font-size: 16px; font-weight: bold; color: #333; }
-        .combo-price { color: var(--primary-color); font-weight: bold; font-size: 16px; }
-        .combo-details { font-size: 13px; color: #666; line-height: 1.6; }
+        .combo-vertical-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
+        .combo-card { background: linear-gradient(135deg, #38291a 0%, #24190e 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; flex-direction: column; position: relative; transition: all 0.2s; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
+        .combo-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(212, 175, 55, 0.3); border-color: var(--primary-gold); }
+        .combo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-gold); padding-bottom: 6px; margin-bottom: 8px; }
+        .combo-name { font-size: 16px; font-weight: bold; color: #fff1cd; }
+        .combo-price { color: var(--primary-gold); font-weight: bold; font-size: 18px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .combo-details { font-size: 13px; color: #d6c29a; line-height: 1.6; }
 
         /* Item Card Styling */
-        .item-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 85px; }
-        .item-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
-        .item-name { font-size: 15px; font-weight: bold; margin-bottom: 4px; word-break: break-all; text-align: center; }
-        .item-price { color: var(--primary-color); font-weight: bold; font-size: 15px; text-align: center; }
-        .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; z-index: 2; }
+        .item-card { background: linear-gradient(135deg, #362719 0%, #20160d 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 3px 6px rgba(0,0,0,0.4); min-height: 85px; }
+        .item-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(212, 175, 55, 0.3); border-color: var(--primary-gold); }
+        .item-name { font-size: 15px; font-weight: bold; margin-bottom: 6px; word-break: break-all; text-align: center; color: #fcedcb; }
+        .item-price { color: var(--primary-gold); font-weight: bold; font-size: 16px; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .badge { position: absolute; top: -6px; right: -6px; background: var(--gold-gradient); color: #1a0c00; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; z-index: 2; box-shadow: 0 2px 4px rgba(0,0,0,0.6); }
         
         /* Soldout Styling */
-        .item-card.sold-out, .combo-card.sold-out { background: #e9ecef; border-color: #ccc; opacity: 0.6; cursor: not-allowed; }
-        .item-card.sold-out .item-name, .combo-card.sold-out .combo-name { text-decoration: line-through; color: #6c757d; }
-        .item-card.sold-out .item-price, .combo-card.sold-out .combo-price { color: #6c757d; }
-        .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(217, 83, 79, 0.9); color: white; padding: 2px 8px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; }
+        .item-card.sold-out, .combo-card.sold-out { background: #1f1813; border-color: #4a3821; opacity: 0.5; cursor: not-allowed; }
+        .item-card.sold-out .item-name, .combo-card.sold-out .combo-name { text-decoration: line-through; color: #8a7356; }
+        .item-card.sold-out .item-price, .combo-card.sold-out .combo-price { color: #8a7356; }
+        .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(139, 0, 0, 0.85); color: #fff; padding: 3px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; border: 1px solid #ff9999; }
         
         /* Admin Edit Mode Highlight */
-        body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #d9534f; }
-        body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #6c757d; }
-        body.edit-mode .pref-btn { border: 1px dashed #d9534f !important; }
+        body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #ff4444; }
+        body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #888; }
+        body.edit-mode .pref-btn { border: 1px dashed #ff4444 !important; }
 
         /* Right Panel - Checkout / Order List */
-        .checkout-container { flex: 3; display: flex; flex-direction: column; background: #fdfcf7; height: 100%; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
-        .order-title { background: #5c4033; color: white; padding: 14px; font-size: 16px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; }
-        .order-title:hover { background: #4a3328; }
-        .order-list { flex: 1; overflow-y: auto; padding: 10px; border-bottom: 2px dashed var(--border-color); -webkit-overflow-scrolling: touch; }
+        .checkout-container { flex: 3; display: flex; flex-direction: column; background: #1a120b; height: 100%; box-shadow: -4px 0 15px rgba(0,0,0,0.7); }
+        .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 14px; font-size: 17px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .order-title:hover { background: #4a331f; }
+        .order-list { flex: 1; overflow-y: auto; padding: 10px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
         .order-list.collapsed { display: none; }
         
-        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 14px; gap: 5px; }
-        .order-item.sub-item { padding-left: 20px; font-size: 12px; color: #666; background: #fafafa; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #2d2014; font-size: 14px; gap: 5px; color: #eddab2; }
+        .order-item.sub-item { padding-left: 20px; font-size: 12px; color: #a38c62; background: #110a05; }
         .order-item-info { flex: 2; }
         .order-item-qty { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
-        .qty-btn { width: 28px; height: 28px; background: #ddd; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .qty-btn:hover { background: #ccc; }
-        .order-item-price { flex: 1; text-align: right; font-weight: bold; }
-        .delete-item-btn { background: #e57373; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
-        .delete-item-btn:hover { background: #d32f2f; }
+        .qty-btn { width: 28px; height: 28px; background: #3d2c1c; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .qty-btn:hover { background: var(--primary-gold); color: #000; }
+        .order-item-price { flex: 1; text-align: right; font-weight: bold; color: var(--primary-gold); }
+        .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
+        .delete-item-btn:hover { background: #b32424; }
         
         /* Preference Configurations */
-        .preferences-box { padding: 12px; background: #f5f0e1; border-bottom: 1px solid var(--border-color); font-size: 14px; }
-        .pref-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed var(--border-color); color: var(--primary-color); }
+        .preferences-box { padding: 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
+        .pref-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed var(--border-gold); color: var(--primary-gold); }
         .pref-group { margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-        .pref-label { font-weight: bold; min-width: 45px; color: #555; }
-        .pref-btn { padding: 6px 10px; border: 1px solid #ccc; background: white; border-radius: 4px; font-size: 13px; cursor: pointer; position: relative; }
-        .pref-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-        .pref-btn.addon-active { background: #4a6b82; color: white; border-color: #4a6b82; }
-        .pref-btn.disabled { background: #e0e0e0; color: #999; text-decoration: line-through; cursor: not-allowed; border-color: #ccc; }
-        .eco-notice { font-size: 11px; color: #777; margin-top: 4px; width: 100%; text-align: center; font-weight: bold; }
+        .pref-label { font-weight: bold; min-width: 45px; color: #c4ae85; }
+        .pref-btn { padding: 6px 10px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; position: relative; }
+        .pref-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
+        .pref-btn.addon-active { background: #2d556e; color: #ffffff; border-color: #6bb0db; }
+        .pref-btn.disabled { background: #222; color: #555; text-decoration: line-through; cursor: not-allowed; border-color: #333; }
+        .eco-notice { font-size: 11px; color: #9c8458; margin-top: 4px; width: 100%; text-align: center; font-weight: bold; }
 
         /* Summary & Action Buttons */
-        .summary-box { padding: 15px; background: white; }
-        .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: var(--primary-color); margin-bottom: 12px; }
+        .summary-box { padding: 15px; background: #1a110a; }
+        .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: var(--primary-gold); margin-bottom: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
         .payment-methods { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .pay-btn { flex: 1; padding: 10px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; text-align: center; font-size: 13px; font-weight: bold; }
-        .pay-btn.active { background: #2e7d32; color: white; border-color: #2e7d32; }
+        .pay-btn { flex: 1; padding: 10px 8px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; cursor: pointer; text-align: center; font-size: 13px; font-weight: bold; }
+        .pay-btn.active { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: white; border-color: #81c784; }
         
         .action-buttons { display: flex; gap: 10px; }
-        .btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; text-align: center; }
-        .btn-clear { background: #e57373; color: white; }
-        .btn-clear:hover { background: #ef5350; }
-        .btn-submit { background: var(--primary-color); color: white; }
-        .btn-submit:hover { background: #aa2211; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
+        .btn-clear { background: linear-gradient(135deg, #8b1e0f, #4a0d05); color: #ffe6e6; border: 1px solid #b33927; }
+        .btn-clear:hover { background: #a32412; }
+        .btn-submit { background: var(--gold-gradient); color: #1a0c00; border: 1px solid #fff3cb; }
+        .btn-submit:hover { filter: brightness(1.15); }
 
         /* Modal / Receipt overlay */
-        .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .receipt-header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 10px; margin-bottom: 10px; }
+        .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .modal-content { background: var(--paper-bg); color: var(--text-dark); padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); }
+        .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
-        .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .modal-opt-btn { padding: 8px 12px; margin: 4px; border: 1px solid #ccc; background: #f9f9f9; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        .modal-opt-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-        .modal-opt-btn.disabled { background: #e0e0e0; color: #999; text-decoration: line-through; cursor: not-allowed; }
+        .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .modal-opt-btn { padding: 8px 12px; margin: 4px; border: 1px solid #8c6a27; background: #dfca9f; border-radius: 4px; cursor: pointer; font-size: 14px; color: #211608; font-weight: bold; }
+        .modal-opt-btn.active { background: #8b1e0f; color: white; border-color: #8b1e0f; }
+        .modal-opt-btn.disabled { background: #aaa; color: #666; text-decoration: line-through; cursor: not-allowed; }
 
         /* 📱 響應式手機排版修正 */
         @media (max-width: 768px) {
             body { flex-direction: column; height: auto; overflow-y: auto; }
-            .menu-container { height: auto; border-right: none; border-bottom: 2px solid var(--border-color); }
+            .menu-container { height: auto; border-right: none; border-bottom: 2px solid var(--border-gold); }
             .menu-tabs { overflow-x: auto; justify-content: start; }
             .tab-btn { flex: initial; min-width: 100px; }
             .grid-container { max-height: 55vh; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
@@ -178,7 +184,7 @@
                 <button class="pref-btn active" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
                 <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
             </div>
-            <div class="pref-group" style="margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;">
+            <div class="pref-group" style="margin-top:5px; border-top:1px dashed #543f24; padding-top:5px;">
                 <span class="pref-label">配備:</span>
                 <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
                 <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
@@ -776,7 +782,7 @@
                 div.innerHTML = `
                     <div class="order-item-info">
                         <div><strong>${item.name}</strong></div>
-                        <div style="font-size:12px; color:#777;">$${item.price} × ${item.qty}</div>
+                        <div style="font-size:12px; color:#a38c62;">$${item.price} × ${item.qty}</div>
                     </div>
                     <div class="order-item-qty">
                         <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
@@ -892,20 +898,20 @@
             
             let receiptHtml = `
                 <div class="receipt-header">
-                    <h3 style="margin-bottom:5px;">去中心鹹水雞 X 厝邊溫食</h3>
-                    <p style="font-size:12px;">點單明細收據</p>
+                    <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
+                    <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
                 <div class="receipt-line"><span>日期:</span> <span>${dateStr}</span></div>
                 <div class="receipt-line"><span>時間:</span> <span>${timeStr}</span></div>
-                <div class="receipt-line" style="border-bottom: 1px dashed #333; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
+                <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#8B1E0F;">【調味/備註配置】</div>
                 <div class="receipt-line"><span>口味:</span> <span>${orderPrefs.flavor}</span></div>
                 <div class="receipt-line"><span>辣度:</span> <span>${orderPrefs.spice}</span></div>
                 <div class="receipt-line"><span>鹹度:</span> <span>${orderPrefs.salt}</span></div>
-                <div class="receipt-line" style="border-bottom: 1px dashed #333; padding-bottom:5px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
+                <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
                 
-                <div style="margin: 10px 0; font-weight:bold; font-size:14px;">【點購品項】</div>
+                <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#3d2b1a;">【點購品項】</div>
             `;
 
             currentCart.forEach(item => {
@@ -919,7 +925,7 @@
                 if (item.subItems) {
                     item.subItems.forEach(sub => {
                         receiptHtml += `
-                            <div class="receipt-line" style="padding-left:15px; font-size:12px; color:#555;">
+                            <div class="receipt-line" style="padding-left:15px; font-size:12px; color:#6b522d;">
                                 <span>${sub.name}</span>
                                 <span>$0</span>
                             </div>
@@ -933,7 +939,7 @@
             }
 
             receiptHtml += `
-                <div style="border-top: 1px dashed #333; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:16px;" class="receipt-line">
+                <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:16px; color:#8B1E0F;" class="receipt-line">
                     <span>總計金額:</span>
                     <span>$${subtotal}</span>
                 </div>
