@@ -35,8 +35,9 @@
         .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .header-btn:hover { filter: brightness(1.15); }
         .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); border: 1px solid #81c784; }
+        .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
         .admin-entry-btn { background: linear-gradient(135deg, #424242, #212121); color: #ffffff; border: 1px solid #757575; }
-        .exit-edit-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
+        .exit-edit-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
         
         .store-login-trigger { background: transparent; color: #554128; border: none; font-size: 11px; cursor: pointer; padding: 2px 4px; opacity: 0.6; }
         .store-login-trigger:hover { opacity: 1; color: var(--primary-gold); }
@@ -179,10 +180,11 @@
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
-                <!-- 店家接單專用畫面：只有這兩顆按鈕 + 動態出現的退出按鈕 -->
-                <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 快速接單 (0)</button>
+                <!-- 依序為：接單管理、餐點管理、管理員模式 -->
+                <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單管理 (0)</button>
+                <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
                 <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 管理員模式</button>
-                <button class="header-btn exit-edit-btn admin-only" id="exitEditBtn" style="display:none;" onclick="toggleMealMgmtMode()">退出餐點管理</button>
+                <button class="header-btn exit-edit-btn" id="exitEditBtn" style="display:none;" onclick="toggleMealMgmtMode()">餐點管理</button>
                 
                 <button class="store-login-trigger" onclick="enableStoreMode()" title="店家登入">店</button>
             </div>
@@ -297,7 +299,6 @@
         <div class="modal-content" style="width:320px; text-align:center;">
             <h3 style="color:#3d2b1a; margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="btn btn-submit" onclick="toggleMealMgmtModeFromAdmin()">🍔 餐點管理</button>
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
@@ -307,10 +308,10 @@
         </div>
     </div>
 
-    <!-- ⚡ 免密碼快速接單 Modal -->
+    <!-- ⚡ 接單管理 Modal -->
     <div class="modal" id="quickAcceptModal">
         <div class="modal-content" style="width:450px; max-width:90vw;">
-            <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">⚡ 店家快速接單面板</h3>
+            <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">⚡ 店家接單管理面板</h3>
             <div id="quickAcceptContainer" style="max-height:60vh; overflow-y:auto;"></div>
             <button class="close-btn" onclick="closeQuickAcceptModal()">關閉面板</button>
         </div>
@@ -555,11 +556,6 @@
         }
 
         /* 從管理員面板觸發的各項功能 */
-        function toggleMealMgmtModeFromAdmin() {
-            closeAdminMenu();
-            toggleMealMgmtMode();
-        }
-
         function openOrderManagerFromAdmin() {
             closeAdminMenu();
             openOrderManager();
@@ -578,12 +574,15 @@
         /* 🍔 切換「餐點管理」模式 (開啟/關閉) */
         function toggleMealMgmtMode() {
             isEditMode = !isEditMode;
+            const mealBtn = document.getElementById('mealMgmtBtn');
             const exitBtn = document.getElementById('exitEditBtn');
             if (isEditMode) {
                 document.body.classList.add('edit-mode');
+                mealBtn.style.display = 'none';
                 exitBtn.style.display = 'inline-block';
             } else {
                 document.body.classList.remove('edit-mode');
+                mealBtn.style.display = 'inline-block';
                 exitBtn.style.display = 'none';
             }
         }
@@ -612,12 +611,13 @@
 
             setAdminPassword(newPwd.trim());
             alert("管理員密碼已成功修改！");
+            closeAdminMenu();
         }
 
-        /* 🏪 開啟店家專屬接單畫面 (免密碼，僅開啟快速接單與管理員入口按鈕) */
+        /* 🏪 開啟店家專屬接單畫面 */
         function enableStoreMode() {
             document.body.classList.add('admin-mode');
-            alert("已切換為店家接單介面！(管理功能請點擊【管理員模式】)");
+            alert("已切換為店家接單介面！");
         }
 
         function handlePrefClick(type, val, btnEl) {
@@ -698,7 +698,7 @@
             const pendingList = history.filter(o => !o.status || o.status === "等待接單");
             const btn = document.getElementById('quickAcceptHeaderBtn');
             if (btn) {
-                btn.innerText = `⚡ 快速接單 (${pendingList.length})`;
+                btn.innerText = `⚡ 接單管理 (${pendingList.length})`;
             }
         }
 
@@ -1128,7 +1128,7 @@
             alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n總金額: $${lastOrder.total}\n目前接單進度：${statusText}`);
         }
 
-        /* ⚡ 免密碼快速接單面板邏輯 */
+        /* ⚡ 接單管理面板邏輯 */
         function openQuickAcceptModal() {
             renderQuickAcceptList();
             document.getElementById('quickAcceptModal').style.display = 'flex';
