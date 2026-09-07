@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>去中心鹹水雞 POS 系統</title>
+    <title>去中心鹹水雞 X 厝邊溫食 POS 系統</title>
     <style>
         :root {
             --primary-color: #8B1E0F;
@@ -39,22 +39,31 @@
         .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center; font-weight: bold; font-size: 16px; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; }
         .bawi-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
+        /* 套餐直列式專用容器 */
+        .combo-vertical-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .combo-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; flex-direction: column; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .combo-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
+        .combo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px; margin-bottom: 8px; }
+        .combo-name { font-size: 16px; font-weight: bold; color: #333; }
+        .combo-price { color: var(--primary-color); font-weight: bold; font-size: 16px; }
+        .combo-details { font-size: 13px; color: #666; line-height: 1.6; }
+
         /* Item Card Styling */
         .item-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 85px; }
         .item-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
         .item-name { font-size: 15px; font-weight: bold; margin-bottom: 4px; word-break: break-all; text-align: center; }
         .item-price { color: var(--primary-color); font-weight: bold; font-size: 15px; text-align: center; }
-        .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+        .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; z-index: 2; }
         
         /* Soldout Styling */
-        .item-card.sold-out { background: #e9ecef; border-color: #ccc; opacity: 0.6; cursor: not-allowed; }
-        .item-card.sold-out .item-name { text-decoration: line-through; color: #6c757d; }
-        .item-card.sold-out .item-price { color: #6c757d; }
+        .item-card.sold-out, .combo-card.sold-out { background: #e9ecef; border-color: #ccc; opacity: 0.6; cursor: not-allowed; }
+        .item-card.sold-out .item-name, .combo-card.sold-out .combo-name { text-decoration: line-through; color: #6c757d; }
+        .item-card.sold-out .item-price, .combo-card.sold-out .combo-price { color: #6c757d; }
         .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(217, 83, 79, 0.9); color: white; padding: 2px 8px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; }
         
         /* Admin Edit Mode Highlight */
-        body.edit-mode .item-card { border: 2px dashed #d9534f; }
-        body.edit-mode .item-card.sold-out { border: 2px dashed #6c757d; }
+        body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #d9534f; }
+        body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #6c757d; }
 
         /* Right Panel - Checkout / Order List */
         .checkout-container { flex: 3; display: flex; flex-direction: column; background: #fdfcf7; height: 100%; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
@@ -63,13 +72,15 @@
         .order-list { flex: 1; overflow-y: auto; padding: 10px; border-bottom: 2px dashed var(--border-color); -webkit-overflow-scrolling: touch; }
         .order-list.collapsed { display: none; }
         
-        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 14px; gap: 5px; }
         .order-item.sub-item { padding-left: 20px; font-size: 12px; color: #666; background: #fafafa; }
         .order-item-info { flex: 2; }
         .order-item-qty { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
         .qty-btn { width: 28px; height: 28px; background: #ddd; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .qty-btn:hover { background: #ccc; }
         .order-item-price { flex: 1; text-align: right; font-weight: bold; }
+        .delete-item-btn { background: #e57373; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
+        .delete-item-btn:hover { background: #d32f2f; }
         
         /* Preference Configurations */
         .preferences-box { padding: 12px; background: #f5f0e1; border-bottom: 1px solid var(--border-color); font-size: 14px; }
@@ -120,7 +131,7 @@
     <!-- Left Panel -->
     <div class="menu-container">
         <div class="menu-header">
-            <span class="menu-header-title">去中心鹹水雞 智慧POS點餐系統</span>
+            <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 智慧POS點餐系統</span>
             <button class="soldout-toggle-btn" id="soldoutToggleBtn" onclick="toggleEditMode()">管理員模式</button>
         </div>
         <div class="menu-tabs" id="menuTabs"></div>
@@ -223,27 +234,32 @@
             ],
             "智能合約 (套餐)": [
                 { 
-                    id: "s1", name: "散戶輕倉個人餐", price: 260, soldOut: false,
+                    id: "s1", name: "1. 散戶輕倉個人餐", price: 260, soldOut: false,
+                    chickenText: "雞肉：半隻（鹹水 / 煙燻）",
                     chickenOptions: ["鹹水半雞", "煙燻半雞"],
                     items: ["豬耳朵", "雞冠", "豆干", "鴨肉丸", "珍珠蛋"]
                 },
                 { 
-                    id: "s2", name: "巨鯨重倉肉多多餐", price: 390, soldOut: false,
+                    id: "s2", name: "2. 巨鯨重倉肉多多餐", price: 390, soldOut: false,
+                    chickenText: "雞肉：半隻（鹹水 / 煙燻）",
                     chickenOptions: ["鹹水半雞", "煙燻半雞"],
                     items: ["牛五花", "松阪豬", "雞冠", "雞腸", "雞軟骨", "鴨肉丸", "鑫鑫腸"]
                 },
                 { 
-                    id: "s3", name: "DAO 節點下酒派對餐", price: 630, soldOut: false,
+                    id: "s3", name: "3. DAO節點下酒派對餐", price: 630, soldOut: false,
+                    chickenText: "雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）",
                     chickenOptions: ["全鹹水", "全煙燻", "鹹水半雞 + 煙燻半雞"],
                     items: ["牛五花", "松阪豬", "豬耳朵", "珍珠蛋", "雞冠", "雞腸", "雞皮", "鴨肉丸", "貢丸", "水晶餃", "百頁豆腐"]
                 },
                 { 
-                    id: "s4", name: "輕食減醣套餐", price: 139, soldOut: false,
+                    id: "s4", name: "4. 輕食減醣套餐", price: 139, soldOut: false,
+                    chickenText: "雞肉：鹹水雞胸",
                     fixedChicken: "鹹水雞胸",
                     items: ["冬粉", "花椰菜", "玉米筍", "豆皮", "高麗菜"]
                 },
                 { 
-                    id: "s5", name: "輕食減醣肉多餐", price: 239, soldOut: false,
+                    id: "s5", name: "5. 輕食減醣肉多餐", price: 239, soldOut: false,
+                    chickenText: "雞肉：鹹水雞胸 × 2",
                     fixedChicken: "鹹水雞胸 x 2",
                     items: ["冬粉", "白蘿蔔", "高麗菜", "玉米筍", "龍鬚菜", "珍珠蛋"]
                 }
@@ -417,6 +433,40 @@
             return card;
         }
 
+        function createComboCardElement(item, category) {
+            const card = document.createElement('div');
+            card.className = `combo-card ${item.soldOut ? 'sold-out' : ''}`;
+            
+            card.onclick = () => {
+                if (isEditMode) {
+                    item.soldOut = !item.soldOut;
+                    renderGrid(category);
+                } else {
+                    if (!item.soldOut) {
+                        handleItemClick(item, category);
+                    }
+                }
+            };
+            
+            let count = currentCart.filter(c => c.id.startsWith(item.id)).reduce((sum, c) => sum + c.qty, 0);
+            const badgeHtml = (count > 0 && !item.soldOut) ? `<div class="badge" style="top:10px; right:10px;">${count}</div>` : '';
+            const soldOutTag = item.soldOut ? `<div class="sold-out-overlay">已售完</div>` : '';
+
+            card.innerHTML = `
+                ${badgeHtml}
+                ${soldOutTag}
+                <div class="combo-header">
+                    <span class="combo-name">${item.name}</span>
+                    <span class="combo-price">$${item.price}</span>
+                </div>
+                <div class="combo-details">
+                    <div><strong>${item.chickenText}</strong></div>
+                    <div><strong>內容物：</strong>${item.items.join('、')}</div>
+                </div>
+            `;
+            return card;
+        }
+
         function handleItemClick(item, category) {
             if (category === "智能合約 (套餐)") {
                 if (item.chickenOptions) {
@@ -553,6 +603,13 @@
                     container.appendChild(row);
                 }
                 displayArea.appendChild(container);
+            } else if (category === "智能合約 (套餐)") {
+                const comboContainer = document.createElement('div');
+                comboContainer.className = 'combo-vertical-container';
+                menuData[category].forEach(item => {
+                    comboContainer.appendChild(createComboCardElement(item, category));
+                });
+                displayArea.appendChild(comboContainer);
             } else {
                 const grid = document.createElement('div');
                 grid.className = 'grid-container';
@@ -578,8 +635,17 @@
             if (currentCart[index]) {
                 currentCart[index].qty += delta;
                 if (currentCart[index].qty <= 0) {
-                    currentCart.splice(index, 1);
+                    removeItem(index);
+                    return;
                 }
+                updateCartUI();
+                refreshActiveGrid();
+            }
+        }
+
+        function removeItem(index) {
+            if (currentCart[index]) {
+                currentCart.splice(index, 1);
                 updateCartUI();
                 refreshActiveGrid();
             }
@@ -614,6 +680,7 @@
                         <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
                     </div>
                     <div class="order-item-price">$${item.price * item.qty}</div>
+                    <button class="delete-item-btn" onclick="removeItem(${idx})" title="刪除品項">✕</button>
                 `;
                 listContainer.appendChild(div);
 
@@ -681,7 +748,7 @@
 
             let receiptHtml = `
                 <div class="receipt-header">
-                    <h3 style="margin-bottom:5px;">去中心鹹水雞</h3>
+                    <h3 style="margin-bottom:5px;">去中心鹹水雞 X 厝邊溫食</h3>
                     <p style="font-size:12px;">點單明細收據</p>
                 </div>
                 <div class="receipt-line"><span>日期:</span> <span>${dateStr}</span></div>
