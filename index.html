@@ -102,6 +102,7 @@
         .input-label { font-weight: bold; color: var(--primary-gold); min-width: 75px; }
         .input-field { flex: 1; padding: 6px 10px; background: #150d07; border: 1px solid var(--border-gold); border-radius: 4px; color: #f5e4b3; font-size: 13px; outline: none; }
         .input-field:focus { border-color: #f3e5ab; box-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
+        .weekday-badge { font-size: 12px; font-weight: bold; color: #f3e5ab; background: #3d2b1a; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-gold); white-space: nowrap; }
 
         /* Preference Configurations */
         .preferences-box { padding: 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
@@ -155,7 +156,7 @@
     <!-- Left Panel -->
     <div class="menu-container">
         <div class="menu-header">
-            <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 智慧POS點餐系統</span>
+            <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
                 <button class="excel-export-btn" onclick="exportDailyReport()">📊 匯出日報</button>
                 <button class="excel-export-btn" onclick="exportMonthlyReport()">📅 匯出月報</button>
@@ -185,7 +186,8 @@
             </div>
             <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
-                <input type="datetime-local" id="pickupTime" class="input-field">
+                <input type="datetime-local" id="pickupTime" class="input-field" onchange="updateWeekdayBadge()">
+                <span id="weekdayBadge" class="weekday-badge">星期--</span>
             </div>
             <div class="input-row">
                 <span class="input-label">顧客備註:</span>
@@ -263,6 +265,8 @@
 
         // Admin Password Configuration
         const ADMIN_PASSWORD = "8888";
+
+        const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
         // Category Specific Notices
         const categoryNotices = {
@@ -397,11 +401,26 @@
         let currentPayment = "現金";
         let isEditMode = false;
 
-        // 設定預設取餐時間為當前時間（格式化為 YYYY-MM-DDTHH:mm）
+        // 設定預設取餐時間為當前時間，並自動計算星期幾
         function setDefaultPickupTime() {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('pickupTime').value = now.toISOString().slice(0,16);
+            updateWeekdayBadge();
+        }
+
+        // 自動更新取餐時間旁顯示的「星期幾」
+        function updateWeekdayBadge() {
+            const val = document.getElementById('pickupTime').value;
+            const badge = document.getElementById('weekdayBadge');
+            if (val) {
+                const dt = new Date(val);
+                if (!isNaN(dt.getTime())) {
+                    badge.innerText = weekDaysArr[dt.getDay()];
+                    return;
+                }
+            }
+            badge.innerText = "星期--";
         }
 
         // Toggle Admin Mode
@@ -919,7 +938,10 @@
                 return;
             }
 
-            const formattedPickupTime = pickupTimeRaw.replace('T', ' ');
+            // 計算取餐日期的星期幾
+            const pickupDateObj = new Date(pickupTimeRaw);
+            const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
+            const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
 
             // 計算營業日 (跨日邏輯：00:00 - 02:00 歸類在前一營業日)
             let now = new Date();
@@ -930,9 +952,7 @@
             
             let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
             let timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-            
-            const weekDays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-            let weekDayStr = weekDays[bizDateObj.getDay()];
+            let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
             let subtotal = 0;
             currentCart.forEach(item => {
@@ -1053,7 +1073,7 @@
             clearCart();
         }
 
-        /* 📊 Excel 報表匯出邏輯 (符合圖片橫向展開格式) */
+        /* 📊 Excel 報表匯出邏輯 (完全對齊圖片格式) */
         function downloadCSV(csvContent, fileName) {
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -1063,6 +1083,27 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        // 將單筆訂單展開為圖片相同的品項陣列 (品項*數量 與 單價小計)
+        function formatOrderItemsForCSV(order) {
+            let itemList = [];
+            order.items.forEach(item => {
+                let nameStr = item.qty > 1 ? `${item.name}*${item.qty}` : item.name;
+                itemList.push({ name: nameStr, price: item.price * item.qty });
+
+                if (item.subItems) {
+                    item.subItems.forEach(sub => {
+                        itemList.push({ name: sub.name, price: 0 });
+                    });
+                }
+            });
+
+            if (order.prefs.flavor === "泰式+5元") {
+                itemList.push({ name: "泰式醬料加價", price: 5 });
+            }
+
+            return itemList;
         }
 
         // 匯出日報 Excel
@@ -1081,15 +1122,11 @@
                 return;
             }
 
-            // 計算最大單品數量，補齊標題欄位
+            // 計算最大單品數量，以動態產生欄位 Header
             let maxItemsCount = 0;
             filteredOrders.forEach(o => {
-                let count = 0;
-                o.items.forEach(item => {
-                    count += 1;
-                    if (item.subItems) count += item.subItems.length;
-                });
-                if (count > maxItemsCount) maxItemsCount = count;
+                let formattedItems = formatOrderItemsForCSV(o);
+                if (formattedItems.length > maxItemsCount) maxItemsCount = formattedItems.length;
             });
 
             let csv = "日期,星期,時間,總額";
@@ -1098,31 +1135,35 @@
             }
             csv += ",口味,備註\n";
 
+            let dayTotalAmount = 0;
+
             filteredOrders.forEach(o => {
+                dayTotalAmount += o.total;
                 let flavorText = `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}`;
-                let notesText = o.custNotes || (o.prefs.extras ? o.prefs.extras.join(";") : "");
+                let notesText = o.payment === "現金" ? "" : o.payment.toLowerCase();
+                if (o.custNotes) {
+                    notesText = notesText ? `${notesText} (${o.custNotes})` : o.custNotes;
+                }
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
 
-                let itemCount = 0;
-                o.items.forEach(item => {
+                let formattedItems = formatOrderItemsForCSV(o);
+                formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
-                    itemCount++;
-                    if (item.subItems) {
-                        item.subItems.forEach(sub => {
-                            line += `,"${sub.name}","0"`;
-                            itemCount++;
-                        });
-                    }
                 });
 
-                for (let i = itemCount; i < maxItemsCount; i++) {
+                for (let i = formattedItems.length; i < maxItemsCount; i++) {
                     line += `,"",""`;
                 }
 
                 line += `,"${flavorText}","${notesText}"\n`;
                 csv += line;
             });
+
+            // 末端插入「當日總計」列 (對齊圖片格式)
+            let dateParts = targetDate.split('/');
+            let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
+            csv += `"${shortDateTag}","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
 
             downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
         }
@@ -1145,12 +1186,8 @@
 
             let maxItemsCount = 0;
             filteredOrders.forEach(o => {
-                let count = 0;
-                o.items.forEach(item => {
-                    count += 1;
-                    if (item.subItems) count += item.subItems.length;
-                });
-                if (count > maxItemsCount) maxItemsCount = count;
+                let formattedItems = formatOrderItemsForCSV(o);
+                if (formattedItems.length > maxItemsCount) maxItemsCount = formattedItems.length;
             });
 
             let csv = "日期,星期,時間,總額";
@@ -1164,23 +1201,19 @@
             filteredOrders.forEach(o => {
                 grandTotal += o.total;
                 let flavorText = `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}`;
-                let notesText = o.custNotes || (o.prefs.extras ? o.prefs.extras.join(";") : "");
+                let notesText = o.payment === "現金" ? "" : o.payment.toLowerCase();
+                if (o.custNotes) {
+                    notesText = notesText ? `${notesText} (${o.custNotes})` : o.custNotes;
+                }
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
 
-                let itemCount = 0;
-                o.items.forEach(item => {
+                let formattedItems = formatOrderItemsForCSV(o);
+                formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
-                    itemCount++;
-                    if (item.subItems) {
-                        item.subItems.forEach(sub => {
-                            line += `,"${sub.name}","0"`;
-                            itemCount++;
-                        });
-                    }
                 });
 
-                for (let i = itemCount; i < maxItemsCount; i++) {
+                for (let i = formattedItems.length; i < maxItemsCount; i++) {
                     line += `,"",""`;
                 }
 
@@ -1188,7 +1221,7 @@
                 csv += line;
             });
 
-            csv += `"當月總計","","","${grandTotal}"\n`;
+            csv += `"當月總計","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
 
             downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g,'-')}.csv`);
         }
