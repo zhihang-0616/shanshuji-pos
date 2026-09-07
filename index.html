@@ -27,15 +27,17 @@
         .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         .menu-header-title { flex: 1; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
         
-        /* Header Buttons */
+        /* Header Buttons - 店家專用按鈕預設隱藏 */
         .admin-action-group { display: flex; gap: 8px; align-items: center; }
+        .admin-only { display: none !important; }
+        body.admin-mode .admin-only { display: inline-block !important; }
+
         .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .quick-accept-btn:hover { background: #388e3c; }
         .soldout-toggle-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .soldout-toggle-btn.active { background: var(--gold-gradient); color: #201000; border-color: #fff; }
-        .excel-export-btn { display: none; background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .excel-export-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .excel-export-btn:hover { background: #28a745; }
-        body.edit-mode .excel-export-btn { display: inline-block; }
 
         /* Top Navigation Tabs */
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
@@ -174,11 +176,11 @@
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
-                <button class="quick-accept-btn" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 快速接單 (0)</button>
-                <button class="excel-export-btn" onclick="openOrderManager()">📋 訂單紀錄管理</button>
-                <button class="excel-export-btn" onclick="exportDailyReport()">📊 匯出日報</button>
-                <button class="excel-export-btn" onclick="exportMonthlyReport()">📅 匯出月報</button>
-                <button class="soldout-toggle-btn" id="soldoutToggleBtn" onclick="toggleEditMode()">管理員模式</button>
+                <button class="quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 快速接單 (0)</button>
+                <button class="excel-export-btn admin-only" onclick="openOrderManager()">📋 訂單紀錄管理</button>
+                <button class="excel-export-btn admin-only" onclick="exportDailyReport()">📊 匯出日報</button>
+                <button class="excel-export-btn admin-only" onclick="exportMonthlyReport()">📅 匯出月報</button>
+                <button class="soldout-toggle-btn admin-only" id="soldoutToggleBtn" onclick="toggleEditMode()">估價/估餐模式</button>
             </div>
         </div>
         <div class="menu-tabs" id="menuTabs"></div>
@@ -307,7 +309,6 @@
                 <table class="order-mgmt-table" id="mgmtTable">
                     <thead>
                         <tr>
-                            <th>接單狀態</th>
                             <th>時間</th>
                             <th>訂購人</th>
                             <th>電話</th>
@@ -353,9 +354,6 @@
     <script>
         // 最新 GAS 部署網址 (自動推播至 LINE 群組)
         const GAS_URL = "https://script.google.com/macros/s/AKfycbz_895ZUhbRdARsQ_KwHtcDhsZKVCQSRVplzIKgJD5wakdd7MV4SbGg-fSaU-Iv8BzRYQ/exec";
-
-        // Admin Password Configuration
-        const ADMIN_PASSWORD = "8888";
 
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
@@ -514,21 +512,14 @@
         }
 
         function toggleEditMode() {
-            if (!isEditMode) {
-                let pwd = prompt("請輸入管理員密碼以進入管理模式:");
-                if (pwd !== ADMIN_PASSWORD) {
-                    alert("密碼錯誤！無法開啟管理模式。");
-                    return;
-                }
-            }
             isEditMode = !isEditMode;
             const btn = document.getElementById('soldoutToggleBtn');
             if (isEditMode) {
-                btn.innerText = "退出管理員模式";
+                btn.innerText = "退出估價模式";
                 btn.classList.add('active');
                 document.body.classList.add('edit-mode');
             } else {
-                btn.innerText = "管理員模式";
+                btn.innerText = "估價/估餐模式";
                 btn.classList.remove('active');
                 document.body.classList.remove('edit-mode');
             }
@@ -616,7 +607,16 @@
             }
         }
 
+        /* 🔍 自動檢查網址參數判斷是否開啟店家模式 */
+        function checkAdminModeFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'admin') {
+                document.body.classList.add('admin-mode');
+            }
+        }
+
         function initPOS() {
+            checkAdminModeFromUrl();
             initFlatMenuOptions();
             const tabsContainer = document.getElementById('menuTabs');
             let firstCategory = true;
@@ -1311,18 +1311,10 @@
             localOrderHistory.forEach((ord, index) => {
                 if (ord.discountPercent === undefined) ord.discountPercent = 100;
                 if (ord.deductAmount === undefined) ord.deductAmount = 0;
-                if (!ord.status) ord.status = "等待接單";
                 calculateOrderFinalTotal(ord);
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>
-                        <select class="edit-input" style="font-weight:bold; color:${ord.status === '已接單' ? '#81c784' : ord.status === '已完成' ? '#90caf9' : '#f3e5ab'};" onchange="updateHistoryItem(${index}, 'status', this.value)">
-                            <option value="等待接單" ${ord.status === '等待接單' ? 'selected' : ''}>🟡 等待接單</option>
-                            <option value="已接單" ${ord.status === '已接單' ? 'selected' : ''}>🟢 已接單</option>
-                            <option value="已完成" ${ord.status === '已完成' ? 'selected' : ''}>🔵 已完成</option>
-                        </select>
-                    </td>
                     <td>${ord.date}<br>${ord.time}</td>
                     <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${index}, 'customer', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${index}, 'phone', this.value)"></td>
@@ -1352,9 +1344,6 @@
 
         function updateHistoryItem(index, key, val) {
             localOrderHistory[index][key] = val;
-            if (key === 'status') {
-                saveEditedOrdersHistory();
-            }
         }
 
         function updateHistoryPrefItem(index, key, val) {
