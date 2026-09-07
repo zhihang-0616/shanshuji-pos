@@ -29,6 +29,8 @@
         
         /* Header Buttons */
         .admin-action-group { display: flex; gap: 8px; align-items: center; }
+        .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .quick-accept-btn:hover { background: #388e3c; }
         .soldout-toggle-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .soldout-toggle-btn.active { background: var(--gold-gradient); color: #201000; border-color: #fff; }
         .excel-export-btn { display: none; background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
@@ -95,7 +97,7 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
-        /* Customer Info Box (包含訂單查詢區塊) */
+        /* Customer Info Box */
         .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
         .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .input-row:last-child { margin-bottom: 0; }
@@ -104,12 +106,8 @@
         .input-field:focus { border-color: #f3e5ab; box-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
         .weekday-badge { font-size: 12px; font-weight: bold; color: #f3e5ab; background: #3d2b1a; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-gold); white-space: nowrap; }
 
-        /* 🔍 訂單進度查詢按鈕與狀態樣式 */
+        /* 🔍 訂單進度查詢列 */
         .status-check-box { padding: 8px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; }
-        .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
-        .status-pending { background: #8a6d0b; color: #fff; }
-        .status-accepted { background: #1b5e20; color: #81c784; border: 1px solid #81c784; }
-        .status-completed { background: #0d47a1; color: #90caf9; border: 1px solid #90caf9; }
 
         /* Preference Configurations */
         .preferences-box { padding: 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
@@ -142,9 +140,6 @@
         .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
         .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .modal-opt-btn { padding: 8px 12px; margin: 4px; border: 1px solid #8c6a27; background: #dfca9f; border-radius: 4px; cursor: pointer; font-size: 14px; color: #211608; font-weight: bold; }
-        .modal-opt-btn.active { background: #8b1e0f; color: white; border-color: #8b1e0f; }
-        .modal-opt-btn.disabled { background: #aaa; color: #666; text-decoration: line-through; cursor: not-allowed; }
 
         /* Admin Order Manager Table Modal */
         .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1200px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
@@ -153,6 +148,12 @@
         .order-mgmt-table th { background: #3d2b1a; color: var(--primary-gold); }
         .edit-input { width: 100%; background: #140f0a; border: 1px solid var(--border-gold); color: #fff; padding: 4px; font-size: 12px; text-align: center; }
         .discount-container { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+
+        /* ⚡ 快速接單懸浮卡片樣式 */
+        .quick-accept-card { background: #2b1f13; border: 2px solid var(--primary-gold); padding: 15px; border-radius: 8px; color: #f5e4b3; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }
+        .accept-btn-group { display: flex; gap: 8px; margin-top: 10px; }
+        .accept-btn-accept { flex: 2; padding: 10px; background: linear-gradient(135deg, #1e7e34, #145222); color: #fff; border: 1px solid #81c784; border-radius: 4px; font-weight: bold; font-size: 15px; cursor: pointer; }
+        .accept-btn-done { flex: 1; padding: 10px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
 
         /* 📱 響應式手機排版修正 */
         @media (max-width: 768px) {
@@ -173,6 +174,7 @@
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
             <div class="admin-action-group">
+                <button class="quick-accept-btn" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 快速接單 (0)</button>
                 <button class="excel-export-btn" onclick="openOrderManager()">📋 訂單紀錄管理</button>
                 <button class="excel-export-btn" onclick="exportDailyReport()">📊 匯出日報</button>
                 <button class="excel-export-btn" onclick="exportMonthlyReport()">📅 匯出月報</button>
@@ -282,6 +284,15 @@
     <!-- Receipt Output Popup -->
     <div class="modal" id="receiptModal">
         <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
+    </div>
+
+    <!-- ⚡ 免密碼快速接單 Modal -->
+    <div class="modal" id="quickAcceptModal">
+        <div class="modal-content" style="width:450px; max-width:90vw;">
+            <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">⚡ 店家快速接單面板</h3>
+            <div id="quickAcceptContainer" style="max-height:60vh; overflow-y:auto;"></div>
+            <button class="close-btn" onclick="closeQuickAcceptModal()">關閉面板</button>
+        </div>
     </div>
 
     <!-- Admin Order Manager Modal -->
@@ -596,6 +607,15 @@
             return `<span>${text}</span>`;
         }
 
+        function updatePendingCountHeader() {
+            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            const pendingList = history.filter(o => !o.status || o.status === "等待接單");
+            const btn = document.getElementById('quickAcceptHeaderBtn');
+            if (btn) {
+                btn.innerText = `⚡ 快速接單 (${pendingList.length})`;
+            }
+        }
+
         function initPOS() {
             initFlatMenuOptions();
             const tabsContainer = document.getElementById('menuTabs');
@@ -618,6 +638,7 @@
             }
             setDefaultPickupTime();
             updateCartUI();
+            updatePendingCountHeader();
         }
 
         function createCardElement(item, category) {
@@ -981,6 +1002,7 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
+            updatePendingCountHeader();
         }
 
         /* 🔍 顧客輸入電話查詢接單進度 */
@@ -999,20 +1021,76 @@
 
             let lastOrder = matches[matches.length - 1];
             let statusText = "";
-            let statusBadgeClass = "";
 
             if (lastOrder.status === "已完成") {
                 statusText = "🔵 餐點已完成 (可前來取餐)";
-                statusBadgeClass = "status-completed";
             } else if (lastOrder.status === "已接單") {
                 statusText = "🟢 店家已接單 (餐點製作中)";
-                statusBadgeClass = "status-accepted";
             } else {
                 statusText = "🟡 等待店家接單中";
-                statusBadgeClass = "status-pending";
             }
 
             alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n總金額: $${lastOrder.total}\n目前接單進度：${statusText}`);
+        }
+
+        /* ⚡ 免密碼快速接單面板邏輯 */
+        function openQuickAcceptModal() {
+            renderQuickAcceptList();
+            document.getElementById('quickAcceptModal').style.display = 'flex';
+        }
+
+        function closeQuickAcceptModal() {
+            document.getElementById('quickAcceptModal').style.display = 'none';
+        }
+
+        function renderQuickAcceptList() {
+            const container = document.getElementById('quickAcceptContainer');
+            container.innerHTML = '';
+
+            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            const pendingOrders = history.map((ord, idx) => ({ ...ord, originalIndex: idx })).filter(o => !o.status || o.status === "等待接單" || o.status === "已接單");
+
+            if (pendingOrders.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">目前沒有等待處理的訂單 🎉</div>';
+                return;
+            }
+
+            pendingOrders.forEach(ord => {
+                const card = document.createElement('div');
+                card.className = 'quick-accept-card';
+                
+                let itemListStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+                let flavorStr = ord.prefs ? `${ord.prefs.flavor}/${ord.prefs.spice}/${ord.prefs.salt}` : '';
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; border-bottom:1px dashed var(--border-gold); padding-bottom:5px; margin-bottom:8px;">
+                        <span>${ord.customer} (${ord.phone})</span>
+                        <span style="color:var(--primary-gold);">$${ord.total}</span>
+                    </div>
+                    <div style="font-size:13px; line-height:1.5;">
+                        <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
+                        <div>🍗 訂購內容：${itemListStr}</div>
+                        <div>🧂 調味口味：${flavorStr}</div>
+                        <div>📝 顧客備註：${ord.custNotes || '無'}</div>
+                        <div>📌 當前狀態：<strong style="color:${ord.status === '已接單' ? '#81c784' : '#f3e5ab'};">${ord.status || '等待接單'}</strong></div>
+                    </div>
+                    <div class="accept-btn-group">
+                        <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 一鍵接單</button>
+                        <button class="accept-btn-done" onclick="quickUpdateStatus(${ord.originalIndex}, '已完成')">🔵 標記完成</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function quickUpdateStatus(originalIndex, newStatus) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[originalIndex]) {
+                history[originalIndex].status = newStatus;
+                localStorage.setItem('pos_order_history', JSON.stringify(history));
+                updatePendingCountHeader();
+                renderQuickAcceptList();
+            }
         }
 
         async function submitOrder() {
@@ -1073,7 +1151,7 @@
 
             const orderPayload = {
                 id: Date.now(),
-                status: "等待接單", // 預設接單狀態
+                status: "等待接單",
                 date: dateStr,
                 weekDay: weekDayStr,
                 time: timeStr,
@@ -1382,11 +1460,13 @@
             if (confirm("確定要刪除這筆訂單嗎？")) {
                 localOrderHistory.splice(index, 1);
                 renderOrderMgmtTable();
+                updatePendingCountHeader();
             }
         }
 
         function saveEditedOrdersHistory() {
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+            updatePendingCountHeader();
         }
 
         /* 📊 Excel 報表匯出邏輯 (精確欄位順序：日期, 星期, 時間, 訂購人, 電話, 總額, (單品, 單價)×N, 口味, 備註) */
