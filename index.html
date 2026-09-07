@@ -221,6 +221,9 @@
         // Admin Password Configuration
         const ADMIN_PASSWORD = "8888";
 
+        // Google Apps Script Web App Deployment URL
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIV07Vl6gwB7uDWRV9HUymI85oU0cEa6teahC_u1hFcU7w7dqSa0mFwj0l_NwZPKIuVA/exec";
+
         // Category Specific Notices
         const categoryNotices = {
             "厝邊溫食(炒麵/燴飯)": "炒麵類 預設使用芥藍菜 若遇缺貨將調整為油菜或高麗菜<br>炒青菜 為當季時令蔬菜 品項隨季節調整 恕無法指定",
@@ -834,6 +837,17 @@
             refreshActiveGrid();
         }
 
+        function sendOrderToLineGroup(orderPayload) {
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderPayload)
+            })
+            .then(() => console.log("訂單已發送至 LINE 群組！"))
+            .catch(err => console.error("發送 LINE 訊息失敗:", err));
+        }
+
         function submitOrder() {
             if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
@@ -902,6 +916,16 @@
 
             content.innerHTML = receiptHtml;
             modal.style.display = 'flex';
+
+            // 組裝訂單 Payload 並發送至 LINE 群組
+            let orderPayload = {
+                time: `${dateStr} ${timeStr}`,
+                total: subtotal,
+                payment: currentPayment,
+                prefs: orderPrefs,
+                items: currentCart
+            };
+            sendOrderToLineGroup(orderPayload);
         }
 
         function closeReceipt() {
