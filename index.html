@@ -89,6 +89,14 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
+        /* Customer Info Box */
+        .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
+        .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .input-row:last-child { margin-bottom: 0; }
+        .input-label { font-weight: bold; color: var(--primary-gold); min-width: 75px; }
+        .input-field { flex: 1; padding: 6px 10px; background: #150d07; border: 1px solid var(--border-gold); border-radius: 4px; color: #f5e4b3; font-size: 13px; outline: none; }
+        .input-field:focus { border-color: #f3e5ab; box-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
+
         /* Preference Configurations */
         .preferences-box { padding: 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
         .pref-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed var(--border-gold); color: var(--primary-gold); }
@@ -158,6 +166,18 @@
         
         <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
+
+        <!-- 取餐資訊 (必填) -->
+        <div class="customer-info-box">
+            <div class="input-row">
+                <span class="input-label">訂購姓名*:</span>
+                <input type="text" id="custName" class="input-field" placeholder="請輸入姓名 (必填)">
+            </div>
+            <div class="input-row">
+                <span class="input-label">取餐時間*:</span>
+                <input type="datetime-local" id="pickupTime" class="input-field">
+            </div>
+        </div>
 
         <!-- Preferences (辣度, 鹹度, 口味, 備註) -->
         <div class="preferences-box">
@@ -363,6 +383,13 @@
         let currentPayment = "現金";
         let isEditMode = false;
 
+        // 設定預設取餐時間為當前時間（格式化為 YYYY-MM-DDTHH:mm）
+        function setDefaultPickupTime() {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('pickupTime').value = now.toISOString().slice(0,16);
+        }
+
         // Toggle Admin Mode
         function toggleEditMode() {
             if (!isEditMode) {
@@ -483,6 +510,7 @@
                     firstCategory = false;
                 }
             }
+            setDefaultPickupTime();
             updateCartUI();
         }
 
@@ -838,16 +866,38 @@
         function clearCart() {
             currentCart = [];
             orderPrefs.extras = [];
+            document.getElementById('custName').value = '';
+            setDefaultPickupTime();
             document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('addon-active'));
             updateCartUI();
             refreshActiveGrid();
         }
 
         async function submitOrder() {
+            // 1. 必填驗證：購物車檢查
             if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
                 return;
             }
+
+            // 2. 必填驗證：姓名與取餐時間檢查
+            const custName = document.getElementById('custName').value.trim();
+            const pickupTimeRaw = document.getElementById('pickupTime').value;
+
+            if (!custName) {
+                alert("請填寫【訂購姓名】才可完成下單！");
+                document.getElementById('custName').focus();
+                return;
+            }
+
+            if (!pickupTimeRaw) {
+                alert("請選擇【取餐時間】才可完成下單！");
+                document.getElementById('pickupTime').focus();
+                return;
+            }
+
+            // 格式化取餐時間顯示
+            const formattedPickupTime = pickupTimeRaw.replace('T', ' ');
 
             let now = new Date();
             let dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
@@ -861,9 +911,11 @@
                 subtotal += 5;
             }
 
-            // 1. 組裝發送到 LINE 的 Payload 資料結構
+            // 3. 組裝發送到 LINE 的 Payload 資料結構 (包含姓名與取餐時間)
             const orderPayload = {
                 time: `${dateStr} ${timeStr}`,
+                customer: custName,
+                pickupTime: formattedPickupTime,
                 total: subtotal,
                 payment: currentPayment,
                 prefs: {
@@ -880,7 +932,7 @@
                 }))
             };
 
-            // 2. 背景發送 POST 請求給 GAS (Webhook 推播至 LINE)
+            // 4. 背景發送 POST 請求給 GAS (Webhook 推播至 LINE)
             try {
                 fetch(GAS_URL, {
                     method: "POST",
@@ -892,7 +944,7 @@
                 console.error("LINE 通知發送失敗:", err);
             }
 
-            // 3. 顯示收據視窗
+            // 5. 顯示收據視窗
             const modal = document.getElementById('receiptModal');
             const content = document.getElementById('receiptContent');
             
@@ -901,8 +953,9 @@
                     <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
-                <div class="receipt-line"><span>日期:</span> <span>${dateStr}</span></div>
-                <div class="receipt-line"><span>時間:</span> <span>${timeStr}</span></div>
+                <div class="receipt-line"><span>訂購姓名:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
+                <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:#8B1E0F;">${formattedPickupTime}</span></div>
+                <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} ${timeStr}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#8B1E0F;">【調味/備註配置】</div>
