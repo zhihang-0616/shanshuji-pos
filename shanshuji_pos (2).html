@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>去中心鹹水雞 POS 系統</title>
+    <style>
+        :root {
+            --primary-color: #8B1E0F;
+            --secondary-color: #f7e1b5;
+            --text-dark: #333;
+            --bg-light: #fdfaf4;
+            --border-color: #d1b48c;
+        }
+        * { box-sizing: border-box; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 0; }
+        body { display: flex; height: 100vh; background-color: #f4edd9; color: var(--text-dark); overflow: hidden; }
+        
+        /* Left Panel - Menu Selection */
+        .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--bg-light); border-right: 2px solid var(--border-color); height: 100%; }
+        .menu-header { background-color: var(--primary-color); color: white; padding: 15px; text-align: center; font-size: 22px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .menu-tabs { display: flex; background: #e0d0b0; overflow-x: auto; border-bottom: 1px solid var(--border-color); }
+        .tab-btn { padding: 12px 20px; border: none; background: none; font-size: 16px; font-weight: bold; cursor: pointer; color: #555; white-space: nowrap; transition: 0.2s; }
+        .tab-btn.active { background: var(--bg-light); color: var(--primary-color); border-top: 4px solid var(--primary-color); }
+        .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; }
+        
+        /* Item Card Styling */
+        .item-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; position: relative; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .item-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: var(--primary-color); }
+        .item-name { font-size: 15px; font-weight: bold; margin-bottom: 6px; word-break: break-all; }
+        .item-price { color: var(--primary-color); font-weight: bold; font-size: 14px; }
+        .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+        
+        /* Right Panel - Checkout / Order List */
+        .checkout-container { flex: 3; display: flex; flex-direction: column; background: #fdfcf7; height: 100%; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
+        .order-title { background: #5c4033; color: white; padding: 15px; font-size: 18px; font-weight: bold; text-align: center; }
+        .order-list { flex: 1; overflow-y: auto; padding: 10px; border-bottom: 2px dashed var(--border-color); }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .order-item-info { flex: 2; }
+        .order-item-qty { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
+        .qty-btn { width: 24px; height: 24px; background: #ddd; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .qty-btn:hover { background: #ccc; }
+        .order-item-price { flex: 1; text-align: right; font-weight: bold; }
+        
+        /* Preference Configurations */
+        .preferences-box { padding: 12px; background: #f5f0e1; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+        .pref-group { margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+        .pref-label { font-weight: bold; min-width: 45px; color: #555; }
+        .pref-btn { padding: 4px 10px; border: 1px solid #ccc; background: white; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .pref-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .pref-btn.addon-active { background: #4a6b82; color: white; border-color: #4a6b82; }
+        
+        /* Summary & Action Buttons */
+        .summary-box { padding: 15px; background: white; }
+        .total-row { display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; color: var(--primary-color); margin-bottom: 12px; }
+        .payment-methods { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .pay-btn { flex: 1; padding: 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer; text-align: center; font-size: 13px; font-weight: bold; }
+        .pay-btn.active { background: #2e7d32; color: white; border-color: #2e7d32; }
+        
+        .action-buttons { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; text-align: center; }
+        .btn-clear { background: #e57373; color: white; }
+        .btn-clear:hover { background: #ef5350; }
+        .btn-submit { background: var(--primary-color); color: white; }
+        .btn-submit:hover { background: #aa2211; }
+
+        /* Modal / Receipt overlay */
+        .receipt-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .receipt-content { background: white; padding: 20px; border-radius: 8px; width: 320px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-family: monospace; }
+        .receipt-header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 10px; margin-bottom: 10px; }
+        .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+        .close-receipt { width: 100%; padding: 10px; margin-top: 15px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- Left Panel -->
+    <div class="menu-container">
+        <div class="menu-header">去中心鹹水雞 智慧POS點餐系統</div>
+        <div class="menu-tabs" id="menuTabs"></div>
+        <div class="grid-container" id="menuGrid"></div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="checkout-container">
+        <div class="order-title">當前點訂單明細</div>
+        
+        <!-- Preferences (辣度, 鹹度, 口味, 備註) -->
+        <div class="preferences-box">
+            <div class="pref-group">
+                <span class="pref-label">口味:</span>
+                <button class="pref-btn active" onclick="setPref('flavor', '原味', this)">原味</button>
+                <button class="pref-btn" onclick="setPref('flavor', '蒜味', this)">蒜味</button>
+                <button class="pref-btn" onclick="setPref('flavor', '泰式(+5元)', this)">泰式</button>
+            </div>
+            <div class="pref-group">
+                <span class="pref-label">辣度:</span>
+                <button class="pref-btn" onclick="setPref('spice', '不辣', this)">不辣</button>
+                <button class="pref-btn" onclick="setPref('spice', '小辣', this)">小辣</button>
+                <button class="pref-btn active" onclick="setPref('spice', '中辣', this)">中辣</button>
+                <button class="pref-btn" onclick="setPref('spice', '大辣', this)">大辣</button>
+            </div>
+            <div class="pref-group">
+                <span class="pref-label">鹹度:</span>
+                <button class="pref-btn" onclick="setPref('salt', '清淡', this)">清淡</button>
+                <button class="pref-btn active" onclick="setPref('salt', '正常', this)">正常</button>
+                <button class="pref-btn" onclick="setPref('salt', '重鹹', this)">重鹹</button>
+            </div>
+            <div class="pref-group" style="margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;">
+                <span class="pref-label">配備:</span>
+                <button class="pref-btn" onclick="toggleAddon('需熱食', this)">需熱食</button>
+                <button class="pref-btn" onclick="toggleAddon('需餐具', this)">需餐具</button>
+            </div>
+        </div>
+
+        <!-- Order list items -->
+        <div class="order-list" id="orderList"></div>
+
+        <!-- Total & Checkout button -->
+        <div class="summary-box">
+            <div class="total-row">
+                <span>總金額:</span>
+                <span id="totalAmount">$0</span>
+            </div>
+            <div class="payment-methods" id="payMethods">
+                <button class="pay-btn active" onclick="setPayment('現金', this)">現金</button>
+                <button class="pay-btn" onclick="setPayment('轉帳', this)">轉帳</button>
+                <button class="pay-btn" onclick="setPayment('Linepay', this)">Linepay</button>
+                <button class="pay-btn" onclick="setPayment('全支付', this)">全支付</button>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-clear" onclick="clearCart()">清除</button>
+                <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Output Popup -->
+    <div class="receipt-modal" id="receiptModal">
+        <div class="receipt-content" id="receiptContent"></div>
+    </div>
+
+    <script>
+        // Full parsed menu database based accurately on the menu image
+        const menuData = {
+            "鹹本位/煙燻": [
+                { id: "m1", name: "鹹水雞胸", price: 65 },
+                { id: "m2", name: "鹹水雞腿", price: 65 },
+                { id: "m3", name: "鹹水半雞", price: 130 },
+                { id: "m4", name: "煙燻雞胸", price: 75 },
+                { id: "m5", name: "煙燻雞腿", price: 75 },
+                { id: "m6", name: "煙燻半雞", price: 150 }
+            ],
+            "熱門套餐類": [
+                { id: "s1", name: "散戶輕奢個人餐", price: 260 },
+                { id: "s2", name: "巨鱷重倉肉多多餐", price: 390 },
+                { id: "s3", name: "DAO爺點下酒派對餐", price: 630 },
+                { id: "s4", name: "輕奢減醣肉多餐", price: 239 },
+                { id: "s5", name: "輕奢減醣餐", price: 139 }
+            ],
+            "攤上資產-蔬菜": [
+                { id: "v1", name: "娃娃菜", price: 40 },
+                { id: "v2", name: "玉米筍", price: 30 },
+                { id: "v3", name: "筍片", price: 25 },
+                { id: "v4", name: "水蓮", price: 25 },
+                { id: "v5", name: "四季豆", price: 25 },
+                { id: "v6", name: "龍鬚菜", price: 25 },
+                { id: "v7", name: "花椰菜", price: 25 },
+                { id: "v8", name: "鴻喜菇", price: 25 },
+                { id: "v9", name: "杏鮑菇", price: 20 },
+                { id: "v10", name: "金針菇", price: 20 },
+                { id: "v11", name: "小黃瓜", price: 20 },
+                { id: "v12", name: "高麗菜", price: 20 },
+                { id: "v13", name: "白蘿蔔", price: 20 },
+                { id: "v14", name: "黑木耳", price: 20 },
+                { id: "v15", name: "洋蔥", price: 20 },
+                { id: "v16", name: "海帶", price: 20 }
+            ],
+            "去中心肉類": [
+                { id: "meat1", name: "松阪豬", price: 75 },
+                { id: "meat2", name: "牛五花", price: 70 },
+                { id: "meat3", name: "雞軟骨", price: 40 },
+                { id: "meat4", name: "雞心", price: 30 },
+                { id: "meat5", name: "雞胗", price: 30 },
+                { id: "meat6", name: "雞冠", price: 25 },
+                { id: "meat7", name: "雞腸", price: 25 },
+                { id: "meat8", name: "雞皮", price: 25 },
+                { id: "meat9", name: "珍珠蛋", price: 25 },
+                { id: "meat10", name: "鑫鑫腸", price: 25 }
+            ],
+            "節點火鍋料": [
+                { id: "f1", name: "鴨肉丸", price: 30 },
+                { id: "f2", name: "貢丸", price: 30 },
+                { id: "f3", name: "水晶餃", price: 30 },
+                { id: "f4", name: "甜不辣", price: 25 },
+                { id: "f5", name: "蟹味棒", price: 25 },
+                { id: "f6", name: "皮蛋(溏心)", price: 25 },
+                { id: "f7", name: "鹹蛋(碎)", price: 25 },
+                { id: "f8", name: "豆干", price: 25 },
+                { id: "f9", name: "百頁豆腐", price: 20 },
+                { id: "f10", name: "蒟蒻絲", price: 20 },
+                { id: "f11", name: "豆皮衣(炸)", price: 20 },
+                { id: "f12", name: "豆皮", price: 20 },
+                { id: "f13", name: "米血", price: 20 }
+            ],
+            "廚邊溫食/主食": [
+                { id: "w1", name: "沙茶羊肉炒麵", price: 120 },
+                { id: "w2", name: "沙茶牛肉炒麵", price: 120 },
+                { id: "w3", name: "沙茶羊肉燴飯", price: 120 },
+                { id: "w4", name: "沙茶牛肉燴飯", price: 120 },
+                { id: "w5", name: "炒羊肉", price: 150 },
+                { id: "w6", name: "炒牛肉", price: 150 },
+                { id: "w7", name: "炒青菜", price: 100 },
+                { id: "w8", name: "當歸羊肉湯", price: 80 },
+                { id: "z1", name: "王子麵", price: 15 },
+                { id: "z2", name: "冬粉", price: 15 }
+            ],
+            "共識滷味": [
+                { id: "l1", name: "無骨鳳爪", price: 45 },
+                { id: "l2", name: "豬耳朵", price: 45 },
+                { id: "l3", name: "滷脆腸", price: 45 }
+            ]
+        };
+
+        let currentCart = {};
+        let orderPrefs = {
+            flavor: "原味",
+            spice: "中辣",
+            salt: "正常",
+            extras: []
+        };
+        let currentPayment = "現金";
+
+        // Initialize App
+        function initPOS() {
+            const tabsContainer = document.getElementById('menuTabs');
+            let firstCategory = true;
+
+            for (let category in menuData) {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${firstCategory ? 'active' : ''}`;
+                btn.innerText = category;
+                btn.onclick = (e) => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderGrid(category);
+                };
+                tabsContainer.appendChild(btn);
+                if (firstCategory) {
+                    renderGrid(category);
+                    firstCategory = false;
+                }
+            }
+            updateCartUI();
+        }
+
+        // Render Menu Items for selected category
+        function renderGrid(category) {
+            const grid = document.getElementById('menuGrid');
+            grid.innerHTML = '';
+            
+            menuData[category].forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.onclick = () => addToCart(item);
+                
+                const count = currentCart[item.id] ? currentCart[item.id].qty : 0;
+                const badgeHtml = count > 0 ? `<div class="badge">${count}</div>` : '';
+                
+                card.innerHTML = `
+                    ${badgeHtml}
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">$${item.price}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Cart Actions
+        function addToCart(item) {
+            if (currentCart[item.id]) {
+                currentCart[item.id].qty++;
+            } else {
+                currentCart[item.id] = { ...item, qty: 1 };
+            }
+            updateCartUI();
+            refreshActiveGrid();
+        }
+
+        function changeQty(id, delta) {
+            if (currentCart[id]) {
+                currentCart[id].qty += delta;
+                if (currentCart[id].qty <= 0) {
+                    delete currentCart[id];
+                }
+                updateCartUI();
+                refreshActiveGrid();
+            }
+        }
+
+        function refreshActiveGrid() {
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab) renderGrid(activeTab.innerText);
+        }
+
+        function updateCartUI() {
+            const listContainer = document.getElementById('orderList');
+            listContainer.innerHTML = '';
+            let total = 0;
+
+            for (let id in currentCart) {
+                const item = currentCart[id];
+                total += item.price * item.qty;
+                
+                const div = document.createElement('div');
+                div.className = 'order-item';
+                div.innerHTML = `
+                    <div class="order-item-info">
+                        <div><strong>${item.name}</strong></div>
+                        <div style="font-size:12px; color:#777;">$${item.price} × ${item.qty}</div>
+                    </div>
+                    <div class="order-item-qty">
+                        <button class="qty-btn" onclick="changeQty('${id}', -1)">-</button>
+                        <span>${item.qty}</span>
+                        <button class="qty-btn" onclick="changeQty('${id}', 1)">+</button>
+                    </div>
+                    <div class="order-item-price">$${item.price * item.qty}</div>
+                `;
+                listContainer.appendChild(div);
+            }
+
+            // Flavor adjustment calculation
+            if (orderPrefs.flavor === "泰式(+5元)") {
+                total += 5;
+            }
+
+            document.getElementById('totalAmount').innerText = `$${total}`;
+        }
+
+        // Set Preference Handlers
+        function setPref(type, value, btnEl) {
+            orderPrefs[type] = value;
+            // Manage UI active styles
+            btnEl.parentNode.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+            updateCartUI();
+        }
+
+        function toggleAddon(value, btnEl) {
+            const idx = orderPrefs.extras.indexOf(value);
+            if (idx > -1) {
+                orderPrefs.extras.splice(idx, 1);
+                btnEl.classList.remove('addon-active');
+            } else {
+                orderPrefs.extras.push(value);
+                btnEl.classList.add('addon-active');
+            }
+        }
+
+        function setPayment(method, btnEl) {
+            currentPayment = method;
+            document.getElementById('payMethods').querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+        }
+
+        function clearCart() {
+            currentCart = {};
+            orderPrefs.extras = [];
+            document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('addon-active'));
+            updateCartUI();
+            refreshActiveGrid();
+        }
+
+        // Order complete and output Receipt text
+        function submitOrder() {
+            if (Object.keys(currentCart).length === 0) {
+                alert("購物車是空的，請先選擇餐點！");
+                return;
+            }
+
+            const modal = document.getElementById('receiptModal');
+            const content = document.getElementById('receiptContent');
+            
+            let now = new Date();
+            let dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+            let timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+            let receiptHtml = `
+                <div class="receipt-header">
+                    <h3 style="margin-bottom:5px;">去中心鹹水雞</h3>
+                    <p style="font-size:12px;">點單明細收據</p>
+                </div>
+                <div class="receipt-line"><span>日期:</span> <span>${dateStr}</span></div>
+                <div class="receipt-line"><span>時間:</span> <span>${timeStr}</span></div>
+                <div class="receipt-line" style="border-bottom: 1px dashed #333; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
+                
+                <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#8B1E0F;">【調味/備註配置】</div>
+                <div class="receipt-line"><span>口味:</span> <span>${orderPrefs.flavor}</span></div>
+                <div class="receipt-line"><span>辣度:</span> <span>${orderPrefs.spice}</span></div>
+                <div class="receipt-line"><span>鹹度:</span> <span>${orderPrefs.salt}</span></div>
+                <div class="receipt-line" style="border-bottom: 1px dashed #333; padding-bottom:5px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
+                
+                <div style="margin: 10px 0; font-weight:bold; font-size:14px;">【點購品項】</div>
+            `;
+
+            let subtotal = 0;
+            for (let id in currentCart) {
+                let item = currentCart[id];
+                let itemCost = item.price * item.qty;
+                subtotal += itemCost;
+                receiptHtml += `
+                    <div class="receipt-line">
+                        <span>${item.name} x ${item.qty}</span>
+                        <span>$${itemCost}</span>
+                    </div>
+                `;
+            }
+
+            if (orderPrefs.flavor === "泰式(+5元)") {
+                subtotal += 5;
+                receiptHtml += `<div class="receipt-line"><span>泰式口味加價</span> <span>$5</span></div>`;
+            }
+
+            receiptHtml += `
+                <div style="border-top: 1px dashed #333; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:16px;" class="receipt-line">
+                    <span>總計金額:</span>
+                    <span>$${subtotal}</span>
+                </div>
+                <button class="close-receipt" onclick="closeReceipt()">完成並關閉</button>
+            `;
+
+            content.innerHTML = receiptHtml;
+            modal.style.display = 'flex';
+        }
+
+        function closeReceipt() {
+            document.getElementById('receiptModal').style.display = 'none';
+            clearCart();
+        }
+
+        // Run
+        window.onload = initPOS;
+    </script>
+</body>
+</html>
