@@ -155,7 +155,7 @@
     <!-- Left Panel -->
     <div class="menu-container">
         <div class="menu-header">
-            <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
+            <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 智慧POS點餐系統</span>
             <div class="admin-action-group">
                 <button class="excel-export-btn" onclick="exportDailyReport()">📊 匯出日報</button>
                 <button class="excel-export-btn" onclick="exportMonthlyReport()">📅 匯出月報</button>
@@ -170,14 +170,14 @@
     <!-- Right Panel -->
     <div class="checkout-container">
         <div class="order-title" onclick="toggleOrderList()">
-            <span>當前點訂單明細</span>
+            <span>訂單明細</span>
             <span id="orderListToggleIcon">▼</span>
         </div>
         
         <!-- Order list items -->
         <div class="order-list" id="orderList"></div>
 
-        <!-- 取餐資訊 (必填) -->
+        <!-- 取餐資訊與顧客需求 (必填) -->
         <div class="customer-info-box">
             <div class="input-row">
                 <span class="input-label">訂購姓名*:</span>
@@ -186,6 +186,10 @@
             <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
                 <input type="datetime-local" id="pickupTime" class="input-field">
+            </div>
+            <div class="input-row">
+                <span class="input-label">顧客備註:</span>
+                <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如：多蒜、少蔥)">
             </div>
         </div>
 
@@ -278,31 +282,31 @@
             ],
             "智能合約 (套餐)": [
                 { 
-                    id: "s1", name: "1. 散戶輕倉個人餐", price: 260, soldOut: false,
+                    id: "s1", name: "散戶輕倉個人餐", price: 260, soldOut: false,
                     chickenText: "雞肉：半隻（鹹水 / 煙燻）",
                     chickenOptions: ["鹹水半雞", "煙燻半雞"],
                     items: ["豬耳朵", "雞冠", "豆干", "鴨肉丸", "珍珠蛋"]
                 },
                 { 
-                    id: "s2", name: "2. 巨鯨重倉肉多多餐", price: 390, soldOut: false,
+                    id: "s2", name: "巨鯨重倉肉多多餐", price: 390, soldOut: false,
                     chickenText: "雞肉：半隻（鹹水 / 煙燻）",
                     chickenOptions: ["鹹水半雞", "煙燻半雞"],
                     items: ["牛五花", "松阪豬", "雞冠", "雞腸", "雞軟骨", "鴨肉丸", "鑫鑫腸"]
                 },
                 { 
-                    id: "s3", name: "3. DAO節點下酒派對餐", price: 630, soldOut: false,
+                    id: "s3", name: "DAO節點下酒派對餐", price: 630, soldOut: false,
                     chickenText: "雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）",
                     chickenOptions: ["全鹹水", "全煙燻", "鹹水半雞 + 煙燻半雞"],
                     items: ["牛五花", "松阪豬", "豬耳朵", "珍珠蛋", "雞冠", "雞腸", "雞皮", "鴨肉丸", "貢丸", "水晶餃", "百頁豆腐"]
                 },
                 { 
-                    id: "s4", name: "4. 輕食減醣套餐", price: 139, soldOut: false,
+                    id: "s4", name: "輕食減醣套餐", price: 139, soldOut: false,
                     chickenText: "雞肉：鹹水雞胸",
                     fixedChicken: "鹹水雞胸",
                     items: ["冬粉", "花椰菜", "玉米筍", "豆皮", "高麗菜"]
                 },
                 { 
-                    id: "s5", name: "5. 輕食減醣肉多餐", price: 239, soldOut: false,
+                    id: "s5", name: "輕食減醣肉多餐", price: 239, soldOut: false,
                     chickenText: "雞肉：鹹水雞胸 × 2",
                     fixedChicken: "鹹水雞胸 x 2",
                     items: ["冬粉", "白蘿蔔", "高麗菜", "玉米筍", "龍鬚菜", "珍珠蛋"]
@@ -644,14 +648,14 @@
 
         function addComboToCart(item, chickenChoice) {
             let comboId = item.id + '_' + chickenChoice;
-            let subItems = [{ name: `└ 雞肉: ${chickenChoice}`, price: 0 }];
+            let subItems = [{ name: chickenChoice, price: 0 }];
             item.items.forEach(sub => {
-                subItems.push({ name: `└ ${sub}`, price: 0 });
+                subItems.push({ name: sub, price: 0 });
             });
 
             currentCart.push({
                 id: comboId,
-                name: `${item.name} (${chickenChoice})`,
+                name: item.name,
                 price: item.price,
                 qty: 1,
                 subItems: subItems
@@ -836,7 +840,7 @@
                     item.subItems.forEach(sub => {
                         const subDiv = document.createElement('div');
                         subDiv.className = 'order-item sub-item';
-                        subDiv.innerHTML = `<div>${sub.name}</div><div>$0</div>`;
+                        subDiv.innerHTML = `<div>└ ${sub.name}</div><div>$0</div>`;
                         listContainer.appendChild(subDiv);
                     });
                 }
@@ -877,6 +881,7 @@
             currentCart = [];
             orderPrefs.extras = [];
             document.getElementById('custName').value = '';
+            document.getElementById('custNotes').value = '';
             setDefaultPickupTime();
             document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('addon-active'));
             updateCartUI();
@@ -900,6 +905,7 @@
             // 2. 必填驗證：姓名與取餐時間檢查
             const custName = document.getElementById('custName').value.trim();
             const pickupTimeRaw = document.getElementById('pickupTime').value;
+            const custNotes = document.getElementById('custNotes').value.trim();
 
             if (!custName) {
                 alert("請填寫【訂購姓名】才可完成下單！");
@@ -913,12 +919,20 @@
                 return;
             }
 
-            // 格式化取餐時間顯示
             const formattedPickupTime = pickupTimeRaw.replace('T', ' ');
 
+            // 計算營業日 (跨日邏輯：00:00 - 02:00 歸類在前一營業日)
             let now = new Date();
-            let dateStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}`;
+            let bizDateObj = new Date(now);
+            if (now.getHours() >= 0 && now.getHours() < 2) {
+                bizDateObj.setDate(bizDateObj.getDate() - 1);
+            }
+            
+            let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
             let timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            
+            const weekDays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+            let weekDayStr = weekDays[bizDateObj.getDay()];
 
             let subtotal = 0;
             currentCart.forEach(item => {
@@ -928,26 +942,34 @@
                 subtotal += 5;
             }
 
-            // 3. 組裝發送到 LINE 的 Payload 資料結構 (包含姓名與取餐時間)
+            // 整合特殊要求與顧客備註
+            let allExtras = [...orderPrefs.extras];
+            if (custNotes) {
+                allExtras.push(`顧客備註:${custNotes}`);
+            }
+
+            // 3. 組裝發送到 LINE 的 Payload 資料結構
             const orderPayload = {
                 date: dateStr,
+                weekDay: weekDayStr,
                 time: timeStr,
                 fullTime: `${dateStr} ${timeStr}`,
                 customer: custName,
                 pickupTime: formattedPickupTime,
+                custNotes: custNotes,
                 total: subtotal,
                 payment: currentPayment,
                 prefs: {
                     flavor: orderPrefs.flavor,
                     spice: orderPrefs.spice,
                     salt: orderPrefs.salt,
-                    extras: orderPrefs.extras
+                    extras: allExtras
                 },
                 items: currentCart.map(item => ({
                     name: item.name,
                     qty: item.qty,
                     price: item.price,
-                    subItems: item.subItems ? item.subItems.map(s => ({ name: s.name })) : null
+                    subItems: item.subItems ? item.subItems.map(s => ({ name: s.name, price: 0 })) : null
                 }))
             };
 
@@ -977,13 +999,14 @@
                 </div>
                 <div class="receipt-line"><span>訂購姓名:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
                 <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:#8B1E0F;">${formattedPickupTime}</span></div>
-                <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} ${timeStr}</span></div>
+                <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} (${weekDayStr}) ${timeStr}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#8B1E0F;">【調味/備註配置】</div>
                 <div class="receipt-line"><span>口味:</span> <span>${orderPrefs.flavor}</span></div>
                 <div class="receipt-line"><span>辣度:</span> <span>${orderPrefs.spice}</span></div>
                 <div class="receipt-line"><span>鹹度:</span> <span>${orderPrefs.salt}</span></div>
+                <div class="receipt-line"><span>顧客備註:</span> <span>${custNotes || '無'}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#3d2b1a;">【點購品項】</div>
@@ -1001,7 +1024,7 @@
                     item.subItems.forEach(sub => {
                         receiptHtml += `
                             <div class="receipt-line" style="padding-left:15px; font-size:12px; color:#6b522d;">
-                                <span>${sub.name}</span>
+                                <span>└ ${sub.name}</span>
                                 <span>$0</span>
                             </div>
                         `;
@@ -1030,7 +1053,7 @@
             clearCart();
         }
 
-        /* 📊 Excel 報表匯出邏輯 (CSV UTF-8 帶 BOM) */
+        /* 📊 Excel 報表匯出邏輯 (符合圖片橫向展開格式) */
         function downloadCSV(csvContent, fileName) {
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -1058,12 +1081,47 @@
                 return;
             }
 
-            let csv = "下單時間,訂購人姓名,預計取餐時間,付款方式,口味,辣度,鹹度,特殊要求,品項與數量,總金額\n";
+            // 計算最大單品數量，補齊標題欄位
+            let maxItemsCount = 0;
+            filteredOrders.forEach(o => {
+                let count = 0;
+                o.items.forEach(item => {
+                    count += 1;
+                    if (item.subItems) count += item.subItems.length;
+                });
+                if (count > maxItemsCount) maxItemsCount = count;
+            });
+
+            let csv = "日期,星期,時間,總額";
+            for (let i = 0; i < maxItemsCount; i++) {
+                csv += ",單品,單價";
+            }
+            csv += ",口味,備註\n";
 
             filteredOrders.forEach(o => {
-                let itemsStr = o.items.map(i => `${i.name}x${i.qty}`).join(" | ");
-                let extrasStr = o.prefs.extras ? o.prefs.extras.join(";") : "";
-                csv += `"${o.time}","${o.customer}","${o.pickupTime}","${o.payment}","${o.prefs.flavor}","${o.prefs.spice}","${o.prefs.salt}","${extrasStr}","${itemsStr}","${o.total}"\n`;
+                let flavorText = `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}`;
+                let notesText = o.custNotes || (o.prefs.extras ? o.prefs.extras.join(";") : "");
+
+                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
+
+                let itemCount = 0;
+                o.items.forEach(item => {
+                    line += `,"${item.name}","${item.price}"`;
+                    itemCount++;
+                    if (item.subItems) {
+                        item.subItems.forEach(sub => {
+                            line += `,"${sub.name}","0"`;
+                            itemCount++;
+                        });
+                    }
+                });
+
+                for (let i = itemCount; i < maxItemsCount; i++) {
+                    line += `,"",""`;
+                }
+
+                line += `,"${flavorText}","${notesText}"\n`;
+                csv += line;
             });
 
             downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
@@ -1085,36 +1143,52 @@
                 return;
             }
 
-            let csv = "日期,總訂單數,現金收入,Linepay收入,全支付收入,轉帳收入,當日營業額\n";
-
-            // 依日期分組彙整
-            let dailySummary = {};
-
+            let maxItemsCount = 0;
             filteredOrders.forEach(o => {
-                let d = o.date;
-                if (!dailySummary[d]) {
-                    dailySummary[d] = { count: 0, total: 0, cash: 0, linepay: 0, pxpay: 0, transfer: 0 };
-                }
-                dailySummary[d].count += 1;
-                dailySummary[d].total += o.total;
-
-                if (o.payment === "現金") dailySummary[d].cash += o.total;
-                else if (o.payment === "Linepay") dailySummary[d].linepay += o.total;
-                else if (o.payment === "全支付") dailySummary[d].pxpay += o.total;
-                else if (o.payment === "轉帳") dailySummary[d].transfer += o.total;
+                let count = 0;
+                o.items.forEach(item => {
+                    count += 1;
+                    if (item.subItems) count += item.subItems.length;
+                });
+                if (count > maxItemsCount) maxItemsCount = count;
             });
 
-            let grandTotal = 0;
-            let grandCount = 0;
-
-            for (let d in dailySummary) {
-                let s = dailySummary[d];
-                grandTotal += s.total;
-                grandCount += s.count;
-                csv += `"${d}","${s.count}","${s.cash}","${s.linepay}","${s.pxpay}","${s.transfer}","${s.total}"\n`;
+            let csv = "日期,星期,時間,總額";
+            for (let i = 0; i < maxItemsCount; i++) {
+                csv += ",單品,單價";
             }
+            csv += ",口味,備註\n";
 
-            csv += `"月總計","${grandCount}","","","","","${grandTotal}"\n`;
+            let grandTotal = 0;
+
+            filteredOrders.forEach(o => {
+                grandTotal += o.total;
+                let flavorText = `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}`;
+                let notesText = o.custNotes || (o.prefs.extras ? o.prefs.extras.join(";") : "");
+
+                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.total}"`;
+
+                let itemCount = 0;
+                o.items.forEach(item => {
+                    line += `,"${item.name}","${item.price}"`;
+                    itemCount++;
+                    if (item.subItems) {
+                        item.subItems.forEach(sub => {
+                            line += `,"${sub.name}","0"`;
+                            itemCount++;
+                        });
+                    }
+                });
+
+                for (let i = itemCount; i < maxItemsCount; i++) {
+                    line += `,"",""`;
+                }
+
+                line += `,"${flavorText}","${notesText}"\n`;
+                csv += line;
+            });
+
+            csv += `"當月總計","","","${grandTotal}"\n`;
 
             downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g,'-')}.csv`);
         }
