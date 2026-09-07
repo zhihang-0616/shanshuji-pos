@@ -64,6 +64,7 @@
         /* Admin Edit Mode Highlight */
         body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #d9534f; }
         body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #6c757d; }
+        body.edit-mode .pref-btn { border: 1px dashed #d9534f !important; }
 
         /* Right Panel - Checkout / Order List */
         .checkout-container { flex: 3; display: flex; flex-direction: column; background: #fdfcf7; height: 100%; box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
@@ -87,10 +88,12 @@
         .pref-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed var(--border-color); color: var(--primary-color); }
         .pref-group { margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
         .pref-label { font-weight: bold; min-width: 45px; color: #555; }
-        .pref-btn { padding: 6px 10px; border: 1px solid #ccc; background: white; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .pref-btn { padding: 6px 10px; border: 1px solid #ccc; background: white; border-radius: 4px; font-size: 13px; cursor: pointer; position: relative; }
         .pref-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
         .pref-btn.addon-active { background: #4a6b82; color: white; border-color: #4a6b82; }
-        
+        .pref-btn.disabled { background: #e0e0e0; color: #999; text-decoration: line-through; cursor: not-allowed; border-color: #ccc; }
+        .eco-notice { font-size: 11px; color: #777; margin-top: 4px; width: 100%; text-align: center; font-weight: bold; }
+
         /* Summary & Action Buttons */
         .summary-box { padding: 15px; background: white; }
         .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: var(--primary-color); margin-bottom: 12px; }
@@ -113,6 +116,7 @@
         .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .modal-opt-btn { padding: 8px 12px; margin: 4px; border: 1px solid #ccc; background: #f9f9f9; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .modal-opt-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .modal-opt-btn.disabled { background: #e0e0e0; color: #999; text-decoration: line-through; cursor: not-allowed; }
 
         /* 📱 響應式手機排版修正 */
         @media (max-width: 768px) {
@@ -157,29 +161,30 @@
             </div>
             <div class="pref-group">
                 <span class="pref-label">口味:</span>
-                <button class="pref-btn active" onclick="setPref('flavor', '原味', this)">原味</button>
-                <button class="pref-btn" onclick="setPref('flavor', '蒜味', this)">蒜味</button>
-                <button class="pref-btn" onclick="setPref('flavor', '泰式(+5元)', this)">泰式</button>
+                <button class="pref-btn active" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
+                <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
+                <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
             </div>
             <div class="pref-group">
                 <span class="pref-label">辣度:</span>
-                <button class="pref-btn" onclick="setPref('spice', '不辣', this)">不辣</button>
-                <button class="pref-btn" onclick="setPref('spice', '小辣', this)">小辣</button>
-                <button class="pref-btn active" onclick="setPref('spice', '中辣', this)">中辣</button>
-                <button class="pref-btn" onclick="setPref('spice', '大辣', this)">大辣</button>
+                <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
+                <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
+                <button class="pref-btn active" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
+                <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
             </div>
             <div class="pref-group">
                 <span class="pref-label">鹹度:</span>
-                <button class="pref-btn" onclick="setPref('salt', '清淡', this)">清淡</button>
-                <button class="pref-btn active" onclick="setPref('salt', '正常', this)">正常</button>
-                <button class="pref-btn" onclick="setPref('salt', '重鹹', this)">重鹹</button>
+                <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
+                <button class="pref-btn active" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
+                <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
             </div>
             <div class="pref-group" style="margin-top:5px; border-top:1px dashed #ccc; padding-top:5px;">
                 <span class="pref-label">配備:</span>
-                <button class="pref-btn" onclick="toggleAddon('需熱食', this)">需熱食</button>
-                <button class="pref-btn" onclick="toggleAddon('需餐具', this)">需餐具</button>
-                <button class="pref-btn" onclick="toggleAddon('麵食分開裝', this)">麵食分開裝</button>
-                <button class="pref-btn" onclick="toggleAddon('麵食裝一起', this)">麵食裝一起</button>
+                <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
+                <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
+                <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食分開裝" onclick="handleAddonClick('麵食分開裝', this)">麵食分開裝</button>
+                <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食裝一起" onclick="handleAddonClick('麵食裝一起', this)">麵食裝一起</button>
+                <div class="eco-notice">🌱 依法不主動提供免洗餐具</div>
             </div>
         </div>
 
@@ -331,6 +336,14 @@
             ]
         };
 
+        // 開倉調整關閉狀態管理
+        let disabledPrefs = {
+            flavor: [],
+            spice: [],
+            salt: [],
+            extra: []
+        };
+
         let currentCart = [];
         let orderPrefs = {
             flavor: "原味",
@@ -360,6 +373,65 @@
                 btn.innerText = "管理員模式";
                 btn.classList.remove('active');
                 document.body.classList.remove('edit-mode');
+            }
+        }
+
+        // 開倉調整庫存關閉邏輯
+        function handlePrefClick(type, val, btnEl) {
+            if (isEditMode) {
+                const idx = disabledPrefs[type].indexOf(val);
+                if (idx > -1) {
+                    disabledPrefs[type].splice(idx, 1);
+                    btnEl.classList.remove('disabled');
+                } else {
+                    disabledPrefs[type].push(val);
+                    btnEl.classList.add('disabled');
+                    btnEl.classList.remove('active');
+                }
+            } else {
+                if (disabledPrefs[type].includes(val)) {
+                    alert(`【${val}】目前暫停供應！`);
+                    return;
+                }
+                setPref(type, val, btnEl);
+            }
+        }
+
+        function handleAddonClick(val, btnEl) {
+            if (isEditMode) {
+                const idx = disabledPrefs.extra.indexOf(val);
+                if (idx > -1) {
+                    disabledPrefs.extra.splice(idx, 1);
+                    btnEl.classList.remove('disabled');
+                } else {
+                    disabledPrefs.extra.push(val);
+                    btnEl.classList.add('disabled');
+                    btnEl.classList.remove('addon-active');
+                }
+            } else {
+                if (disabledPrefs.extra.includes(val)) {
+                    alert(`【${val}】目前暫停供應！`);
+                    return;
+                }
+                toggleAddon(val, btnEl);
+            }
+        }
+
+        // 庫存自動連動檢查：半雞 = 腿 + 胸
+        function checkChickenInventoryLogic() {
+            const chickenList = menuData["信仰雞本位主義 (主食)"];
+            const m1 = chickenList.find(i => i.id === "m1"); // 鹹水雞胸
+            const m2 = chickenList.find(i => i.id === "m2"); // 鹹水雞腿
+            const m3 = chickenList.find(i => i.id === "m3"); // 鹹水半雞
+            const m4 = chickenList.find(i => i.id === "m4"); // 煙燻雞胸
+            const m5 = chickenList.find(i => i.id === "m5"); // 煙燻雞腿
+            const m6 = chickenList.find(i => i.id === "m6"); // 煙燻半雞
+
+            if (m1.soldOut || m2.soldOut) {
+                m3.soldOut = true;
+            }
+            if (m4.soldOut || m5.soldOut) {
+                m6.soldOut = true;
             }
         }
 
@@ -412,6 +484,7 @@
             card.onclick = () => {
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
+                    checkChickenInventoryLogic();
                     renderGrid(category);
                 } else {
                     if (!item.soldOut) {
@@ -472,6 +545,12 @@
                 if (item.chickenOptions) {
                     showChickenChoiceModal(item);
                 } else {
+                    const chickenList = menuData["信仰雞本位主義 (主食)"];
+                    const breast = chickenList.find(i => i.id === "m1");
+                    if (breast && breast.soldOut) {
+                        alert("鹹水雞胸已售完，無法點購此套餐！");
+                        return;
+                    }
                     addComboToCart(item, item.fixedChicken);
                 }
             } else if (item.needCustom) {
@@ -482,11 +561,28 @@
         }
 
         function showChickenChoiceModal(item) {
+            checkChickenInventoryLogic();
+            const chickenList = menuData["信仰雞本位主義 (主食)"];
+            const saltHalfSoldOut = chickenList.find(i => i.id === "m3").soldOut;
+            const smokeHalfSoldOut = chickenList.find(i => i.id === "m6").soldOut;
+
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
             let html = `<h4 style="margin-bottom:12px; text-align:center;">選擇 【${item.name}】 雞肉品項</h4>`;
+            
             item.chickenOptions.forEach(opt => {
-                html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
+                let isDisabled = false;
+                if (opt === "鹹水半雞" && saltHalfSoldOut) isDisabled = true;
+                if (opt === "煙燻半雞" && smokeHalfSoldOut) isDisabled = true;
+                if (opt === "全鹹水" && saltHalfSoldOut) isDisabled = true;
+                if (opt === "全煙燻" && smokeHalfSoldOut) isDisabled = true;
+                if (opt === "鹹水半雞 + 煙燻半雞" && (saltHalfSoldOut || smokeHalfSoldOut)) isDisabled = true;
+
+                if (isDisabled) {
+                    html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0;" disabled>${opt} (售完)</button>`;
+                } else {
+                    html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
+                }
             });
             html += `<button class="close-btn" onclick="closeOptModal()">取消</button>`;
             content.innerHTML = html;
@@ -520,24 +616,28 @@
         function showHotFoodCustomModal(item) {
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
-            
-            let selectedSpice = "不辣";
-            let selectedSalt = "正常";
+
+            let spiceBtnsHtml = '';
+            ["不辣", "小辣", "中辣", "大辣"].forEach(sp => {
+                let dis = disabledPrefs.spice.includes(sp) ? 'disabled' : '';
+                spiceBtnsHtml += `<button class="modal-opt-btn spice-btn ${sp === '不辣' ? 'active' : ''} ${dis}" ${dis ? 'disabled' : ''} onclick="selectModalOpt('spice', '${sp}', this)">${sp}</button>`;
+            });
+
+            let saltBtnsHtml = '';
+            ["清淡", "正常", "重鹹"].forEach(sa => {
+                let dis = disabledPrefs.salt.includes(sa) ? 'disabled' : '';
+                saltBtnsHtml += `<button class="modal-opt-btn salt-btn ${sa === '正常' ? 'active' : ''} ${dis}" ${dis ? 'disabled' : ''} onclick="selectModalOpt('salt', '${sa}', this)">${sa}</button>`;
+            });
 
             content.innerHTML = `
                 <h4 style="margin-bottom:12px; text-align:center;">【${item.name}】 客製調味</h4>
                 <div style="margin-bottom:10px;">
                     <strong>辣度：</strong><br>
-                    <button class="modal-opt-btn spice-btn active" onclick="selectModalOpt('spice', '不辣', this)">不辣</button>
-                    <button class="modal-opt-btn spice-btn" onclick="selectModalOpt('spice', '小辣', this)">小辣</button>
-                    <button class="modal-opt-btn spice-btn" onclick="selectModalOpt('spice', '中辣', this)">中辣</button>
-                    <button class="modal-opt-btn spice-btn" onclick="selectModalOpt('spice', '大辣', this)">大辣</button>
+                    ${spiceBtnsHtml}
                 </div>
                 <div style="margin-bottom:15px;">
                     <strong>鹹度：</strong><br>
-                    <button class="modal-opt-btn salt-btn" onclick="selectModalOpt('salt', '清淡', this)">清淡</button>
-                    <button class="modal-opt-btn salt-btn active" onclick="selectModalOpt('salt', '正常', this)">正常</button>
-                    <button class="modal-opt-btn salt-btn" onclick="selectModalOpt('salt', '重鹹', this)">重鹹</button>
+                    ${saltBtnsHtml}
                 </div>
                 <button class="btn btn-submit" style="width:100%;" onclick="confirmHotFoodCustom('${item.id}', '${item.name}', ${item.price})">確認加入</button>
                 <button class="close-btn" onclick="closeOptModal()">取消</button>
@@ -572,6 +672,7 @@
         }
 
         function renderGrid(category) {
+            checkChickenInventoryLogic();
             const displayArea = document.getElementById('menuDisplayArea');
             const noticeBox = document.getElementById('categoryNotice');
             displayArea.innerHTML = '';
@@ -694,7 +795,7 @@
                 }
             });
 
-            if (orderPrefs.flavor === "泰式(+5元)") {
+            if (orderPrefs.flavor === "泰式+5元") {
                 total += 5;
             }
 
@@ -786,7 +887,7 @@
                 }
             });
 
-            if (orderPrefs.flavor === "泰式(+5元)") {
+            if (orderPrefs.flavor === "泰式+5元") {
                 subtotal += 5;
                 receiptHtml += `<div class="receipt-line"><span>泰式口味加價</span> <span>$5</span></div>`;
             }
