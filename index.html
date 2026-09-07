@@ -22,12 +22,10 @@
         
         body { display: flex; height: 100vh; background-color: var(--bg-dark); color: var(--text-gold); overflow: hidden; }
         
-        /* Left Panel - Menu Selection */
         .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--panel-bg); border-right: 2px solid var(--border-gold); height: 100%; overflow: hidden; }
         .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 6px; }
         .menu-header-title { flex: 1; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
         
-        /* Header Buttons - 店家專用按鈕預設隱藏 */
         .admin-action-group { display: flex; gap: 6px; align-items: center; }
         .admin-only { display: none !important; }
         body.admin-mode .admin-only { display: inline-block !important; }
@@ -44,23 +42,19 @@
         .store-login-trigger:hover { opacity: 1; color: var(--primary-gold); }
         body.admin-mode .store-login-trigger { display: none; }
 
-        /* Top Navigation Tabs */
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
         .tab-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
         .sub-text { font-size: 11px; font-weight: normal; opacity: 0.85; margin-top: 2px; }
 
-        /* Category Banner Notice */
         .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
         
         .grid-container { flex: 1; padding: 15px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; -webkit-overflow-scrolling: touch; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
         
-        /* 特殊主食類 雙欄置中排版 */
         .chicken-bawi-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
         .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center; font-weight: bold; font-size: 17px; color: var(--primary-gold); border-bottom: 2px solid var(--border-gold); padding-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .bawi-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
-        /* 套餐直列式專用容器 */
         .combo-vertical-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
         .combo-card { background: linear-gradient(135deg, #38291a 0%, #24190e 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 12px 15px; cursor: pointer; display: flex; flex-direction: column; position: relative; transition: all 0.2s; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
         .combo-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(212, 175, 55, 0.3); border-color: var(--primary-gold); }
@@ -69,24 +63,20 @@
         .combo-price { color: var(--primary-gold); font-weight: bold; font-size: 18px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
         .combo-details { font-size: 13px; color: #d6c29a; line-height: 1.6; }
 
-        /* Item Card Styling */
         .item-card { background: linear-gradient(135deg, #362719 0%, #20160d 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 3px 6px rgba(0,0,0,0.4); min-height: 85px; }
         .item-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(212, 175, 55, 0.3); border-color: var(--primary-gold); }
         .item-name { font-size: 15px; font-weight: bold; margin-bottom: 6px; word-break: break-all; text-align: center; color: #fcedcb; }
         .item-price { color: var(--primary-gold); font-weight: bold; font-size: 16px; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
         .badge { position: absolute; top: -6px; right: -6px; background: var(--gold-gradient); color: #1a0c00; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; z-index: 2; box-shadow: 0 2px 4px rgba(0,0,0,0.6); }
         
-        /* Soldout Styling */
         .item-card.sold-out, .combo-card.sold-out { background: #1f1813; border-color: #4a3821; opacity: 0.5; cursor: not-allowed; }
         .item-card.sold-out .item-name, .combo-card.sold-out .combo-name { text-decoration: line-through; color: #8a7356; }
         .item-card.sold-out .item-price, .combo-card.sold-out .combo-price { color: #8a7356; }
         .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(139, 0, 0, 0.85); color: #fff; padding: 3px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; border: 1px solid #ff9999; }
         
-        /* Meal Mgmt Mode Highlight */
         body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #ff4444; }
         body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #888; }
 
-        /* Right Panel - Checkout / Order List */
         .checkout-container { flex: 3; display: flex; flex-direction: column; background: #1a120b; height: 100%; box-shadow: -4px 0 15px rgba(0,0,0,0.7); }
         .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 14px; font-size: 17px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .order-title:hover { background: #4a331f; }
@@ -103,7 +93,6 @@
         .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 5px; }
         .delete-item-btn:hover { background: #b32424; }
         
-        /* Customer Info Box */
         .customer-info-box { padding: 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
         .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .input-row:last-child { margin-bottom: 0; }
@@ -112,10 +101,8 @@
         .input-field:focus { border-color: #f3e5ab; box-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
         .weekday-badge { font-size: 12px; font-weight: bold; color: #f3e5ab; background: #3d2b1a; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-gold); white-space: nowrap; }
 
-        /* 🔍 訂單進度查詢列 */
         .status-check-box { padding: 8px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; }
 
-        /* Preference Configurations */
         .preferences-box { padding: 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
         .pref-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dashed var(--border-gold); color: var(--primary-gold); }
         .pref-group { margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
@@ -126,7 +113,6 @@
         .pref-btn.disabled { background: #222; color: #555; text-decoration: line-through; cursor: not-allowed; border-color: #333; }
         .eco-notice { font-size: 11px; color: #9c8458; margin-top: 4px; width: 100%; text-align: center; font-weight: bold; }
 
-        /* Summary & Action Buttons */
         .summary-box { padding: 15px; background: #1a110a; }
         .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: var(--primary-gold); margin-bottom: 12px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
         .payment-methods { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -140,14 +126,12 @@
         .btn-submit { background: var(--gold-gradient); color: #1a0c00; border: 1px solid #fff3cb; }
         .btn-submit:hover { filter: brightness(1.15); }
 
-        /* Modal / Receipt overlay */
         .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: var(--paper-bg); color: var(--text-dark); padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); }
         .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
         .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; cursor: pointer; font-weight: bold; }
 
-        /* Admin Order Manager Table Modal */
         .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1200px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
         .order-mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         .order-mgmt-table th, .order-mgmt-table td { border: 1px solid var(--border-gold); padding: 6px; text-align: center; }
@@ -155,13 +139,11 @@
         .edit-input { width: 100%; background: #140f0a; border: 1px solid var(--border-gold); color: #fff; padding: 4px; font-size: 12px; text-align: center; }
         .discount-container { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 
-        /* ⚡ 快速接單懸浮卡片樣式 */
         .quick-accept-card { background: #2b1f13; border: 2px solid var(--primary-gold); padding: 15px; border-radius: 8px; color: #f5e4b3; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }
         .accept-btn-group { display: flex; gap: 8px; margin-top: 10px; }
         .accept-btn-accept { flex: 2; padding: 10px; background: linear-gradient(135deg, #1e7e34, #145222); color: #fff; border: 1px solid #81c784; border-radius: 4px; font-weight: bold; font-size: 15px; cursor: pointer; }
         .accept-btn-done { flex: 1; padding: 10px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
 
-        /* 📱 響應式手機排版修正 */
         @media (max-width: 768px) {
             body { flex-direction: column; height: auto; overflow-y: auto; }
             .menu-container { height: auto; border-right: none; border-bottom: 2px solid var(--border-gold); }
@@ -175,7 +157,6 @@
 </head>
 <body>
 
-    <!-- Left Panel -->
     <div class="menu-container">
         <div class="menu-header">
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
@@ -194,7 +175,6 @@
         <div id="menuDisplayArea" style="flex:1; display:flex; flex-direction:column; overflow:hidden;"></div>
     </div>
 
-    <!-- Right Panel -->
     <div class="checkout-container">
         <div class="order-title" onclick="toggleOrderList()">
             <span>訂單明細</span>
@@ -363,12 +343,11 @@
             </div>
             <div style="text-align:center; margin-bottom:15px; font-weight:bold; color:#8b1e0f;" id="menuSelectPricePreview">單價：$0</div>
             <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="confirmAddSelectedItemToOrder()">確認加入</button>
-            <button class="close-btn" onclick="closeMenuSelectModal()">取消</button>
+            <button class="close-btn" onclick="closeMenuSelectModal()">cancel</button>
         </div>
     </div>
 
     <script>
-        // 請將此處的 GAS_URL 替換為您的最新部署網址
         const GAS_URL = "https://script.google.com/macros/s/AKfycbz_895ZUhbRdARsQ_KwHtcDhsZKVCQSRVplzIKgJD5wakdd7MV4SbGg-fSaU-Iv8BzRYQ/exec";
 
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
@@ -579,20 +558,24 @@
         function changeAdminPassword() {
             let currentInput = prompt("請輸入當前管理員密碼:");
             if (currentInput === null) return;
+            
             if (currentInput !== getAdminPassword()) {
                 alert("目前密碼輸入錯誤，無法更換密碼！");
                 return;
             }
+
             let newPwd = prompt("請輸入新管理員密碼:");
             if (!newPwd || newPwd.trim() === '') {
                 alert("密碼不可為空！");
                 return;
             }
+
             let confirmPwd = prompt("請再次輸入新管理員密碼確認:");
             if (newPwd !== confirmPwd) {
                 alert("兩次密碼輸入不一致，修改失敗！");
                 return;
             }
+
             setAdminPassword(newPwd.trim());
             alert("管理員密碼已成功修改！");
             closeAdminMenu();
@@ -666,7 +649,7 @@
             }
 
             if (changedItemName === "煙燻半雞" && !isSoldOut) {
-                m5.soldOut = false; 
+                m5.soldOut = false;
             }
         }
 
@@ -846,7 +829,7 @@
                     const chickenList = menuData["信仰雞本位主義 (主食)"];
                     const breast = chickenList.find(i => i.id === "m1");
                     if (breast && breast.soldOut) {
-                        alert("鹹水雞胸已售完，無法點購此套餐！");
+                        alert("鹹水雞胸已售完, 無法點購此套餐！");
                         return;
                     }
                     addComboToCart(item, item.fixedChicken);
@@ -1317,11 +1300,11 @@
 
             saveOrderToHistory(orderPayload);
 
+            // 💡 已移除 no-cors，改為標準 POST 發送，確保 GAS 能完美讀取 JSON
             try {
                 fetch(GAS_URL, {
                     method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
                     body: JSON.stringify(orderPayload)
                 });
             } catch (err) {
@@ -1454,8 +1437,8 @@
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${index}, 'phone', this.value)"></td>
                     <td>
                         <div class="discount-container">
-                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px;" value="${ord.discountPercent}" onchange="updateHistoryDiscount(${index}, 'discountPercent', this.value)"> %</div>
-                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px;" value="${ord.deductAmount}" onchange="updateHistoryDiscount(${index}, 'deductAmount', this.value)"></div>
+                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.discountPercent}" placeholder="80" onchange="updateHistoryDiscount(${index}, 'discountPercent', this.value)"> %</div>
+                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.deductAmount}" placeholder="3" onchange="updateHistoryDiscount(${index}, 'deductAmount', this.value)"></div>
                         </div>
                     </td>
                     <td style="font-weight:bold; color:var(--primary-gold);">$${ord.total}</td>
@@ -1467,7 +1450,7 @@
                             <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
                         </select>
                     </td>
-                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項 (${ord.items.length})</button></td>
+                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項內容 (${ord.items.length})</button></td>
                     <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${index}, 'flavor', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${index}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${index})">刪除</button></td>
@@ -1530,12 +1513,14 @@
         function showMenuSelectModalForEdit() {
             const dropdown = document.getElementById('menuSelectDropdown');
             dropdown.innerHTML = '';
+            
             flatMenuOptions.forEach((opt, idx) => {
                 let optionElem = document.createElement('option');
                 optionElem.value = idx;
                 optionElem.text = `[${opt.category}] ${opt.name} ($${opt.price})`;
                 dropdown.appendChild(optionElem);
             });
+
             updateSelectedMenuPricePreview();
             document.getElementById('menuSelectModal').style.display = 'flex';
         }
@@ -1552,6 +1537,7 @@
             const dropdown = document.getElementById('menuSelectDropdown');
             const selectedIdx = dropdown.value;
             const opt = flatMenuOptions[selectedIdx];
+
             if (opt) {
                 localOrderHistory[currentEditingOrderIndex].items.push({
                     name: opt.name,
@@ -1604,15 +1590,18 @@
             order.items.forEach(item => {
                 let nameStr = item.qty > 1 ? `${item.name}*${item.qty}` : item.name;
                 itemList.push({ name: nameStr, price: item.price * item.qty });
+
                 if (item.subItems) {
                     item.subItems.forEach(sub => {
                         itemList.push({ name: sub.name, price: 0 });
                     });
                 }
             });
+
             if (order.prefs && order.prefs.flavor === "泰式+5元") {
                 itemList.push({ name: "泰式醬料加價", price: 5 });
             }
+
             return itemList;
         }
 
@@ -1621,9 +1610,11 @@
             let now = new Date();
             let defaultDate = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}`;
             let targetDate = prompt("請輸入要匯出的日報日期 (格式：YYYY/MM/DD):", defaultDate);
+
             if (!targetDate) return;
 
             const filteredOrders = history.filter(o => o.date === targetDate);
+
             if (filteredOrders.length === 0) {
                 alert(`找不到 ${targetDate} 的訂單紀錄！`);
                 return;
@@ -1642,26 +1633,31 @@
             csv += ",口味,備註\n";
 
             let dayTotalAmount = 0;
+
             filteredOrders.forEach(o => {
                 calculateOrderFinalTotal(o);
                 dayTotalAmount += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}/${o.prefs.spice}/${o.prefs.salt}` : "原味";
+                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
                 let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
                 
                 let notesArr = [];
                 if (payNotes) notesArr.push(payNotes);
                 if (o.custNotes) notesArr.push(o.custNotes);
                 if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
+
                 let notesText = notesArr.join(" ");
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
+
                 let formattedItems = formatOrderItemsForCSV(o);
-                formattedItems.execute && formattedItems.forEach(item => {
+                formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
                 });
+
                 for (let i = formattedItems.length; i < maxItemsCount; i++) {
                     line += `,"",""`;
                 }
+
                 line += `,"${flavorText}","${notesText}"\n`;
                 csv += line;
             });
@@ -1669,6 +1665,7 @@
             let dateParts = targetDate.split('/');
             let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
             csv += `"${shortDateTag}","","","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
+
             downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
         }
 
@@ -1677,9 +1674,11 @@
             let now = new Date();
             let defaultMonth = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}`;
             let targetMonth = prompt("請輸入要匯出的月報月份 (格式：YYYY/MM):", defaultMonth);
+
             if (!targetMonth) return;
 
             const filteredOrders = history.filter(o => o.date && o.date.startsWith(targetMonth));
+
             if (filteredOrders.length === 0) {
                 alert(`找不到 ${targetMonth} 的月報訂單紀錄！`);
                 return;
@@ -1698,31 +1697,37 @@
             csv += ",口味,備註\n";
 
             let grandTotal = 0;
+
             filteredOrders.forEach(o => {
                 calculateOrderFinalTotal(o);
                 grandTotal += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}/${o.prefs.spice}/${o.prefs.salt}` : "原味";
+                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
                 let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
 
                 let notesArr = [];
                 if (payNotes) notesArr.push(payNotes);
                 if (o.custNotes) notesArr.push(o.custNotes);
                 if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
+
                 let notesText = notesArr.join(" ");
 
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
+
                 let formattedItems = formatOrderItemsForCSV(o);
                 formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
                 });
+
                 for (let i = formattedItems.length; i < maxItemsCount; i++) {
                     line += `,"",""`;
                 }
+
                 line += `,"${flavorText}","${notesText}"\n`;
                 csv += line;
             });
 
             csv += `"當月總計","","","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
+
             downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g,'-')}.csv`);
         }
 
