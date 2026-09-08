@@ -127,10 +127,12 @@
         .btn-submit:hover { filter: brightness(1.15); }
 
         .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
-        .modal-content { background: var(--paper-bg); color: var(--text-dark); padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); }
+        .modal-content { background: var(--paper-bg); color: var(--text-dark); padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
         .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
         .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .receipt-close-x { position: absolute; top: 12px; right: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .receipt-close-x:hover { background: #8b1e0f; }
 
         .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1200px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
         .order-mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
@@ -196,7 +198,7 @@
             </div>
             <div class="input-row">
                 <span class="input-label">電話*:</span>
-                <input type="tel" id="custPhone" class="input-field" placeholder="請輸入連絡電話 (必填)">
+                <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
             </div>
             <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
@@ -1128,7 +1130,7 @@
         }
 
         function checkOrderStatusByPhone() {
-            let phoneQuery = prompt("請輸入下單時填寫的連絡電話:");
+            let phoneQuery = prompt("請輸入下單時填寫的手機號碼 (09xxxxxxx):");
             if (!phoneQuery) return;
             phoneQuery = phoneQuery.trim();
 
@@ -1136,7 +1138,7 @@
             const matches = history.filter(o => o.phone && o.phone.trim() === phoneQuery);
 
             if (matches.length === 0) {
-                alert(`查無電話【${phoneQuery}】的訂單紀錄，請確認電話是否輸入正確。`);
+                alert(`查無手機號碼【${phoneQuery}】的訂單紀錄，請確認號碼是否輸入正確。`);
                 return;
             }
 
@@ -1172,6 +1174,7 @@
             container.innerHTML = '';
 
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            // 💡 僅顯示等待接單或已接單的訂單（被拒絕的訂單會被自動過濾不顯示、不計入日報）
             const pendingOrders = history.map((ord, idx) => ({ ...ord, originalIndex: idx })).filter(o => !o.status || o.status === "等待接單" || o.status === "已接單");
 
             if (pendingOrders.length === 0) {
@@ -1213,11 +1216,15 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
                 history[originalIndex].status = newStatus;
+                if (newStatus === "已被店家拒絕") {
+                    // 💡 將被拒絕的訂單標記或直接從歷史中移除使其不計入報表
+                    history[originalIndex].date = ""; // 清空日期讓報表自動忽略
+                }
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
                 updatePendingCountHeader();
                 renderQuickAcceptList();
                 if (newStatus === "已被店家拒絕") {
-                    alert(`已成功將 ${history[originalIndex].customer} 的訂單標記為「拒絕/取消」。顧客透過電話查詢將會看到此拒絕狀態！`);
+                    alert(`已成功將 ${history[originalIndex].customer} 的訂單拒絕，該訂單已從歷史與日報中移除。`);
                 }
             }
         }
@@ -1244,8 +1251,10 @@
                 return;
             }
 
-            if (!custPhone) {
-                alert("請填寫【電話】才可完成下單！");
+            // 💡 手機號碼嚴格格式驗證：必須為 09 開頭且總共 10 碼數字
+            const phoneRegex = /^09\d{8}$/;
+            if (!phoneRegex.test(custPhone)) {
+                alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
                 document.getElementById('custPhone').focus();
                 return;
             }
@@ -1330,6 +1339,9 @@
             const content = document.getElementById('receiptContent');
             
             let receiptHtml = `
+                <!-- 💡 右上角關閉按鈕 -->
+                <button class="receipt-close-x" onclick="closeReceipt()">✕</button>
+
                 <div class="receipt-header">
                     <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
