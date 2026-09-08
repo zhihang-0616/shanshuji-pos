@@ -12,7 +12,7 @@
             --header-bg: linear-gradient(180deg, #2b1f14 0%, #150f09 100%);
             --bg-dark: #140f0a;
             --panel-bg: #221910;
-            --paper-bg: #cbb281;
+            --paper-bg: #221910;
             --paper-card-bg: #dfca9f;
             --border-gold: #8c6a27;
             --text-gold: #f5e4b3;
@@ -34,9 +34,10 @@
         .header-btn:hover { filter: brightness(1.15); }
         .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); border: 1px solid #81c784; }
         .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
+        body.edit-mode .meal-mgmt-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
+        
         .soldout-list-btn { background: linear-gradient(135deg, #5c2c16, #33160a); color: #ffebcc; border: 1px solid var(--border-gold); }
         .admin-entry-btn { background: linear-gradient(135deg, #424242, #212121); color: #ffffff; border: 1px solid #757575; }
-        .exit-edit-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
         
         .store-login-trigger { background: transparent; color: #554128; border: none; font-size: 11px; cursor: pointer; padding: 2px 4px; opacity: 0.6; }
         .store-login-trigger:hover { opacity: 1; color: var(--primary-gold); }
@@ -131,14 +132,16 @@
         .btn-submit:hover { filter: brightness(1.15); }
 
         .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
-        .modal-content { background: var(--paper-bg); color: var(--text-dark); padding: 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
+        .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 24px 20px 20px 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
+        
+        /* 💡 統一右上角關閉按鈕樣式 */
+        .modal-close-x { position: absolute; top: 10px; right: 12px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 28px; height: 28px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 10; transition: 0.2s; }
+        .modal-close-x:hover { background: #8b1e0f; }
+
         .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
         .receipt-line { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
-        .close-btn { width: 100%; padding: 10px; margin-top: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .receipt-close-x { position: absolute; top: 12px; right: 15px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .receipt-close-x:hover { background: #8b1e0f; }
 
-        .admin-modal-content { background: #221910; color: #f5e4b3; padding: 20px; border-radius: 8px; width: 95vw; max-width: 1200px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); }
+        .admin-modal-content { background: #221910; color: #f5e4b3; padding: 24px 20px 20px 20px; border-radius: 8px; width: 95vw; max-width: 1200px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.9); border: 2px solid var(--border-gold); position: relative; }
         .order-mgmt-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         .order-mgmt-table th, .order-mgmt-table td { border: 1px solid var(--border-gold); padding: 6px; text-align: center; }
         .order-mgmt-table th { background: #3d2b1a; color: var(--primary-gold); }
@@ -151,6 +154,13 @@
         .accept-btn-done { flex: 1; padding: 8px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .accept-btn-reject { flex: 1; padding: 8px; background: linear-gradient(135deg, #8b1e0f, #4a0d05); color: #fff; border: 1px solid #ff9999; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .accept-btn-edit { flex: 2; padding: 8px; background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
+
+        /* 💡 模組化客製選項按鈕樣式 (對齊開倉調整風格) */
+        .modal-option-group { margin-bottom: 12px; }
+        .modal-option-label { font-weight: bold; color: var(--primary-gold); margin-bottom: 6px; display: block; font-size: 13px; }
+        .modal-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .modal-opt-btn { padding: 6px 12px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .modal-opt-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; height: auto; overflow-y: auto; }
@@ -173,7 +183,6 @@
                 <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
                 <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完品項</button>
                 <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 管理員模式</button>
-                <button class="header-btn exit-edit-btn admin-only" id="exitEditBtn" style="display:none;" onclick="toggleMealMgmtMode()">❌ 離開管理</button>
                 
                 <button class="store-login-trigger" onclick="enableStoreMode()" title="店家登入">店</button>
             </div>
@@ -267,6 +276,7 @@
         </div>
     </div>
 
+    <!-- 💡 各個彈出視窗（均統一加上右上角 X 關閉按鈕，移除底部冗員按鈕） -->
     <div class="modal" id="optModal">
         <div class="modal-content" id="optModalContent"></div>
     </div>
@@ -277,35 +287,36 @@
 
     <div class="modal" id="adminMenuModal">
         <div class="modal-content" style="width:320px; text-align:center;">
-            <h3 style="color:#3d2b1a; margin-bottom:20px;">⚙️ 管理員控制台</h3>
+            <button class="modal-close-x" onclick="closeAdminMenu()">✕</button>
+            <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
             </div>
-            <button class="close-btn" onclick="closeAdminMenu()">關閉面板</button>
         </div>
     </div>
 
     <div class="modal" id="quickAcceptModal">
         <div class="modal-content" style="width:480px; max-width:90vw;">
-            <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">⚡ 店家接單管理面板</h3>
+            <button class="modal-close-x" onclick="closeQuickAcceptModal()">✕</button>
+            <h3 style="text-align:center; color:var(--text-gold); margin-bottom:12px;">⚡ 店家接單管理面板</h3>
             <div id="quickAcceptContainer" style="max-height:60vh; overflow-y:auto;"></div>
-            <button class="close-btn" onclick="closeQuickAcceptModal()">關閉面板</button>
         </div>
     </div>
 
     <div class="modal" id="soldoutListModal">
         <div class="modal-content" style="width:420px; max-width:90vw;">
-            <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">📋 目前售完品項管理</h3>
+            <button class="modal-close-x" onclick="closeSoldoutListModal()">✕</button>
+            <h3 style="text-align:center; color:var(--text-gold); margin-bottom:12px;">📋 目前售完品項管理</h3>
             <div id="soldoutListContainer" style="max-height:60vh; overflow-y:auto; margin-bottom:10px;"></div>
-            <button class="close-btn" onclick="closeSoldoutListModal()">關閉面板</button>
         </div>
     </div>
 
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
+            <button class="modal-close-x" onclick="closeOrderManager()">✕</button>
             <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:15px;">📋 歷史訂單紀錄與審核修改</h3>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                 <span id="mgmtOrderCount" style="font-weight:bold;">載入中...</span>
@@ -330,28 +341,27 @@
                     <tbody id="mgmtTableBody"></tbody>
                 </table>
             </div>
-            <button class="close-btn" onclick="closeOrderManager()">關閉離開</button>
         </div>
     </div>
 
     <div class="modal" id="itemEditModal">
         <div class="modal-content" style="width:400px; max-width:90vw;">
-            <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">修改訂單品項與金額</h4>
-            <div id="itemEditContainer" style="max-height:50vh; overflow-y:auto; margin-bottom:10px;"></div>
-            <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="showMenuSelectModalForEdit()">+ 新增單品 (選單選擇)</button>
-            <button class="btn btn-clear" style="width:100%;" onclick="closeItemEditModal()">完成確認</button>
+            <button class="modal-close-x" onclick="closeItemEditModal()">✕</button>
+            <h4 style="text-align:center; margin-bottom:12px; color:var(--text-gold);">修改訂單品項與金額</h4>
+            <div id="itemEditContainer" style="max-height:50vh; overflow-y:auto; margin-bottom:15px;"></div>
+            <button class="btn btn-submit" style="width:100%;" onclick="showMenuSelectModalForEdit()">+ 新增單品 (選單選擇)</button>
         </div>
     </div>
 
     <div class="modal" id="menuSelectModal">
         <div class="modal-content" style="width:360px; max-width:90vw;">
-            <h4 style="text-align:center; margin-bottom:12px; color:#3d2b1a;">選擇要新增的品項</h4>
+            <button class="modal-close-x" onclick="closeMenuSelectModal()">✕</button>
+            <h4 style="text-align:center; margin-bottom:12px; color:var(--text-gold);">選擇要新增的品項</h4>
             <div style="margin-bottom:15px;">
-                <select id="menuSelectDropdown" class="input-field" style="width:100%; font-size:14px; background:#fff; color:#000;" onchange="updateSelectedMenuPricePreview()"></select>
+                <select id="menuSelectDropdown" class="input-field" style="width:100%; font-size:14px; background:#150d07; color:#f5e4b3;" onchange="updateSelectedMenuPricePreview()"></select>
             </div>
-            <div style="text-align:center; margin-bottom:15px; font-weight:bold; color:#8b1e0f;" id="menuSelectPricePreview">單價：$0</div>
-            <button class="btn btn-submit" style="width:100%; margin-bottom:8px;" onclick="confirmAddSelectedItemToOrder()">確認加入</button>
-            <button class="close-btn" onclick="closeMenuSelectModal()">cancel</button>
+            <div style="text-align:center; margin-bottom:15px; font-weight:bold; color:var(--primary-gold);" id="menuSelectPricePreview">單價：$0</div>
+            <button class="btn btn-submit" style="width:100%;" onclick="confirmAddSelectedItemToOrder()">確認加入</button>
         </div>
     </div>
 
@@ -481,7 +491,6 @@
             ]
         };
 
-        // 💡 讀取並同步 localStorage 中的售完狀態
         function loadSoldOutStatus() {
             const savedSoldOut = JSON.parse(localStorage.getItem('pos_sold_out_status') || '{}');
             for (let cat in menuData) {
@@ -493,7 +502,6 @@
             }
         }
 
-        // 💡 儲存售完狀態至 localStorage
         function saveSoldOutStatus() {
             let soldOutMap = {};
             for (let cat in menuData) {
@@ -574,15 +582,12 @@
         function toggleMealMgmtMode() {
             isEditMode = !isEditMode;
             const mealBtn = document.getElementById('mealMgmtBtn');
-            const exitBtn = document.getElementById('exitEditBtn');
             if (isEditMode) {
                 document.body.classList.add('edit-mode');
-                mealBtn.style.display = 'none';
-                exitBtn.style.display = 'inline-block';
+                mealBtn.innerText = "❌ 離開管理";
             } else {
                 document.body.classList.remove('edit-mode');
-                mealBtn.style.display = 'inline-block';
-                exitBtn.style.display = 'none';
+                mealBtn.innerText = "🍔 餐點管理";
             }
             refreshMenuTabs();
             refreshActiveGrid();
@@ -933,8 +938,12 @@
                     }
                     addComboToCart(item, item.fixedChicken);
                 }
-            } else if (item.needCustom) {
-                showHotFoodCustomModal(item);
+            } else if (category === "厝邊溫食(炒麵/燴飯)") {
+                if (item.needCustom) {
+                    showHotFoodCustomModal(item);
+                } else {
+                    addToCart({ id: item.id, name: item.name, price: item.price, qty: 1 });
+                }
             } else {
                 addToCart({ id: item.id, name: item.name, price: item.price, qty: 1 });
             }
@@ -948,7 +957,10 @@
 
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
-            let html = `<h4 style="margin-bottom:12px; text-align:center;">選擇 【${item.name}】 雞肉品項</h4>`;
+            let html = `
+                <button class="modal-close-x" onclick="closeOptModal()">✕</button>
+                <h4 style="margin-bottom:12px; text-align:center;">選擇 【${item.name}】 雞肉品項</h4>
+            `;
             
             item.chickenOptions.forEach(opt => {
                 let isDisabled = false;
@@ -964,7 +976,6 @@
                     html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
                 }
             });
-            html += `<button class="close-btn" onclick="closeOptModal()">取消</button>`;
             content.innerHTML = html;
             modal.style.display = 'flex';
         }
@@ -993,62 +1004,80 @@
             refreshActiveGrid();
         }
 
+        // 💡 厝邊溫食專用客製選單：改為高質感金黑風格按鈕群組
+        let tempFlavor = "原味";
+        let tempSpice = "不辣";
+        let tempSalt = "正常";
+
         function showHotFoodCustomModal(item) {
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
 
+            tempFlavor = "原味";
+            tempSpice = "不辣";
+            tempSalt = "正常";
+
+            let flavorBtnsHtml = '';
+            ["原味", "微辣", "小辣", "中辣", "大辣"].forEach(fl => {
+                flavorBtnsHtml += `<button class="modal-opt-btn hot-flavor-btn ${fl === '原味' ? 'active' : ''}" onclick="selectHotOpt('flavor', '${fl}', this)">${fl}</button>`;
+            });
+
             let spiceBtnsHtml = '';
             ["不辣", "小辣", "中辣", "大辣"].forEach(sp => {
-                let dis = disabledPrefs.spice.includes(sp) ? 'disabled' : '';
-                spiceBtnsHtml += `<button class="modal-opt-btn spice-btn ${sp === '不辣' ? 'active' : ''} ${dis}" ${dis ? 'disabled' : ''} onclick="selectModalOpt('spice', '${sp}', this)">${sp}</button>`;
+                spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn ${sp === '不辣' ? 'active' : ''}" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`;
             });
 
             let saltBtnsHtml = '';
             ["清淡", "正常", "重鹹"].forEach(sa => {
-                let dis = disabledPrefs.salt.includes(sa) ? 'disabled' : '';
-                saltBtnsHtml += `<button class="modal-opt-btn salt-btn ${sa === '正常' ? 'active' : ''} ${dis}" ${dis ? 'disabled' : ''} onclick="selectModalOpt('salt', '${sa}', this)">${sa}</button>`;
+                saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn ${sa === '正常' ? 'active' : ''}" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`;
             });
 
             content.innerHTML = `
-                <h4 style="margin-bottom:12px; text-align:center;">【${item.name}】 客製調味</h4>
-                <div style="margin-bottom:10px;">
-                    <strong>辣度：</strong><br>
-                    ${spiceBtnsHtml}
+                <button class="modal-close-x" onclick="closeOptModal()">✕</button>
+                <h4 style="margin-bottom:15px; text-align:center; color:var(--text-gold);">【${item.name}】 客製調味</h4>
+                
+                <div class="modal-option-group">
+                    <span class="modal-option-label">選擇口味：</span>
+                    <div class="modal-btn-row">${flavorBtnsHtml}</div>
                 </div>
-                <div style="margin-bottom:15px;">
-                    <strong>鹹度：</strong><br>
-                    ${saltBtnsHtml}
+                
+                <div class="modal-option-group">
+                    <span class="modal-option-label">選擇辣度：</span>
+                    <div class="modal-btn-row">${spiceBtnsHtml}</div>
                 </div>
-                <button class="btn btn-submit" style="width:100%;" onclick="confirmHotFoodCustom('${item.id}', '${item.name}', ${item.price})">確認加入</button>
-                <button class="close-btn" onclick="closeOptModal()">取消</button>
+                
+                <div class="modal-option-group" style="margin-bottom:15px;">
+                    <span class="modal-option-label">選擇鹹度：</span>
+                    <div class="modal-btn-row">${saltBtnsHtml}</div>
+                </div>
+
+                <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="confirmHotFoodCustom('${item.id}', '${item.name}', ${item.price})">確認加入</button>
             `;
             modal.style.display = 'flex';
         }
 
-        let tempSpice = "不辣";
-        let tempSalt = "正常";
-
-        function selectModalOpt(type, val, btn) {
-            if (type === 'spice') {
+        function selectHotOpt(type, val, btn) {
+            if (type === 'flavor') {
+                tempFlavor = val;
+                document.querySelectorAll('.hot-flavor-btn').forEach(b => b.classList.remove('active'));
+            } else if (type === 'spice') {
                 tempSpice = val;
-                document.querySelectorAll('.spice-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.hot-spice-btn').forEach(b => b.classList.remove('active'));
             } else {
                 tempSalt = val;
-                document.querySelectorAll('.salt-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.hot-salt-btn').forEach(b => b.classList.remove('active'));
             }
             btn.classList.add('active');
         }
 
         function confirmHotFoodCustom(id, name, price) {
-            let fullName = `${name} [${tempSpice}/${tempSalt}]`;
-            addToCart({ id: id + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, qty: 1 });
+            let fullName = `${name} [${tempFlavor}/${tempSpice}/${tempSalt}]`;
+            addToCart({ id: id + '_' + tempFlavor + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, qty: 1 });
             closeOptModal();
         }
 
         function closeOptModal() {
             document.getElementById('optModal').style.display = 'none';
-            tempSpice = "不辣";
-            tempSalt = "正常";
         }
 
         function renderGrid(category) {
@@ -1431,11 +1460,11 @@
             const content = document.getElementById('receiptContent');
             
             let receiptHtml = `
-                <button class="receipt-close-x" onclick="closeReceipt()">✕</button>
+                <button class="modal-close-x" onclick="closeReceipt()">✕</button>
 
                 <div class="receipt-header">
-                    <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
-                    <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
+                    <h3 style="margin-bottom:5px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
+                    <p style="font-size:12px; color:#a89269;">點單明細收據</p>
                 </div>
                 
                 <div style="background:linear-gradient(135deg, #2b1f13, #1f140c); border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:12px; text-align:center;">
@@ -1447,20 +1476,20 @@
                 <div style="background:#fff3cd; color:#856404; padding:6px; font-size:12px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
                     💡 您可以隨時點擊「查詢訂單接單進度」並輸入電話 (${custPhone}) 查看最新接單或變更狀態！
                 </div>
-                <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
-                <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:#8B1E0F;">${custPhone}</span></div>
-                <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:#8B1E0F;">${formattedPickupTime}</span></div>
+                <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custName}</span></div>
+                <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custPhone}</span></div>
+                <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${formattedPickupTime}</span></div>
                 <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} (${weekDayStr}) ${timeStr}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
-                <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#8B1E0F;">【調味/備註配置】</div>
+                <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
                 <div class="receipt-line"><span>口味:</span> <span>${orderPrefs.flavor}</span></div>
                 <div class="receipt-line"><span>辣度:</span> <span>${orderPrefs.spice}</span></div>
                 <div class="receipt-line"><span>鹹度:</span> <span>${orderPrefs.salt}</span></div>
                 <div class="receipt-line"><span>顧客備註:</span> <span>${custNotes || '無'}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
                 
-                <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:#3d2b1a;">【點購品項】</div>
+                <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--text-gold);">【點購品項】</div>
             `;
 
             currentCart.forEach(item => {
@@ -1474,7 +1503,7 @@
                 if (item.subItems) {
                     item.subItems.forEach(sub => {
                         receiptHtml += `
-                            <div class="receipt-line" style="padding-left:15px; font-size:12px; color:#6b522d;">
+                            <div class="receipt-line" style="padding-left:15px; font-size:12px; color:#a89269;">
                                 <span>└ ${sub.name}</span>
                                 <span>$0</span>
                             </div>
@@ -1488,11 +1517,10 @@
             }
 
             receiptHtml += `
-                <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:16px; color:#8B1E0F;" class="receipt-line">
+                <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:16px; color:var(--primary-gold);" class="receipt-line">
                     <span>總計金額:</span>
                     <span>$${subtotal}</span>
                 </div>
-                <button class="close-btn" onclick="closeReceipt()">完成並關閉</button>
             `;
 
             content.innerHTML = receiptHtml;
