@@ -140,9 +140,11 @@
         .discount-container { display: flex; flex-direction: column; gap: 3px; align-items: center; }
 
         .quick-accept-card { background: #2b1f13; border: 2px solid var(--primary-gold); padding: 15px; border-radius: 8px; color: #f5e4b3; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }
-        .accept-btn-group { display: flex; gap: 8px; margin-top: 10px; }
-        .accept-btn-accept { flex: 2; padding: 10px; background: linear-gradient(135deg, #1e7e34, #145222); color: #fff; border: 1px solid #81c784; border-radius: 4px; font-weight: bold; font-size: 15px; cursor: pointer; }
-        .accept-btn-done { flex: 1; padding: 10px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        .accept-btn-group { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .accept-btn-accept { flex: 2; padding: 8px; background: linear-gradient(135deg, #1e7e34, #145222); color: #fff; border: 1px solid #81c784; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        .accept-btn-done { flex: 1; padding: 8px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .accept-btn-reject { flex: 1; padding: 8px; background: linear-gradient(135deg, #8b1e0f, #4a0d05); color: #fff; border: 1px solid #ff9999; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .accept-btn-edit { flex: 2; padding: 8px; background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; height: auto; overflow-y: auto; }
@@ -281,7 +283,7 @@
     </div>
 
     <div class="modal" id="quickAcceptModal">
-        <div class="modal-content" style="width:450px; max-width:90vw;">
+        <div class="modal-content" style="width:480px; max-width:90vw;">
             <h3 style="text-align:center; color:#3d2b1a; margin-bottom:12px;">⚡ 店家接單管理面板</h3>
             <div id="quickAcceptContainer" style="max-height:60vh; overflow-y:auto;"></div>
             <button class="close-btn" onclick="closeQuickAcceptModal()">關閉面板</button>
@@ -348,7 +350,6 @@
     </div>
 
     <script>
-        // 💡 已更新為最新正確的 GAS 執行網址
         const GAS_URL = "https://script.google.com/macros/s/AKfycbxif5NC6LNZvEEyhAHm94D-YKABzAABO6Yn2BzzFOIPgdexqja3YiBhxoqYqEUBJL5FtA/exec";
 
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
@@ -1142,7 +1143,9 @@
             let lastOrder = matches[matches.length - 1];
             let statusText = "";
 
-            if (lastOrder.status === "已完成") {
+            if (lastOrder.status === "已被店家拒絕") {
+                statusText = "🔴 您的訂單已被店家取消/拒絕";
+            } else if (lastOrder.status === "已完成") {
                 statusText = "🔵 餐點已完成 (可前來取餐)";
             } else if (lastOrder.status === "已接單") {
                 statusText = "🟢 店家已接單 (餐點製作中)";
@@ -1150,7 +1153,9 @@
                 statusText = "🟡 等待店家接單中";
             }
 
-            alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n總金額: $${lastOrder.total}\n目前接單進度：${statusText}`);
+            let currentItemsStr = lastOrder.items.map(i => `${i.name}x${i.qty}`).join('、');
+
+            alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n目前總額: $${lastOrder.total}\n目前品項: ${currentItemsStr}\n\n目前狀態：${statusText}`);
         }
 
         function openQuickAcceptModal() {
@@ -1194,8 +1199,10 @@
                         <div>📌 當前狀態：<strong style="color:${ord.status === '已接單' ? '#81c784' : '#f3e5ab'};">${ord.status || '等待接單'}</strong></div>
                     </div>
                     <div class="accept-btn-group">
-                        <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 一鍵接單</button>
-                        <button class="accept-btn-done" onclick="quickUpdateStatus(${ord.originalIndex}, '已完成')">🔵 標記完成</button>
+                        <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
+                        <button class="accept-btn-done" onclick="quickUpdateStatus(${ord.originalIndex}, '已完成')">🔵 完成</button>
+                        <button class="accept-btn-edit" onclick="openItemEditModalFromQuick(${ord.originalIndex})">✏️ 改品項</button>
+                        <button class="accept-btn-reject" onclick="quickUpdateStatus(${ord.originalIndex}, '已被店家拒絕')">🔴 拒單</button>
                     </div>
                 `;
                 container.appendChild(card);
@@ -1209,7 +1216,15 @@
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
                 updatePendingCountHeader();
                 renderQuickAcceptList();
+                if (newStatus === "已被店家拒絕") {
+                    alert(`已成功將 ${history[originalIndex].customer} 的訂單標記為「拒絕/取消」。顧客透過電話查詢將會看到此拒絕狀態！`);
+                }
             }
+        }
+
+        function openItemEditModalFromQuick(originalIndex) {
+            closeQuickAcceptModal();
+            openItemEditModal(originalIndex);
         }
 
         async function submitOrder() {
@@ -1319,8 +1334,16 @@
                     <h3 style="margin-bottom:5px; color:#5c4524;">去中心鹹水雞 X 厝邊溫食</h3>
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
+                
+                <!-- 💡 官方帳號 @281mmggn 導引專區 -->
+                <div style="background:linear-gradient(135deg, #2b1f13, #1f140c); border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:12px; text-align:center;">
+                    <div style="font-weight:bold; color:var(--primary-gold); font-size:13px; margin-bottom:4px;">✨ 加入官方帳號 @281mmggn</div>
+                    <div style="font-size:11px; color:#eddab2; line-height:1.4; margin-bottom:8px;">加入好友，即可隨時接收即時訂單進度、拒單或品項變更通知！</div>
+                    <a href="https://line.me/R/ti/p/@281mmggn" target="_blank" style="display:inline-block; background:linear-gradient(135deg, #00B900, #009900); color:#fff; padding:6px 12px; border-radius:4px; font-size:12px; font-weight:bold; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.4);">👉 點我立即加入 @281mmggn</a>
+                </div>
+
                 <div style="background:#fff3cd; color:#856404; padding:6px; font-size:12px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
-                    💡 您可以隨時點擊「查詢訂單接單進度」並輸入電話 (${custPhone}) 查看店家是否已接單！
+                    💡 您可以隨時點擊「查詢訂單接單進度」並輸入電話 (${custPhone}) 查看最新接單或變更狀態！
                 </div>
                 <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:#8B1E0F;">${custName}</span></div>
                 <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:#8B1E0F;">${custPhone}</span></div>
