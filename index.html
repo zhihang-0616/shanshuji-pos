@@ -23,9 +23,22 @@
         body { display: flex; height: 100vh; background-color: var(--bg-dark); color: var(--text-gold); overflow: hidden; }
         
         .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--panel-bg); border-right: 2px solid var(--border-gold); height: 100%; overflow: hidden; }
-        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; text-align: center; font-size: 18px; font-weight: bold; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-        .menu-header-title { flex: 1; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; }
         
+        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        
+        .header-left-group { display: flex; align-items: center; gap: 10px; }
+        
+        /* 營業中 / 休息中開關 */
+        .store-status-select { background: #150d07; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 5px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; outline: none; }
+        body.admin-mode .store-status-select { background: #2b1f13; }
+
+        .menu-header-center { display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; }
+        .menu-header-title { text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; font-size: 17px; font-weight: bold; }
+        
+        .store-info-inline { display: flex; gap: 10px; font-size: 11px; color: #d6c29a; margin-top: 3px; }
+        body.admin-mode .store-info-inline { display: none !important; }
+        .store-info-inline span strong { color: var(--primary-gold); }
+
         .admin-action-group { display: flex; gap: 6px; align-items: center; }
         .admin-only { display: none !important; }
         body.admin-mode .admin-only { display: inline-block !important; }
@@ -168,6 +181,9 @@
             .grid-container { max-height: 55vh; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
             .checkout-container { height: auto; }
             .order-list { max-height: 200px; }
+            .menu-header { flex-direction: column; align-items: stretch; gap: 8px; }
+            .header-left-group { justify-content: space-between; }
+            .store-info-inline { flex-direction: column; gap: 2px; }
         }
     </style>
 </head>
@@ -175,16 +191,30 @@
 
     <div class="menu-container">
         <div class="menu-header">
-            <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
-            <div class="admin-action-group">
-                <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單管理 (0)</button>
-                <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
-                <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完品項</button>
-                <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 管理員模式</button>
-                
-                <button class="store-login-trigger" onclick="enableStoreMode()" title="店家登入">店</button>
+            <div class="header-left-group">
+                <!-- 營業中 / 休息中 下拉選單 (左上方) -->
+                <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
+                    <option value="營業中">🟢 營業中</option>
+                    <option value="休息中">🔴 休息中</option>
+                </select>
+                <div class="admin-action-group">
+                    <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單 (0)</button>
+                    <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 管理</button>
+                    <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完</button>
+                    <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 後台</button>
+                    <button class="store-login-trigger" onclick="enableStoreMode()" title="店家登入">店</button>
+                </div>
+            </div>
+            
+            <div class="menu-header-center">
+                <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
+                <div class="store-info-inline">
+                    <span>🕒 <strong>營業：</strong>平日17:00-00:00 週五&週六17:00-02:00 (週一公休/不定時電洽)</span>
+                    <span>📍 <strong>地址：</strong>新竹市南大路550巷82號</span>
+                </div>
             </div>
         </div>
+
         <div class="menu-tabs" id="menuTabs"></div>
         <div class="category-notice" id="categoryNotice"></div>
         <div id="menuDisplayArea" style="flex:1; display:flex; flex-direction:column; overflow:hidden;"></div>
@@ -225,7 +255,7 @@
         <div class="preferences-box">
             <div class="pref-header">
                 <div>開倉調整</div>
-                <div class="sub-text">(口味 / 調料)</div>
+                <div class="sub-text">(口味 / 調料 - 點選兩次即可取消)</div>
             </div>
             <div class="pref-group">
                 <span class="pref-label">口味:</span>
@@ -274,6 +304,7 @@
         </div>
     </div>
 
+    <!-- 各種彈跳視窗 -->
     <div class="modal" id="optModal">
         <div class="modal-content" id="optModalContent"></div>
     </div>
@@ -521,12 +552,22 @@
 
         let disabledPrefs = { flavor: [], spice: [], salt: [], extra: [] };
         let currentCart = [];
-        // 💡 預設不預先選取任何選項，改為空字串讓客戶自己點選
         let orderPrefs = { flavor: "", spice: "", salt: "", extras: [] };
         let currentPayment = "現金";
         let isEditMode = false;
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
+        let isStoreClosed = false; // 營業狀態變數
+
+        function changeStoreStatus(val) {
+            if (val === "休息中") {
+                isStoreClosed = true;
+                alert("目前設定為【休息中】，顧客將無法進行點餐！");
+            } else {
+                isStoreClosed = false;
+                alert("已切換為【營業中】！");
+            }
+        }
 
         function setDefaultPickupTime() {
             const now = new Date();
@@ -582,10 +623,10 @@
             const mealBtn = document.getElementById('mealMgmtBtn');
             if (isEditMode) {
                 document.body.classList.add('edit-mode');
-                mealBtn.innerText = "❌ 離開管理";
+                mealBtn.innerText = "❌ 離開";
             } else {
                 document.body.classList.remove('edit-mode');
-                mealBtn.innerText = "🍔 餐點管理";
+                mealBtn.innerText = "🍔 管理";
             }
             refreshMenuTabs();
             refreshActiveGrid();
@@ -622,6 +663,7 @@
             alert("已切換為店家接單介面！");
         }
 
+        // 💡 點選兩次即取消的開倉調整邏輯
         function handlePrefClick(type, val, btnEl) {
             if (isEditMode) {
                 const idx = disabledPrefs[type].indexOf(val);
@@ -638,7 +680,15 @@
                     alert(`【${val}】目前暫停供應！`);
                     return;
                 }
-                setPref(type, val, btnEl);
+                
+                // 如果已經是 active 狀態，再次點擊即取消
+                if (orderPrefs[type] === val) {
+                    orderPrefs[type] = "";
+                    btnEl.classList.remove('active');
+                } else {
+                    setPref(type, val, btnEl);
+                }
+                updateCartUI();
             }
         }
 
@@ -718,7 +768,7 @@
             const pendingList = history.filter(o => !o.status || o.status === "等待接單");
             const btn = document.getElementById('quickAcceptHeaderBtn');
             if (btn) {
-                btn.innerText = `⚡ 接單管理 (${pendingList.length})`;
+                btn.innerText = `⚡ 接單 (${pendingList.length})`;
             }
         }
 
@@ -753,7 +803,7 @@
                                 <div style="font-weight:bold; color:var(--primary-gold);">${entry.name}</div>
                                 <div style="font-size:11px; color:#a89269;">整大類已關閉</div>
                             </div>
-                            <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreCategory('${entry.category}')">一鍵恢復供應</button>
+                            <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreCategory('${entry.category}')">一鍵恢復</button>
                         `;
                     } else {
                         div.innerHTML = `
@@ -761,7 +811,7 @@
                                 <div style="font-weight:bold; color:#fff1cd;">${entry.name}</div>
                                 <div style="font-size:11px; color:#a89269;">分類：${entry.category}</div>
                             </div>
-                            <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復供應</button>
+                            <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復</button>
                         `;
                     }
                     container.appendChild(div);
@@ -872,6 +922,11 @@
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
+                    // 若非管理員模式，檢查是否營業中
+                    if (!document.body.classList.contains('admin-mode') && isStoreClosed) {
+                        alert("目前店家【休息中】，暫停點餐！");
+                        return;
+                    }
                     if (!item.soldOut) handleItemClick(item, category);
                 }
             };
@@ -900,6 +955,10 @@
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
+                    if (!document.body.classList.contains('admin-mode') && isStoreClosed) {
+                        alert("目前店家【休息中】，暫停點餐！");
+                        return;
+                    }
                     if (!item.soldOut) handleItemClick(item, category);
                 }
             };
@@ -940,10 +999,10 @@
                 if (item.needCustom) {
                     showHotFoodCustomModal(item);
                 } else {
-                    addToCart({ id: item.id, name: item.name, price: item.price, qty: 1 });
+                    addToCart({ id: item.id, name: item.name, price: item.price, category: category, qty: 1 });
                 }
             } else {
-                addToCart({ id: item.id, name: item.name, price: item.price, qty: 1 });
+                addToCart({ id: item.id, name: item.name, price: item.price, category: category, qty: 1 });
             }
         }
 
@@ -995,6 +1054,7 @@
                 id: comboId,
                 name: item.name,
                 price: item.price,
+                category: "智能合約 (套餐)",
                 qty: 1,
                 subItems: subItems
             });
@@ -1002,7 +1062,6 @@
             refreshActiveGrid();
         }
 
-        // 💡 厝邊溫食專用客製選單：初始變數預設為空字串，不預先點選
         let tempFlavor = "";
         let tempSpice = "";
         let tempSalt = "";
@@ -1074,7 +1133,7 @@
                 return;
             }
             let fullName = `${name} [${tempFlavor}/${tempSpice}/${tempSalt}]`;
-            addToCart({ id: id + '_' + tempFlavor + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, qty: 1 });
+            addToCart({ id: id + '_' + tempFlavor + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, category: "厝邊溫食(炒麵/燴飯)", qty: 1 });
             closeOptModal();
         }
 
@@ -1362,14 +1421,25 @@
         }
 
         async function submitOrder() {
+            if (!document.body.classList.contains('admin-mode') && isStoreClosed) {
+                alert("目前店家【休息中】，無法進行結帳！");
+                return;
+            }
+
             if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
                 return;
             }
 
-            if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
-                alert("請完整選擇「開倉調整」的口味、辣度與鹹度才可結帳！");
-                return;
+            // 💡 檢查購物車是否全部都是「厝邊溫食」的品項
+            const isOnlyHotFood = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
+
+            // 💡 如果不是全部都是厝邊溫食，才需要強制驗證主畫面的開倉調整
+            if (!isOnlyHotFood) {
+                if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
+                    alert("請完整選擇「開倉調整」的口味、辣度與鹹度才可結帳！");
+                    return;
+                }
             }
 
             const custName = document.getElementById('custName').value.trim();
@@ -1441,9 +1511,9 @@
                 discountNote: "",
                 payment: currentPayment,
                 prefs: {
-                    flavor: orderPrefs.flavor,
-                    spice: orderPrefs.spice,
-                    salt: orderPrefs.salt,
+                    flavor: isOnlyHotFood && !orderPrefs.flavor ? "無(厝邊溫食單點)" : orderPrefs.flavor,
+                    spice: isOnlyHotFood && !orderPrefs.spice ? "無" : orderPrefs.spice,
+                    salt: isOnlyHotFood && !orderPrefs.salt ? "無" : orderPrefs.salt,
                     extras: allExtras
                 },
                 items: currentCart.map(item => ({
@@ -1493,9 +1563,9 @@
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
-                <div class="receipt-line"><span>口味:</span> <span>${orderPrefs.flavor}</span></div>
-                <div class="receipt-line"><span>辣度:</span> <span>${orderPrefs.spice}</span></div>
-                <div class="receipt-line"><span>鹹度:</span> <span>${orderPrefs.salt}</span></div>
+                <div class="receipt-line"><span>口味:</span> <span>${orderPayload.prefs.flavor}</span></div>
+                <div class="receipt-line"><span>辣度:</span> <span>${orderPayload.prefs.spice}</span></div>
+                <div class="receipt-line"><span>鹹度:</span> <span>${orderPayload.prefs.salt}</span></div>
                 <div class="receipt-line"><span>顧客備註:</span> <span>${custNotes || '無'}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:5px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
                 
@@ -1613,7 +1683,7 @@
                             <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
                         </select>
                     </td>
-                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項內容 (${ord.items.length})</button></td>
+                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項 (${ord.items.length})</button></td>
                     <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${index}, 'flavor', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${index}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${index})">刪除</button></td>
