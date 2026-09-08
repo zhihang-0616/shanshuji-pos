@@ -43,8 +43,13 @@
         body.admin-mode .store-login-trigger { display: none; }
 
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
-        .tab-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .tab-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
         .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
+        
+        /* 💡 編輯模式下大選項按鈕外觀與售完狀態 */
+        body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
+        .tab-btn.category-sold-out { background: #1f1813 !important; opacity: 0.6; color: #8a7356 !important; text-decoration: line-through; border-color: #888 !important; }
+
         .sub-text { font-size: 11px; font-weight: normal; opacity: 0.85; margin-top: 2px; }
 
         .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 15px; font-size: 13px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
@@ -557,6 +562,8 @@
                 mealBtn.style.display = 'inline-block';
                 exitBtn.style.display = 'none';
             }
+            refreshMenuTabs();
+            refreshActiveGrid();
         }
 
         function changeAdminPassword() {
@@ -692,11 +699,17 @@
 
             let soldoutItems = [];
             for (let category in menuData) {
-                menuData[category].forEach(item => {
-                    if (item.soldOut) {
-                        soldoutItems.push({ category: category, item: item });
-                    }
-                });
+                // 💡 檢查大分類是否整類售完
+                let isCatSoldOut = menuData[category].every(i => i.soldOut);
+                if (isCatSoldOut) {
+                    soldoutItems.push({ type: 'category', category: category, name: `【大選項】${category}` });
+                } else {
+                    menuData[category].forEach(item => {
+                        if (item.soldOut) {
+                            soldoutItems.push({ type: 'item', category: category, item: item, name: item.name });
+                        }
+                    });
+                }
             }
 
             if (soldoutItems.length === 0) {
@@ -705,13 +718,24 @@
                 soldoutItems.forEach(entry => {
                     const div = document.createElement('div');
                     div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#140f0a; border:1px solid var(--border-gold); padding:8px 12px; border-radius:6px; margin-bottom:8px;";
-                    div.innerHTML = `
-                        <div>
-                            <div style="font-weight:bold; color:#fff1cd;">${entry.item.name}</div>
-                            <div style="font-size:11px; color:#a89269;">分類：${entry.category}</div>
-                        </div>
-                        <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復供應</button>
-                    `;
+                    
+                    if (entry.type === 'category') {
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight:bold; color:var(--primary-gold);">${entry.name}</div>
+                                <div style="font-size:11px; color:#a89269;">整大類已關閉</div>
+                            </div>
+                            <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreCategory('${entry.category}')">一鍵恢復供應</button>
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight:bold; color:#fff1cd;">${entry.name}</div>
+                                <div style="font-size:11px; color:#a89269;">分類：${entry.category}</div>
+                            </div>
+                            <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復供應</button>
+                        `;
+                    }
                     container.appendChild(div);
                 });
             }
@@ -728,9 +752,17 @@
             if (item) {
                 item.soldOut = false;
                 checkInventoryLogic(item.name, false);
+                refreshMenuTabs();
                 refreshActiveGrid();
                 openSoldoutListModal();
             }
+        }
+
+        function restoreCategory(category) {
+            menuData[category].forEach(i => i.soldOut = false);
+            refreshMenuTabs();
+            refreshActiveGrid();
+            openSoldoutListModal();
         }
 
         function checkAdminModeFromUrl() {
@@ -743,27 +775,59 @@
         function initPOS() {
             checkAdminModeFromUrl();
             initFlatMenuOptions();
-            const tabsContainer = document.getElementById('menuTabs');
-            let firstCategory = true;
-
-            for (let category in menuData) {
-                const btn = document.createElement('button');
-                btn.className = `tab-btn ${firstCategory ? 'active' : ''}`;
-                btn.innerHTML = formatTitleWithBracket(category);
-                btn.onclick = () => {
-                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    renderGrid(category);
-                };
-                tabsContainer.appendChild(btn);
-                if (firstCategory) {
-                    renderGrid(category);
-                    firstCategory = false;
-                }
-            }
+            refreshMenuTabs();
             setDefaultPickupTime();
             updateCartUI();
             updatePendingCountHeader();
+        }
+
+        function refreshMenuTabs() {
+            const tabsContainer = document.getElementById('menuTabs');
+            const activeTabElem = document.querySelector('.tab-btn.active');
+            let currentActiveCategory = activeTabElem ? activeTabElem.getAttribute('data-category') : null;
+
+            tabsContainer.innerHTML = '';
+            let firstCategory = true;
+
+            for (let category in menuData) {
+                // 💡 判斷該大選項是否整類皆為 soldOut
+                const isAllSoldOut = menuData[category].every(i => i.soldOut);
+                
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${isAllSoldOut ? 'category-sold-out' : ''}`;
+                btn.setAttribute('data-category', category);
+                btn.innerHTML = formatTitleWithBracket(category);
+
+                if (!currentActiveCategory && firstCategory) {
+                    btn.classList.add('active');
+                    renderGrid(category);
+                } else if (currentActiveCategory === category) {
+                    btn.classList.add('active');
+                }
+
+                btn.onclick = () => {
+                    if (isEditMode) {
+                        // 💡 點選餐點管理模式下的大選項：切換整大類的開關
+                        const targetStatus = !isAllSoldOut;
+                        menuData[category].forEach(i => i.soldOut = targetStatus);
+                        refreshMenuTabs();
+                        renderGrid(category);
+                    } else {
+                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        renderGrid(category);
+                    }
+                };
+
+                tabsContainer.appendChild(btn);
+                if (firstCategory && !currentActiveCategory) {
+                    firstCategory = false;
+                }
+            }
+
+            if (currentActiveCategory) {
+                renderGrid(currentActiveCategory);
+            }
         }
 
         function createCardElement(item, category) {
@@ -774,6 +838,7 @@
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
                     checkInventoryLogic(item.name, item.soldOut);
+                    refreshMenuTabs();
                     renderGrid(category);
                 } else {
                     if (!item.soldOut) handleItemClick(item, category);
@@ -800,6 +865,7 @@
             card.onclick = () => {
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
+                    refreshMenuTabs();
                     renderGrid(category);
                 } else {
                     if (!item.soldOut) handleItemClick(item, category);
@@ -1039,7 +1105,7 @@
         function refreshActiveGrid() {
             const activeTab = document.querySelector('.tab-btn.active');
             if (activeTab) {
-                const activeCategory = Object.keys(menuData).find(cat => activeTab.innerText.includes(cat.split(' ')[0]));
+                const activeCategory = activeTab.getAttribute('data-category');
                 if (activeCategory) renderGrid(activeCategory);
             }
         }
@@ -1174,7 +1240,6 @@
             container.innerHTML = '';
 
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            // 💡 僅顯示等待接單或已接單的訂單（被拒絕的訂單會被自動過濾不顯示、不計入日報）
             const pendingOrders = history.map((ord, idx) => ({ ...ord, originalIndex: idx })).filter(o => !o.status || o.status === "等待接單" || o.status === "已接單");
 
             if (pendingOrders.length === 0) {
@@ -1217,8 +1282,7 @@
             if (history[originalIndex]) {
                 history[originalIndex].status = newStatus;
                 if (newStatus === "已被店家拒絕") {
-                    // 💡 將被拒絕的訂單標記或直接從歷史中移除使其不計入報表
-                    history[originalIndex].date = ""; // 清空日期讓報表自動忽略
+                    history[originalIndex].date = "";
                 }
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
                 updatePendingCountHeader();
@@ -1251,7 +1315,6 @@
                 return;
             }
 
-            // 💡 手機號碼嚴格格式驗證：必須為 09 開頭且總共 10 碼數字
             const phoneRegex = /^09\d{8}$/;
             if (!phoneRegex.test(custPhone)) {
                 alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
@@ -1339,7 +1402,6 @@
             const content = document.getElementById('receiptContent');
             
             let receiptHtml = `
-                <!-- 💡 右上角關閉按鈕 -->
                 <button class="receipt-close-x" onclick="closeReceipt()">✕</button>
 
                 <div class="receipt-header">
@@ -1347,7 +1409,6 @@
                     <p style="font-size:12px; color:#7a5e30;">點單明細收據</p>
                 </div>
                 
-                <!-- 💡 官方帳號 @281mmggn 導引專區 -->
                 <div style="background:linear-gradient(135deg, #2b1f13, #1f140c); border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:12px; text-align:center;">
                     <div style="font-weight:bold; color:var(--primary-gold); font-size:13px; margin-bottom:4px;">✨ 加入官方帳號 @281mmggn</div>
                     <div style="font-size:11px; color:#eddab2; line-height:1.4; margin-bottom:8px;">加入好友，即可隨時接收即時訂單進度、拒單或品項變更通知！</div>
