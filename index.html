@@ -46,7 +46,6 @@
         .tab-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
         .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
         
-        /* 💡 編輯模式下大選項按鈕外觀與售完狀態 */
         body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
         .tab-btn.category-sold-out { background: #1f1813 !important; opacity: 0.6; color: #8a7356 !important; text-decoration: line-through; border-color: #888 !important; }
 
@@ -174,7 +173,7 @@
                 <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
                 <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完品項</button>
                 <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 管理員模式</button>
-                <button class="header-btn exit-edit-btn" id="exitEditBtn" style="display:none;" onclick="toggleMealMgmtMode()">餐點管理</button>
+                <button class="header-btn exit-edit-btn admin-only" id="exitEditBtn" style="display:none;" onclick="toggleMealMgmtMode()">❌ 離開管理</button>
                 
                 <button class="store-login-trigger" onclick="enableStoreMode()" title="店家登入">店</button>
             </div>
@@ -482,6 +481,29 @@
             ]
         };
 
+        // 💡 讀取並同步 localStorage 中的售完狀態
+        function loadSoldOutStatus() {
+            const savedSoldOut = JSON.parse(localStorage.getItem('pos_sold_out_status') || '{}');
+            for (let cat in menuData) {
+                menuData[cat].forEach(item => {
+                    if (savedSoldOut[item.id] !== undefined) {
+                        item.soldOut = savedSoldOut[item.id];
+                    }
+                });
+            }
+        }
+
+        // 💡 儲存售完狀態至 localStorage
+        function saveSoldOutStatus() {
+            let soldOutMap = {};
+            for (let cat in menuData) {
+                menuData[cat].forEach(item => {
+                    soldOutMap[item.id] = item.soldOut;
+                });
+            }
+            localStorage.setItem('pos_sold_out_status', JSON.stringify(soldOutMap));
+        }
+
         let flatMenuOptions = [];
         function initFlatMenuOptions() {
             flatMenuOptions = [];
@@ -639,19 +661,22 @@
 
         function checkInventoryLogic(changedItemName, isSoldOut) {
             const chickenList = menuData["信仰雞本位主義 (主食)"];
+            if (!chickenList) return;
             const m1 = chickenList.find(i => i.id === "m1");
             const m2 = chickenList.find(i => i.id === "m2");
             const m3 = chickenList.find(i => i.id === "m3");
             const m5 = chickenList.find(i => i.id === "m5");
             const m6 = chickenList.find(i => i.id === "m6");
 
-            if (m1.soldOut || m2.soldOut) {
-                m3.soldOut = true;
-            } else {
-                m3.soldOut = false;
+            if (m1 && m2 && m3) {
+                if (m1.soldOut || m2.soldOut) {
+                    m3.soldOut = true;
+                } else {
+                    m3.soldOut = false;
+                }
             }
 
-            if (changedItemName === "煙燻雞腿") {
+            if (changedItemName === "煙燻雞腿" && m6) {
                 if (isSoldOut) {
                     m6.soldOut = true;
                 } else {
@@ -659,9 +684,10 @@
                 }
             }
 
-            if (changedItemName === "煙燻半雞" && !isSoldOut) {
+            if (changedItemName === "煙燻半雞" && !isSoldOut && m5) {
                 m5.soldOut = false;
             }
+            saveSoldOutStatus();
         }
 
         function toggleOrderList() {
@@ -699,7 +725,6 @@
 
             let soldoutItems = [];
             for (let category in menuData) {
-                // 💡 檢查大分類是否整類售完
                 let isCatSoldOut = menuData[category].every(i => i.soldOut);
                 if (isCatSoldOut) {
                     soldoutItems.push({ type: 'category', category: category, name: `【大選項】${category}` });
@@ -752,6 +777,7 @@
             if (item) {
                 item.soldOut = false;
                 checkInventoryLogic(item.name, false);
+                saveSoldOutStatus();
                 refreshMenuTabs();
                 refreshActiveGrid();
                 openSoldoutListModal();
@@ -760,6 +786,7 @@
 
         function restoreCategory(category) {
             menuData[category].forEach(i => i.soldOut = false);
+            saveSoldOutStatus();
             refreshMenuTabs();
             refreshActiveGrid();
             openSoldoutListModal();
@@ -774,6 +801,7 @@
 
         function initPOS() {
             checkAdminModeFromUrl();
+            loadSoldOutStatus();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
@@ -790,7 +818,6 @@
             let firstCategory = true;
 
             for (let category in menuData) {
-                // 💡 判斷該大選項是否整類皆為 soldOut
                 const isAllSoldOut = menuData[category].every(i => i.soldOut);
                 
                 const btn = document.createElement('button');
@@ -807,9 +834,9 @@
 
                 btn.onclick = () => {
                     if (isEditMode) {
-                        // 💡 點選餐點管理模式下的大選項：切換整大類的開關
                         const targetStatus = !isAllSoldOut;
                         menuData[category].forEach(i => i.soldOut = targetStatus);
+                        saveSoldOutStatus();
                         refreshMenuTabs();
                         renderGrid(category);
                     } else {
@@ -838,6 +865,7 @@
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
                     checkInventoryLogic(item.name, item.soldOut);
+                    saveSoldOutStatus();
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
@@ -865,6 +893,7 @@
             card.onclick = () => {
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
+                    saveSoldOutStatus();
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
