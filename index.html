@@ -134,7 +134,6 @@
         .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 24px 20px 20px 20px; border-radius: 8px; width: 340px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
         
-        /* 💡 統一右上角關閉按鈕樣式 */
         .modal-close-x { position: absolute; top: 10px; right: 12px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 28px; height: 28px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 10; transition: 0.2s; }
         .modal-close-x:hover { background: #8b1e0f; }
 
@@ -155,7 +154,6 @@
         .accept-btn-reject { flex: 1; padding: 8px; background: linear-gradient(135deg, #8b1e0f, #4a0d05); color: #fff; border: 1px solid #ff9999; border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .accept-btn-edit { flex: 2; padding: 8px; background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer; }
 
-        /* 💡 模組化客製選項按鈕樣式 (對齊開倉調整風格) */
         .modal-option-group { margin-bottom: 12px; }
         .modal-option-label { font-weight: bold; color: var(--primary-gold); margin-bottom: 6px; display: block; font-size: 13px; }
         .modal-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -231,7 +229,7 @@
             </div>
             <div class="pref-group">
                 <span class="pref-label">口味:</span>
-                <button class="pref-btn active" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
+                <button class="pref-btn" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
                 <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
                 <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
             </div>
@@ -239,13 +237,13 @@
                 <span class="pref-label">辣度:</span>
                 <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
                 <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
-                <button class="pref-btn active" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
+                <button class="pref-btn" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
                 <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
             </div>
             <div class="pref-group">
                 <span class="pref-label">鹹度:</span>
                 <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
-                <button class="pref-btn active" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
+                <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
                 <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
             </div>
             <div class="pref-group" style="margin-top:5px; border-top:1px dashed #543f24; padding-top:5px;">
@@ -276,7 +274,6 @@
         </div>
     </div>
 
-    <!-- 💡 各個彈出視窗（均統一加上右上角 X 關閉按鈕，移除底部冗員按鈕） -->
     <div class="modal" id="optModal">
         <div class="modal-content" id="optModalContent"></div>
     </div>
@@ -524,7 +521,8 @@
 
         let disabledPrefs = { flavor: [], spice: [], salt: [], extra: [] };
         let currentCart = [];
-        let orderPrefs = { flavor: "原味", spice: "中辣", salt: "正常", extras: [] };
+        // 💡 預設不預先選取任何選項，改為空字串讓客戶自己點選
+        let orderPrefs = { flavor: "", spice: "", salt: "", extras: [] };
         let currentPayment = "現金";
         let isEditMode = false;
         let localOrderHistory = [];
@@ -1004,32 +1002,32 @@
             refreshActiveGrid();
         }
 
-        // 💡 厝邊溫食專用客製選單：改為高質感金黑風格按鈕群組
-        let tempFlavor = "原味";
-        let tempSpice = "不辣";
-        let tempSalt = "正常";
+        // 💡 厝邊溫食專用客製選單：初始變數預設為空字串，不預先點選
+        let tempFlavor = "";
+        let tempSpice = "";
+        let tempSalt = "";
 
         function showHotFoodCustomModal(item) {
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
 
-            tempFlavor = "原味";
-            tempSpice = "不辣";
-            tempSalt = "正常";
+            tempFlavor = "";
+            tempSpice = "";
+            tempSalt = "";
 
             let flavorBtnsHtml = '';
             ["原味", "微辣", "小辣", "中辣", "大辣"].forEach(fl => {
-                flavorBtnsHtml += `<button class="modal-opt-btn hot-flavor-btn ${fl === '原味' ? 'active' : ''}" onclick="selectHotOpt('flavor', '${fl}', this)">${fl}</button>`;
+                flavorBtnsHtml += `<button class="modal-opt-btn hot-flavor-btn" onclick="selectHotOpt('flavor', '${fl}', this)">${fl}</button>`;
             });
 
             let spiceBtnsHtml = '';
             ["不辣", "小辣", "中辣", "大辣"].forEach(sp => {
-                spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn ${sp === '不辣' ? 'active' : ''}" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`;
+                spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`;
             });
 
             let saltBtnsHtml = '';
             ["清淡", "正常", "重鹹"].forEach(sa => {
-                saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn ${sa === '正常' ? 'active' : ''}" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`;
+                saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`;
             });
 
             content.innerHTML = `
@@ -1071,6 +1069,10 @@
         }
 
         function confirmHotFoodCustom(id, name, price) {
+            if (!tempFlavor || !tempSpice || !tempSalt) {
+                alert("請完整選擇 口味、辣度 與 鹹度 喔！");
+                return;
+            }
             let fullName = `${name} [${tempFlavor}/${tempSpice}/${tempSalt}]`;
             addToCart({ id: id + '_' + tempFlavor + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, qty: 1 });
             closeOptModal();
@@ -1236,12 +1238,15 @@
 
         function clearCart() {
             currentCart = [];
+            orderPrefs.flavor = "";
+            orderPrefs.spice = "";
+            orderPrefs.salt = "";
             orderPrefs.extras = [];
+            document.querySelectorAll('.preferences-box .pref-btn').forEach(b => b.classList.remove('active', 'addon-active'));
             document.getElementById('custName').value = '';
             document.getElementById('custPhone').value = '';
             document.getElementById('custNotes').value = '';
             setDefaultPickupTime();
-            document.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('addon-active'));
             updateCartUI();
             refreshActiveGrid();
         }
@@ -1359,6 +1364,11 @@
         async function submitOrder() {
             if (currentCart.length === 0) {
                 alert("購物車是空的，請先選擇餐點！");
+                return;
+            }
+
+            if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
+                alert("請完整選擇「開倉調整」的口味、辣度與鹹度才可結帳！");
                 return;
             }
 
@@ -1790,7 +1800,7 @@
             filteredOrders.forEach(o => {
                 calculateOrderFinalTotal(o);
                 dayTotalAmount += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
+                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "";
                 let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
                 
                 let notesArr = [];
@@ -1854,7 +1864,7 @@
             filteredOrders.forEach(o => {
                 calculateOrderFinalTotal(o);
                 grandTotal += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "原味";
+                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "";
                 let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
 
                 let notesArr = [];
