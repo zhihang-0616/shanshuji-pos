@@ -347,12 +347,19 @@
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
             <button class="modal-close-x" onclick="closeOrderManager()">✕</button>
-            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:15px;">📋 歷史訂單紀錄與審核修改</h3>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span id="mgmtOrderCount" style="font-weight:bold;">載入中...</span>
-                <button class="header-btn" style="display:inline-block;" onclick="saveEditedOrdersHistory()">💾 儲存所有修改</button>
+            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 3個月歷史訂單查詢與編輯 (雲端同步)</h3>
+            
+            <!-- 🔍 新增查詢過濾區塊 -->
+            <div style="display:flex; gap:10px; align-items:center; background:#140f0a; padding:10px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
+                <span style="font-size:13px; font-weight:bold; color:var(--primary-gold);">🔍 快速篩選：</span>
+                <input type="text" id="searchDateInput" class="input-field" style="max-width:140px;" placeholder="日期 (例如: 2026/06)" oninput="filterOrderMgmtTable()">
+                <input type="text" id="searchKeywordInput" class="input-field" style="max-width:180px;" placeholder="搜尋 姓名 或 電話" oninput="filterOrderMgmtTable()">
+                <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">清除篩選</button>
+                <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
+                <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存並同步至雲端</button>
             </div>
-            <div style="max-height: 60vh; overflow-y: auto;">
+
+            <div style="max-height: 55vh; overflow-y: auto;">
                 <table class="order-mgmt-table" id="mgmtTable">
                     <thead>
                         <tr>
@@ -568,6 +575,36 @@
                 });
             } catch (err) {
                 console.error("同步狀態至雲端失敗:", err);
+            }
+        }
+
+        async function fetchCloudOrdersHistory() {
+            try {
+                let res = await fetch(GAS_URL + "?action=getOrders&t=" + new Date().getTime());
+                let data = await res.json();
+                if (data && data.status === "success" && data.orders) {
+                    if (data.orders.length > 0) {
+                        localStorage.setItem('pos_order_history', JSON.stringify(data.orders));
+                    }
+                }
+            } catch (err) {
+                console.error("讀取雲端歷史訂單失敗:", err);
+            }
+            updatePendingCountHeader();
+        }
+
+        async function syncOrdersHistoryToCloud(orders) {
+            try {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "updateOrders",
+                        orders: orders
+                    })
+                });
+            } catch (err) {
+                console.error("備份歷史訂單至雲端失敗:", err);
             }
         }
 
@@ -899,11 +936,11 @@
         function initPOS() {
             checkAdminModeFromUrl();
             fetchCloudStatus();
+            fetchCloudOrdersHistory();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
             updateCartUI();
-            updatePendingCountHeader();
 
             setInterval(() => {
                 fetchCloudStatus();
@@ -1388,6 +1425,7 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
+            syncOrdersHistoryToCloud(history);
             updatePendingCountHeader();
         }
 
@@ -1481,6 +1519,7 @@
                     history[originalIndex].date = "";
                 }
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
+                syncOrdersHistoryToCloud(history);
                 updatePendingCountHeader();
                 renderQuickAcceptList();
                 if (newStatus === "已被店家拒絕") {
@@ -1684,9 +1723,12 @@
             clearCart();
         }
 
-        function openOrderManager() {
+        async function openOrderManager() {
+            await fetchCloudOrdersHistory();
             localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            renderOrderMgmtTable();
+            document.getElementById('searchDateInput').value = '';
+            document.getElementById('searchKeywordInput').value = '';
+            renderOrderMgmtTable(localOrderHistory);
             document.getElementById('adminMgmtModal').style.display = 'flex';
         }
 
@@ -1725,12 +1767,43 @@
             ord.discountNote = notes.join(" ");
         }
 
-        function renderOrderMgmtTable() {
+        function filterOrderMgmtTable() {
+            const dateQuery = document.getElementById('searchDateInput').value.trim().toLowerCase();
+            const keywordQuery = document.getElementById('searchKeywordInput').value.trim().toLowerCase();
+
+            const filtered = localOrderHistory.filter(ord => {
+                let matchDate = !dateQuery || (ord.date && ord.date.toLowerCase().includes(dateQuery));
+                let matchKeyword = !keywordQuery || 
+                    (ord.customer && ord.customer.toLowerCase().includes(keywordQuery)) || 
+                    (ord.phone && ord.phone.toLowerCase().includes(keywordQuery));
+                return matchDate && matchKeyword;
+            });
+
+            renderOrderMgmtTable(filtered, true);
+        }
+
+        function clearOrderSearchFilters() {
+            document.getElementById('searchDateInput').value = '';
+            document.getElementById('searchKeywordInput').value = '';
+            renderOrderMgmtTable(localOrderHistory);
+        }
+
+        function renderOrderMgmtTable(ordersToRender, isFiltered = false) {
             const tbody = document.getElementById('mgmtTableBody');
             tbody.innerHTML = '';
-            document.getElementById('mgmtOrderCount').innerText = `總訂單筆數：${localOrderHistory.length} 筆`;
+            document.getElementById('mgmtOrderCount').innerText = isFiltered ? 
+                `篩選結果：${ordersToRender.length} / ${localOrderHistory.length} 筆` : 
+                `總訂單筆數：${localOrderHistory.length} 筆 (雲端長期保存)`;
 
-            localOrderHistory.forEach((ord, index) => {
+            if (ordersToRender.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合條件的歷史訂單紀錄</td></tr>`;
+                return;
+            }
+
+            ordersToRender.forEach((ord) => {
+                // 找出該筆訂單在原始 localOrderHistory 中的真實索引
+                const realIndex = localOrderHistory.findIndex(item => item.id === ord.id);
+
                 if (ord.discountPercent === undefined) ord.discountPercent = 100;
                 if (ord.deductAmount === undefined) ord.deductAmount = 0;
                 calculateOrderFinalTotal(ord);
@@ -1738,27 +1811,27 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${ord.date}<br>${ord.time}</td>
-                    <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${index}, 'customer', this.value)"></td>
-                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${index}, 'phone', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${realIndex}, 'customer', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${realIndex}, 'phone', this.value)"></td>
                     <td>
                         <div class="discount-container">
-                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.discountPercent}" placeholder="80" onchange="updateHistoryDiscount(${index}, 'discountPercent', this.value)"> %</div>
-                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.deductAmount}" placeholder="3" onchange="updateHistoryDiscount(${index}, 'deductAmount', this.value)"></div>
+                            <div style="font-size:11px;">折數: <input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.discountPercent}" placeholder="80" onchange="updateHistoryDiscount(${realIndex}, 'discountPercent', this.value)"> %</div>
+                            <div style="font-size:11px;">扣錢: $<input type="number" class="edit-input" style="width:45px; inline-block;" value="${ord.deductAmount}" placeholder="3" onchange="updateHistoryDiscount(${realIndex}, 'deductAmount', this.value)"></div>
                         </div>
                     </td>
                     <td style="font-weight:bold; color:var(--primary-gold);">$${ord.total}</td>
                     <td>
-                        <select class="edit-input" onchange="updateHistoryItem(${index}, 'payment', this.value)">
+                        <select class="edit-input" onchange="updateHistoryItem(${realIndex}, 'payment', this.value)">
                             <option value="現金" ${ord.payment === '現金' ? 'selected' : ''}>現金</option>
                             <option value="轉帳" ${ord.payment === '轉帳' ? 'selected' : ''}>轉帳</option>
                             <option value="Linepay" ${ord.payment === 'Linepay' ? 'selected' : ''}>Linepay</option>
                             <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
                         </select>
                     </td>
-                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${index})">調整品項 (${ord.items.length})</button></td>
-                    <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${index}, 'flavor', this.value)"></td>
-                    <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${index}, 'custNotes', this.value)"></td>
-                    <td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${index})">刪除</button></td>
+                    <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${realIndex})">調整品項 (${ord.items.length})</button></td>
+                    <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${realIndex}, 'flavor', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${realIndex}, 'custNotes', this.value)"></td>
+                    <td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${realIndex})">刪除</button></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1775,7 +1848,7 @@
         function updateHistoryDiscount(index, key, val) {
             localOrderHistory[index][key] = val;
             calculateOrderFinalTotal(localOrderHistory[index]);
-            renderOrderMgmtTable();
+            filterOrderMgmtTable();
         }
 
         function openItemEditModal(index) {
@@ -1786,7 +1859,7 @@
 
         function closeItemEditModal() {
             document.getElementById('itemEditModal').style.display = 'none';
-            renderOrderMgmtTable();
+            filterOrderMgmtTable();
         }
 
         function renderItemEditList() {
@@ -1869,14 +1942,16 @@
         function deleteHistoryOrder(index) {
             if (confirm("確定要刪除這筆訂單嗎？")) {
                 localOrderHistory.splice(index, 1);
-                renderOrderMgmtTable();
+                filterOrderMgmtTable();
                 updatePendingCountHeader();
             }
         }
 
         function saveEditedOrdersHistory() {
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+            syncOrdersHistoryToCloud(localOrderHistory);
             updatePendingCountHeader();
+            alert("歷史訂單修改已成功儲存並同步至雲端（長期保存）！");
         }
 
         function downloadCSV(csvContent, fileName) {
