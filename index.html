@@ -391,7 +391,8 @@
 
     <script>
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbziq2hHDrcmRJtwZ7VJng_mJvcAsacK7h2bQuMggLTVwcLQsBkt9V7XcHN3OW3qGm2Uvw/exec";
+        // 更新為全新的 GAS 網址
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz7SS82hI1lUOH5OCgorlw-FOeP9xqZlynmCQNMaP1LJZEpL-BhZiJvTxGzdn6ooeMmtg/exec";
 
         function isUserAdminMode() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1681,7 +1682,6 @@
 
             const orderStatus = isBackdate ? "已完成" : "等待接單";
 
-            // 只有當使用者有點選時才傳入對應屬性，否則不填入或傳空
             let finalPrefs = {};
             if (orderPrefs.flavor) finalPrefs.flavor = orderPrefs.flavor;
             if (orderPrefs.spice) finalPrefs.spice = orderPrefs.spice;
