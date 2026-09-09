@@ -1030,6 +1030,10 @@
         }
 
         function handleItemClick(item, category) {
+            if (item.soldOut) {
+                alert(`【${item.name}】目前已售完，無法點購！`);
+                return;
+            }
             if (category === "智能合約 (套餐)") {
                 if (item.chickenOptions) {
                     showChickenChoiceModal(item);
@@ -1114,6 +1118,10 @@
         let tempSalt = "";
 
         function showHotFoodCustomModal(item) {
+            if (item.soldOut) {
+                alert(`【${item.name}】目前已售完，無法點購！`);
+                return;
+            }
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
 
