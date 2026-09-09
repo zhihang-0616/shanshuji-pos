@@ -24,7 +24,9 @@
         
         .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--panel-bg); border-right: 2px solid var(--border-gold); height: 100%; overflow: hidden; }
         
-        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 12px 18px; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 10px rgba(0,0,0,0.6); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 15px 20px; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        
+        .header-top-row { width: 100%; display: flex; justify-content: space-between; align-items: center; }
         
         .header-left-group { display: flex; align-items: center; gap: 10px; }
         
@@ -34,13 +36,6 @@
         .store-status-select { background: #150d07; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 5px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; outline: none; display: none; }
         body.admin-mode .store-status-select { display: inline-block; background: #2b1f13; }
         body.admin-mode .store-status-display { display: none; }
-
-        .menu-header-center { display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; }
-        .menu-header-title { text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; font-size: 17px; font-weight: bold; }
-        
-        .store-info-inline { display: flex; gap: 10px; font-size: 11px; color: #d6c29a; margin-top: 3px; }
-        body.admin-mode .store-info-inline { display: none !important; }
-        .store-info-inline span strong { color: var(--primary-gold); }
 
         .admin-action-group { display: flex; gap: 6px; align-items: center; }
         .admin-only { display: none !important; }
@@ -58,6 +53,15 @@
         .store-login-trigger { background: transparent; color: #554128; border: none; font-size: 11px; cursor: pointer; padding: 2px 4px; opacity: 0.6; }
         .store-login-trigger:hover { opacity: 1; color: var(--primary-gold); }
         body.admin-mode .store-login-trigger { display: none; }
+
+        /* 放大與精緻規劃的顧客資訊區塊 */
+        .menu-header-center { display: flex; flex-direction: column; align-items: center; width: 100%; text-align: center; gap: 6px; }
+        .menu-header-title { text-shadow: 0 2px 6px rgba(0,0,0,0.9); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1.5px; font-size: 22px; font-weight: 900; }
+        
+        .store-info-box { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #f2e2be; background: rgba(20, 15, 10, 0.7); padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-gold); width: 100%; max-width: 700px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); }
+        body.admin-mode .store-info-box { display: none !important; }
+        .store-info-row { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .store-info-row span strong { color: var(--primary-gold); font-size: 13.5px; }
 
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
         .tab-btn { flex: 1; padding: 12px 4px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
@@ -172,7 +176,7 @@
         .modal-option-group { margin-bottom: 12px; }
         .modal-option-label { font-weight: bold; color: var(--primary-gold); margin-bottom: 6px; display: block; font-size: 13px; }
         .modal-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
-        .modal-opt-btn { padding: 6px 12px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .modal-opt-btn { padding: 8px 14px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 14px; cursor: pointer; }
         .modal-opt-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
 
         @media (max-width: 768px) {
@@ -183,9 +187,8 @@
             .grid-container { max-height: 55vh; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
             .checkout-container { height: auto; }
             .order-list { max-height: 200px; }
-            .menu-header { flex-direction: column; align-items: stretch; gap: 8px; }
-            .header-left-group { justify-content: space-between; }
-            .store-info-inline { flex-direction: column; gap: 2px; }
+            .menu-header { padding: 10px; }
+            .store-info-box { font-size: 11.5px; padding: 6px 10px; }
         }
     </style>
 </head>
@@ -193,12 +196,14 @@
 
     <div class="menu-container">
         <div class="menu-header">
-            <div class="header-left-group">
-                <div id="storeStatusDisplay" class="store-status-display open">🟢 營業中</div>
-                <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
-                    <option value="營業中">🟢 營業中</option>
-                    <option value="休息中">🔴 休息中</option>
-                </select>
+            <div class="header-top-row">
+                <div class="header-left-group">
+                    <div id="storeStatusDisplay" class="store-status-display open">🟢 營業中</div>
+                    <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
+                        <option value="營業中">🟢 營業中</option>
+                        <option value="休息中">🔴 休息中</option>
+                    </select>
+                </div>
                 <div class="admin-action-group">
                     <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單系統 (0)</button>
                     <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
@@ -210,9 +215,13 @@
             
             <div class="menu-header-center">
                 <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
-                <div class="store-info-inline">
-                    <span>🕒 <strong>營業：</strong>平日17:00-00:00 週五&週六17:00-02:00 (週一公休/不定時休假 請來電詢問)</span>
-                    <span>📍 <strong>地址：</strong>新竹市南大路550巷82號</span>
+                <div class="store-info-box">
+                    <div class="store-info-row">
+                        <span>🕒 <strong>營業：</strong>平日17:00-00:00 週五&週六17:00-02:00 (週一公休/不定時休假 請來電詢問)</span>
+                    </div>
+                    <div class="store-info-row">
+                        <span>📍 <strong>地址：</strong>新竹市南大路550巷82號</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1175,7 +1184,7 @@
 
             content.innerHTML = `
                 <button class="modal-close-x" onclick="closeOptModal()">✕</button>
-                <h4 style="margin-bottom:15px; text-align:center; color:var(--text-gold);">【${item.name}】 客製調味</h4>
+                <h4 style="margin-bottom:15px; text-align:center; color:var(--text-gold);">【${item.name}】 選擇口味</h4>
                 
                 <div class="modal-option-group">
                     <span class="modal-option-label">選擇辣度 (點選第二次取消)：</span>
