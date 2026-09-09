@@ -53,17 +53,17 @@
         .admin-entry-btn { background: linear-gradient(135deg, #424242, #212121); color: #ffffff; border: 1px solid #757575; }
 
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
-        .tab-btn { flex: 1; padding: 14px 6px; border: none; background: transparent; font-size: 16px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .tab-btn { flex: 1; padding: 18px 6px 14px 6px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
         .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
         
         body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
         .tab-btn.category-sold-out { background: #1f1813 !important; opacity: 0.6; color: #8a7356 !important; text-decoration: line-through; border-color: #888 !important; }
 
-        .cat-close-btn { position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; background: #3d2b1a; color: var(--primary-gold); border: 1px solid var(--border-gold); border-radius: 50%; font-size: 11px; font-weight: bold; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5; transition: 0.2s; }
+        .cat-close-btn { position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; background: #3d2b1a; color: var(--primary-gold); border: 1px solid var(--border-gold); border-radius: 50%; font-size: 10px; font-weight: bold; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5; transition: 0.2s; }
         .cat-close-btn:hover { background: #8b1e0f; color: #fff; border-color: #ff9999; }
         body.edit-mode .cat-close-btn { display: flex; }
 
-        .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 3px; }
+        .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 3px; display: block; text-align: center; width: 100%; }
 
         .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 12px 18px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
         
@@ -932,6 +932,7 @@
                 const contentSpan = document.createElement('span');
                 contentSpan.innerHTML = formatTitleWithBracket(category);
                 contentSpan.style.pointerEvents = 'none';
+                contentSpan.style.width = '100%';
 
                 btn.appendChild(closeBtn);
                 btn.appendChild(contentSpan);
@@ -1962,7 +1963,7 @@
             let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
             csv += `"${shortDateTag}","","","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
 
-            downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g,'-')}.csv`);
+            downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g, '-')}.csv`);
         }
 
         function exportMonthlyReport() {
@@ -2024,7 +2025,7 @@
 
             csv += `"當月總計","","","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
 
-            downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g,'-')}.csv`);
+            downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g, '-')}.csv`);
         }
 
         window.onload = initPOS;
