@@ -200,10 +200,10 @@
                     <option value="休息中">🔴 休息中</option>
                 </select>
                 <div class="admin-action-group">
-                    <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單 (0)</button>
-                    <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 管理</button>
-                    <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完</button>
-                    <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 後台</button>
+                    <button class="header-btn quick-accept-btn admin-only" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單系統 (0)</button>
+                    <button class="header-btn meal-mgmt-btn admin-only" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
+                    <button class="header-btn soldout-list-btn admin-only" onclick="openSoldoutListModal()">📋 售完品項</button>
+                    <button class="header-btn admin-entry-btn admin-only" onclick="openAdminMenu()">⚙️ 管理模式</button>
                     <button class="store-login-trigger" onclick="enableStoreMode()" title="店家登入">店</button>
                 </div>
             </div>
@@ -331,7 +331,7 @@
     <div class="modal" id="quickAcceptModal">
         <div class="modal-content" style="width:480px; max-width:90vw;">
             <button class="modal-close-x" onclick="closeQuickAcceptModal()">✕</button>
-            <h3 style="text-align:center; color:var(--text-gold); margin-bottom:12px;">⚡ 店家接單管理面板</h3>
+            <h3 style="text-align:center; color:var(--text-gold); margin-bottom:12px;">⚡ 店家接單系統面板</h3>
             <div id="quickAcceptContainer" style="max-height:60vh; overflow-y:auto;"></div>
         </div>
     </div>
@@ -672,7 +672,7 @@
         }
 
         function openAdminMenu() {
-            let pwd = prompt("進入管理員模式，請輸入密碼:");
+            let pwd = prompt("進入管理模式，請輸入密碼:");
             if (pwd === null) return;
             if (pwd === getAdminPassword()) {
                 document.getElementById('adminMenuModal').style.display = 'flex';
@@ -708,7 +708,7 @@
                 mealBtn.innerText = "❌ 離開";
             } else {
                 document.body.classList.remove('edit-mode');
-                mealBtn.innerText = "🍔 管理";
+                mealBtn.innerText = "🍔 餐點管理";
             }
             refreshMenuTabs();
             refreshActiveGrid();
@@ -848,7 +848,7 @@
             const pendingList = history.filter(o => !o.status || o.status === "等待接單");
             const btn = document.getElementById('quickAcceptHeaderBtn');
             if (btn) {
-                btn.innerText = `⚡ 接單 (${pendingList.length})`;
+                btn.innerText = `⚡ 接單系統 (${pendingList.length})`;
             }
         }
 
