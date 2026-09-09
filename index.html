@@ -299,12 +299,9 @@
             <button class="modal-close-x" onclick="closeAdminMenu()">✕</button>
             <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄 (含日曆與左右鍵)</button>
+                <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
-                <button class="btn btn-submit" style="background: linear-gradient(135deg, #1b5e20, #004d40); color: #e0f2f1;" onclick="exportAllHistoryJSON()">📤 備份3個月紀錄 (JSON)</button>
-                <button class="btn btn-submit" style="background: linear-gradient(135deg, #0d47a1, #1a237e); color: #e8eaf6;" onclick="document.getElementById('importFileJson').click()">📥 還原/匯入備份</button>
-                <input type="file" id="importFileJson" style="display:none;" accept=".json" onchange="importAllHistoryJSON(event)">
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
             </div>
         </div>
@@ -391,7 +388,6 @@
 
     <script>
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-        // 更新為全新的 GAS 網址
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz7SS82hI1lUOH5OCgorlw-FOeP9xqZlynmCQNMaP1LJZEpL-BhZiJvTxGzdn6ooeMmtg/exec";
 
         function isUserAdminMode() {
@@ -677,14 +673,6 @@
             openOrderManager();
         }
 
-        function checkAndPromptBackup(totalCount) {
-            if (totalCount > 0 && totalCount % 100 === 0) {
-                if (confirm(`⚠️ 提醒溫小帥：目前歷史訂單已累積達 ${totalCount} 筆！為了安全起見，建議您現在進行資料備份。是否立即下載備份 JSON 檔？`)) {
-                    exportAllHistoryJSON();
-                }
-            }
-        }
-
         // 自動同步資料到 Google 試算表
         function syncOrderToCloud(orderData) {
             if (!GAS_WEB_APP_URL) return;
@@ -696,45 +684,6 @@
             }).catch(err => {
                 console.error("雲端同步失敗:", err);
             });
-        }
-
-        function exportAllHistoryJSON() {
-            closeAdminMenu();
-            const history = localStorage.getItem('pos_order_history') || '[]';
-            const blob = new Blob([history], { type: 'application/json;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            let now = new Date();
-            let dateTag = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
-            link.setAttribute("href", url);
-            link.setAttribute("download", `去中心鹹水雞_3個月歷史訂單備份_${dateTag}.json`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function importAllHistoryJSON(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        if (confirm(`確定要還原這份備份檔案嗎？將匯入 ${importedData.length} 筆歷史訂單紀錄。`)) {
-                            localStorage.setItem('pos_order_history', JSON.stringify(importedData));
-                            updatePendingCountHeader();
-                            alert("歷史訂單備份還原成功！");
-                            closeAdminMenu();
-                        }
-                    } else {
-                        alert("檔案格式錯誤：不是有效的訂單歷史清單！");
-                    }
-                } catch (err) {
-                    alert("解析 JSON 檔案失敗，請確認檔案格式是否正確！");
-                }
-            };
-            reader.readAsText(file);
         }
 
         function exportDailyReportFromAdmin() {
@@ -1457,7 +1406,6 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
-            checkAndPromptBackup(history.length);
             updatePendingCountHeader();
             syncOrderToCloud(orderData);
         }
