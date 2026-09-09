@@ -142,6 +142,8 @@
         .btn-clear:hover { background: #a32412; }
         .btn-submit { background: var(--gold-gradient); color: #1a0c00; border: 1px solid #fff3cb; }
         .btn-submit:hover { filter: brightness(1.15); }
+        .btn-backdate { background: linear-gradient(135deg, #1b5e20, #0d47a1); color: #e8eaf6; border: 1px solid #90caf9; }
+        .btn-backdate:hover { filter: brightness(1.15); }
 
         .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 26px 22px 22px 22px; border-radius: 8px; width: 360px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
@@ -220,7 +222,7 @@
                 <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
             </div>
             <div class="input-row">
-                <span class="input-label">電話*:</span>
+                <span class="input-label" id="phoneLable">電話*:</span>
                 <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
             </div>
             <div class="input-row">
@@ -276,7 +278,7 @@
                 <button class="pay-btn" onclick="setPayment('Linepay', this)">Linepay</button>
                 <button class="pay-btn" onclick="setPayment('全支付', this)">全支付</button>
             </div>
-            <div class="action-buttons">
+            <div class="action-buttons" id="actionButtonsContainer">
                 <button class="btn btn-clear" onclick="clearCart()">清除</button>
                 <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
             </div>
@@ -298,7 +300,6 @@
             <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄 (含日曆與左右鍵)</button>
-                <button class="btn btn-submit" onclick="openBackdateModalFromAdmin()">➕ 補登往日訂單</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
                 <button class="btn btn-submit" style="background: linear-gradient(135deg, #1b5e20, #004d40); color: #e0f2f1;" onclick="exportAllHistoryJSON()">📤 備份3個月紀錄 (JSON)</button>
@@ -341,7 +342,6 @@
                 <input type="text" id="searchKeywordInput" class="input-field" style="max-width:160px;" placeholder="搜尋 姓名 或 電話" oninput="filterOrderMgmtTable()">
                 <button class="header-btn" style="background:#3d2b1a;" onclick="setTodaySearch()">今天</button>
                 <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">顯示全部</button>
-                <button class="header-btn" style="background:linear-gradient(135deg, #1e7e34, #145222);" onclick="openBackdateModalFromMgmt()">➕ 手動補單</button>
                 <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
                 <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存修改</button>
             </div>
@@ -368,47 +368,6 @@
         </div>
     </div>
 
-    <!-- 補登往日單 Modal -->
-    <div class="modal" id="backdateModal">
-        <div class="modal-content" style="width:420px; max-width:90vw;">
-            <button class="modal-close-x" onclick="closeBackdateModal()">✕</button>
-            <h4 style="text-align:center; margin-bottom:14px; color:var(--text-gold);">➕ 補登往日訂單</h4>
-            <div style="font-size:13px; color:#a89269; margin-bottom:12px; text-align:center;">
-                在此補登的訂單，系統會自動歸類在你指定的日期中，並計入該日的報表與歷史查詢！
-            </div>
-            <div class="input-row">
-                <span class="input-label" style="min-width:90px;">補登日期*:</span>
-                <input type="date" id="backdateDate" class="input-field">
-            </div>
-            <div class="input-row">
-                <span class="input-label" style="min-width:90px;">訂購人*:</span>
-                <input type="text" id="backdateName" class="input-field" placeholder="請輸入姓名">
-            </div>
-            <div class="input-row">
-                <span class="input-label" style="min-width:90px;">電話*:</span>
-                <input type="tel" id="backdatePhone" class="input-field" placeholder="0912345678" maxlength="10">
-            </div>
-            <div class="input-row">
-                <span class="input-label" style="min-width:90px;">總金額*:</span>
-                <input type="number" id="backdateTotal" class="input-field" placeholder="請輸入該筆總額">
-            </div>
-            <div class="input-row">
-                <span class="input-label" style="min-width:90px;">品項摘要*:</span>
-                <input type="text" id="backdateItemsDesc" class="input-field" placeholder="例如：鹹水半雞、高麗菜">
-            </div>
-            <div class="input-row">
-                <span class="input-label" style="min-width:90px;">付款方式:</span>
-                <select id="backdatePayment" class="input-field" style="background:#150d07; color:#f5e4b3;">
-                    <option value="現金">現金</option>
-                    <option value="轉帳">轉帳</option>
-                    <option value="Linepay">Linepay</option>
-                    <option value="全支付">全支付</option>
-                </select>
-            </div>
-            <button class="btn btn-submit" style="width:100%; margin-top:10px;" onclick="confirmAddBackdateOrder()">確認新增補登</button>
-        </div>
-    </div>
-
     <div class="modal" id="itemEditModal">
         <div class="modal-content" style="width:420px; max-width:90vw;">
             <button class="modal-close-x" onclick="closeItemEditModal()">✕</button>
@@ -432,6 +391,7 @@
 
     <script>
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbziq2hHDrcmRJtwZ7VJng_mJvcAsacK7h2bQuMggLTVwcLQsBkt9V7XcHN3OW3qGm2Uvw/exec";
 
         function isUserAdminMode() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -453,6 +413,25 @@
         function setAdminLoggedIn(status) {
             localStorage.setItem('pos_is_logged_in', status ? 'true' : 'false');
             updateHeaderLayout();
+            updateCheckoutButtons();
+        }
+
+        function updateCheckoutButtons() {
+            const container = document.getElementById('actionButtonsContainer');
+            const loggedIn = isAdminLoggedIn();
+            
+            if (loggedIn) {
+                container.innerHTML = `
+                    <button class="btn btn-clear" onclick="clearCart()">清除</button>
+                    <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
+                    <button class="btn btn-backdate" onclick="submitOrder(true)">補單完成</button>
+                `;
+            } else {
+                container.innerHTML = `
+                    <button class="btn btn-clear" onclick="clearCart()">清除</button>
+                    <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
+                `;
+            }
         }
 
         function updateHeaderLayout() {
@@ -697,98 +676,25 @@
             openOrderManager();
         }
 
-        function openBackdateModalFromAdmin() {
-            closeAdminMenu();
-            openBackdateModal();
-        }
-
-        function openBackdateModalFromMgmt() {
-            closeOrderManager();
-            openBackdateModal();
-        }
-
-        function openBackdateModal() {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            document.getElementById('backdateDate').value = `${yyyy}-${mm}-${dd}`;
-            document.getElementById('backdateName').value = '';
-            document.getElementById('backdatePhone').value = '';
-            document.getElementById('backdateTotal').value = '';
-            document.getElementById('backdateItemsDesc').value = '';
-            document.getElementById('backdateModal').style.display = 'flex';
-        }
-
-        function closeBackdateModal() {
-            document.getElementById('backdateModal').style.display = 'none';
-        }
-
-        function confirmAddBackdateOrder() {
-            const dateVal = document.getElementById('backdateDate').value; // YYYY-MM-DD
-            const name = document.getElementById('backdateName').value.trim();
-            const phone = document.getElementById('backdatePhone').value.trim();
-            const total = parseInt(document.getElementById('backdateTotal').value);
-            const itemsDesc = document.getElementById('backdateItemsDesc').value.trim();
-            const payment = document.getElementById('backdatePayment').value;
-
-            if (!dateVal || !name || !phone || isNaN(total) || !itemsDesc) {
-                alert("請完整填寫補登日期、姓名、電話、總金額與品項摘要！");
-                return;
-            }
-
-            const phoneRegex = /^09\d{8}$/;
-            if (!phoneRegex.test(phone)) {
-                alert("手機號碼格式錯誤！請輸入10碼手機號碼 (例如：0912345678)");
-                return;
-            }
-
-            const dateParts = dateVal.split('-');
-            const formattedDateStr = `${dateParts[0]}/${dateParts[1]}/${dateParts[2]}`;
-            const targetDateObj = new Date(dateVal);
-            const weekDayStr = !isNaN(targetDateObj.getTime()) ? weekDaysArr[targetDateObj.getDay()] : "";
-
-            const backdateOrder = {
-                id: Date.now(),
-                status: "已完成",
-                date: formattedDateStr,
-                weekDay: weekDayStr,
-                time: "12:00",
-                fullTime: `${formattedDateStr} 12:00`,
-                customer: name,
-                phone: phone,
-                pickupTime: `${formattedDateStr} 12:00 (${weekDayStr})`,
-                custNotes: "手動補登訂單",
-                originalTotal: total,
-                total: total,
-                discountPercent: 100,
-                deductAmount: 0,
-                discountNote: "",
-                payment: payment,
-                prefs: { flavor: "原味", spice: "不辣", salt: "正常", extras: [] },
-                items: [
-                    { name: itemsDesc, qty: 1, price: total, subItems: null }
-                ]
-            };
-
-            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            history.push(backdateOrder);
-            localStorage.setItem('pos_order_history', JSON.stringify(history));
-            checkAndPromptBackup(history.length);
-            updatePendingCountHeader();
-
-            alert(`成功補登 ${formattedDateStr} 的訂單 (${name})！已歸類至對應日期。`);
-            closeBackdateModal();
-            openOrderManager();
-        }
-
-        // 檢查 100 筆訂單提醒備份
         function checkAndPromptBackup(totalCount) {
             if (totalCount > 0 && totalCount % 100 === 0) {
                 if (confirm(`⚠️ 提醒溫小帥：目前歷史訂單已累積達 ${totalCount} 筆！為了安全起見，建議您現在進行資料備份。是否立即下載備份 JSON 檔？`)) {
                     exportAllHistoryJSON();
                 }
             }
+        }
+
+        // 自動同步資料到 Google 試算表
+        function syncOrderToCloud(orderData) {
+            if (!GAS_WEB_APP_URL) return;
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData)
+            }).catch(err => {
+                console.error("雲端同步失敗:", err);
+            });
         }
 
         function exportAllHistoryJSON() {
@@ -1077,6 +983,7 @@
 
         function initPOS() {
             updateHeaderLayout();
+            updateCheckoutButtons();
             updatePendingCountHeader();
             initFlatMenuOptions();
             refreshMenuTabs();
@@ -1156,7 +1063,7 @@
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
-                    if (isStoreClosed) {
+                    if (isStoreClosed && !isAdminLoggedIn()) {
                         alert("目前店家【休息中】，暫停點餐！");
                         return;
                     }
@@ -1187,7 +1094,7 @@
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
-                    if (isStoreClosed) {
+                    if (isStoreClosed && !isAdminLoggedIn()) {
                         alert("目前店家【休息中】，暫停點餐！");
                         return;
                     }
@@ -1225,7 +1132,7 @@
                 } else {
                     const chickenList = menuData["信仰雞本位主義 (主食)"];
                     const breast = chickenList.find(i => i.id === "m1");
-                    if (breast && breast.soldOut) {
+                    if (breast && breast.soldOut && !isAdminLoggedIn()) {
                         alert("鹹水雞胸已售完, 無法點購此套餐！");
                         return;
                     }
@@ -1256,8 +1163,10 @@
             
             item.chickenOptions.forEach(opt => {
                 let isDisabled = false;
-                if ((opt === "鹹水半雞" || opt === "全鹹水" || opt.includes("鹹水半雞")) && saltHalfSoldOut) isDisabled = true;
-                if ((opt === "煙燻半雞" || opt === "全煙燻" || opt.includes("煙燻半雞")) && smokeHalfSoldOut) isDisabled = true;
+                if (!isAdminLoggedIn()) {
+                    if ((opt === "鹹水半雞" || opt === "全鹹水" || opt.includes("鹹水半雞")) && saltHalfSoldOut) isDisabled = true;
+                    if ((opt === "煙燻半雞" || opt === "全煙燻" || opt.includes("煙燻半雞")) && smokeHalfSoldOut) isDisabled = true;
+                }
 
                 if (isDisabled) {
                     html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0; padding:10px;" disabled>${opt} (售完)</button>`;
@@ -1298,7 +1207,7 @@
         let tempSalt = "";
 
         function showHotFoodCustomModal(item) {
-            if (item.soldOut) {
+            if (item.soldOut && !isAdminLoggedIn()) {
                 alert(`【${item.name}】目前已售完，無法點購！`);
                 return;
             }
@@ -1549,6 +1458,8 @@
             localStorage.setItem('pos_order_history', JSON.stringify(history));
             checkAndPromptBackup(history.length);
             updatePendingCountHeader();
+            // 自動備份至 Google 雲端
+            syncOrderToCloud(orderData);
         }
 
         function checkOrderStatusByPhone() {
@@ -1700,8 +1611,8 @@
             }
         }
 
-        function submitOrder() {
-            if (isStoreClosed) {
+        function submitOrder(isBackdate = false) {
+            if (isStoreClosed && !isAdminLoggedIn() && !isBackdate) {
                 alert("目前店家【休息中】，無法進行結帳！");
                 return;
             }
@@ -1711,31 +1622,40 @@
                 return;
             }
 
+            const loggedIn = isAdminLoggedIn();
             const isOnlyHotFood = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
 
-            if (!isOnlyHotFood) {
+            if (!isOnlyHotFood && !loggedIn) {
                 if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
                     alert("請完整選擇「開倉調整」的口味、辣度與鹹度才可結帳！");
                     return;
                 }
             }
 
-            const custName = document.getElementById('custName').value.trim();
-            const custPhone = document.getElementById('custPhone').value.trim();
+            let custName = document.getElementById('custName').value.trim();
+            let custPhone = document.getElementById('custPhone').value.trim();
             const pickupTimeRaw = document.getElementById('pickupTime').value;
             const custNotes = document.getElementById('custNotes').value.trim();
 
             if (!custName) {
-                alert("請填寫【訂購人】才可完成下單！");
-                document.getElementById('custName').focus();
-                return;
+                if (loggedIn && isBackdate) {
+                    custName = "補單客戶";
+                } else {
+                    alert("請填寫【訂購人】才可完成下單！");
+                    document.getElementById('custName').focus();
+                    return;
+                }
             }
 
-            const phoneRegex = /^09\d{8}$/;
-            if (!phoneRegex.test(custPhone)) {
-                alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
-                document.getElementById('custPhone').focus();
-                return;
+            if (!loggedIn) {
+                const phoneRegex = /^09\d{8}$/;
+                if (!phoneRegex.test(custPhone)) {
+                    alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
+                    document.getElementById('custPhone').focus();
+                    return;
+                }
+            } else {
+                if (!custPhone) custPhone = "0900000000";
             }
 
             if (!pickupTimeRaw) {
@@ -1770,9 +1690,11 @@
                 allExtras.push(`顧客備註:${custNotes}`);
             }
 
+            const orderStatus = isBackdate ? "已完成" : "等待接單";
+
             const orderPayload = {
                 id: Date.now(),
-                status: "等待接單",
+                status: orderStatus,
                 date: dateStr,
                 weekDay: weekDayStr,
                 time: timeStr,
@@ -1788,9 +1710,9 @@
                 discountNote: "",
                 payment: currentPayment,
                 prefs: {
-                    flavor: isOnlyHotFood ? "無" : orderPrefs.flavor,
-                    spice: orderPrefs.spice || "無",
-                    salt: orderPrefs.salt || "無",
+                    flavor: orderPrefs.flavor || "原味",
+                    spice: orderPrefs.spice || "不辣",
+                    salt: orderPrefs.salt || "正常",
                     extras: allExtras
                 },
                 items: currentCart.map(item => ({
@@ -1802,6 +1724,12 @@
             };
 
             saveOrderToHistory(orderPayload);
+
+            if (isBackdate) {
+                alert(`已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
+                clearCart();
+                return;
+            }
 
             const modal = document.getElementById('receiptModal');
             const content = document.getElementById('receiptContent');
