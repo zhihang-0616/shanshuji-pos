@@ -34,8 +34,11 @@
         .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 8px 14px; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .header-btn:hover { filter: brightness(1.15); }
         
-        .store-status-badge { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 14px; border-radius: 4px; font-weight: bold; font-size: 14px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; }
+        .store-status-select { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; outline: none; z-index: 2; }
         
+        .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 2; }
+        .login-btn.logged-in { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border-color: #81c784; }
+
         .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); border: 1px solid #81c784; }
         .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
         body.edit-mode .meal-mgmt-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
@@ -43,9 +46,9 @@
         .soldout-list-btn { background: linear-gradient(135deg, #5c2c16, #33160a); color: #ffebcc; border: 1px solid var(--border-gold); }
         .admin-entry-btn { background: linear-gradient(135deg, #424242, #212121); color: #ffffff; border: 1px solid #757575; }
 
-        .store-info-box { background: #18110c; border-bottom: 1px solid var(--border-gold); padding: 10px 20px; font-size: 13px; color: #d6c29a; line-height: 1.5; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
-        .store-info-item { display: flex; align-items: center; gap: 6px; }
-        .store-info-item strong { color: var(--primary-gold); }
+        .store-info-box { background: #18100a; border: 1px solid var(--border-gold); border-radius: 6px; padding: 10px 16px; margin-top: 5px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #eddab2; line-height: 1.5; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+        .store-info-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .store-info-label { color: var(--primary-gold); font-weight: bold; min-width: 70px; }
 
         .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
         .tab-btn { flex: 1; padding: 14px 6px; border: none; background: transparent; font-size: 16px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
@@ -173,7 +176,6 @@
             .order-list { max-height: 220px; }
             .menu-header-title { position: static; transform: none; text-align: center; margin: 4px 0; }
             .header-top-row { flex-direction: column; gap: 8px; align-items: center; }
-            .store-info-box { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -182,24 +184,35 @@
     <div class="menu-container">
         <div class="menu-header">
             <div class="header-top-row">
-                <div style="width: 100px;"></div>
+                <!-- 顧客網站顯示純文字/無法點選，管理者網站顯示下拉選單 -->
+                <div id="customerStatusDisplay" style="display:none; background:#2b1f13; color:var(--primary-gold); border:1px solid var(--border-gold); padding:7px 12px; border-radius:4px; font-weight:bold; font-size:14px; z-index:2;">🟢 營業中</div>
+                <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
+                    <option value="營業中">🟢 營業中</option>
+                    <option value="休息中">🔴 休息中</option>
+                </select>
+
                 <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
-                <div class="store-status-badge">🟢 營業中</div>
+
+                <!-- 僅管理者網站顯示登入按鈕 -->
+                <button id="loginStatusBtn" class="login-btn" style="display:none;" onclick="toggleAdminLogin()">🔒 管理員登入</button>
+                <div id="emptyHeaderSpacer" style="width:105px; display:none;"></div>
             </div>
-            <div class="admin-action-group" id="adminActionGroup" style="display: none;">
+
+            <!-- 僅管理者網站顯示的管理員按鈕群組 -->
+            <div class="admin-action-group" id="adminActionGroup" style="display:none;">
                 <button class="header-btn quick-accept-btn" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單系統 (0)</button>
                 <button class="header-btn meal-mgmt-btn" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
                 <button class="header-btn soldout-list-btn" onclick="openSoldoutListModal()">📋 售完品項</button>
                 <button class="header-btn admin-entry-btn" onclick="openAdminMenu()">⚙️ 管理模式</button>
             </div>
-        </div>
 
-        <!-- 顧客端專屬店面資訊區塊 -->
-        <div class="store-info-box" id="storeInfoBox">
-            <div class="store-info-item">📍 <strong>地址：</strong>新竹市南大路550巷82號</div>
-            <div class="store-info-item">📞 <strong>電話：</strong>0916740175 (忙碌時不接受電話訂餐 人手不足)</div>
-            <div class="store-info-item" style="grid-column: span 2;">⏰ <strong>營業時間：</strong>週二~週四 17:00 - 00:00 / 週五 & 週六 17:00-02:00</div>
-            <div class="store-info-item" style="grid-column: span 2;">🛑 <strong>公休日：</strong>週一公休 / 不定時休假 (請來電詢問)</div>
+            <!-- 僅顧客網站顯示的整齊店面資訊區塊 -->
+            <div class="store-info-box" id="storeInfoBox" style="display:none;">
+                <div class="store-info-row"><span class="store-info-label">地址:</span> <span>新竹市南大路550巷82號</span></div>
+                <div class="store-info-row"><span class="store-info-label">電話:</span> <span>0916740175 (忙碌時不接受電話訂餐 人手不足)</span></div>
+                <div class="store-info-row"><span class="store-info-label">營業時間:</span> <span>週二~週四 17:00 - 00:00 / 週五 & 週六 17:00-02:00</span></div>
+                <div class="store-info-row"><span class="store-info-label">公休日:</span> <span>週一公休 / 不定時休假 (請來電詢問)</span></div>
+            </div>
         </div>
 
         <div class="menu-tabs" id="menuTabs"></div>
@@ -386,7 +399,7 @@
     <script>
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
-        function checkAdminMode() {
+        function isAdminMode() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('mode') === 'admin';
         }
@@ -397,6 +410,40 @@
 
         function setAdminPassword(newPwd) {
             localStorage.setItem('pos_admin_password', newPwd);
+        }
+
+        function isAdminLoggedIn() {
+            return localStorage.getItem('pos_is_logged_in') === 'true';
+        }
+
+        function setAdminLoggedIn(status) {
+            localStorage.setItem('pos_is_logged_in', status ? 'true' : 'false');
+            updateLoginButtonUI();
+        }
+
+        function updateLoginButtonUI() {
+            const btn = document.getElementById('loginStatusBtn');
+            if (isAdminLoggedIn()) {
+                btn.innerText = "🔓 已登入 (點擊登出)";
+                btn.className = "login-btn logged-in";
+            } else {
+                btn.innerText = "🔒 管理員登入";
+                btn.className = "login-btn";
+            }
+        }
+
+        function toggleAdminLogin() {
+            if (isAdminLoggedIn()) {
+                setAdminLoggedIn(false);
+            } else {
+                let pwd = prompt("請輸入管理者密碼:");
+                if (pwd === null) return;
+                if (pwd === getAdminPassword()) {
+                    setAdminLoggedIn(true);
+                } else {
+                    alert("密碼錯誤！");
+                }
+            }
         }
 
         const categoryNotices = {
@@ -532,6 +579,16 @@
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
 
+        function changeStoreStatus(val) {
+            if (val === "休息中") {
+                isStoreClosed = true;
+                alert("已切換為【休息中】，顧客端將無法進行點餐！");
+            } else {
+                isStoreClosed = false;
+                alert("已切換為【營業中】！");
+            }
+        }
+
         function setDefaultPickupTime() {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -553,6 +610,10 @@
         }
 
         function openAdminMenu() {
+            if (!isAdminLoggedIn()) {
+                alert("尚未登入管理員，無法進入管理模式！");
+                return;
+            }
             document.getElementById('adminMenuModal').style.display = 'flex';
         }
 
@@ -793,17 +854,24 @@
         }
 
         function initPOS() {
-            if (checkAdminMode()) {
+            if (isAdminMode()) {
+                document.getElementById('storeStatusSelect').style.display = 'inline-block';
+                document.getElementById('customerStatusDisplay').style.display = 'none';
+                document.getElementById('loginStatusBtn').style.display = 'inline-block';
+                document.getElementById('emptyHeaderSpacer').style.display = 'none';
                 document.getElementById('adminActionGroup').style.display = 'flex';
-                const storeInfoBox = document.getElementById('storeInfoBox');
-                if (storeInfoBox) storeInfoBox.style.display = 'none';
+                document.getElementById('storeInfoBox').style.display = 'none';
             } else {
+                document.getElementById('storeStatusSelect').style.display = 'none';
+                document.getElementById('customerStatusDisplay').style.display = 'inline-block';
+                document.getElementById('loginStatusBtn').style.display = 'none';
+                document.getElementById('emptyHeaderSpacer').style.display = 'inline-block';
                 document.getElementById('adminActionGroup').style.display = 'none';
-                const storeInfoBox = document.getElementById('storeInfoBox');
-                if (storeInfoBox) storeInfoBox.style.display = 'grid';
+                document.getElementById('storeInfoBox').style.display = 'flex';
             }
 
             updatePendingCountHeader();
+            updateLoginButtonUI();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
@@ -1847,7 +1915,7 @@
                 let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
 
                 let formattedItems = formatOrderItemsForCSV(o);
-                formattedItems.forEach(item => {
+                formattedItems.execute || formattedItems.forEach(item => {
                     line += `,"${item.name}","${item.price}"`;
                 });
 
