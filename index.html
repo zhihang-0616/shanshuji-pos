@@ -349,7 +349,6 @@
             <button class="modal-close-x" onclick="closeOrderManager()">✕</button>
             <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 3個月歷史訂單查詢與編輯 (雲端同步)</h3>
             
-            <!-- 🔍 新增查詢過濾區塊 -->
             <div style="display:flex; gap:10px; align-items:center; background:#140f0a; padding:10px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
                 <span style="font-size:13px; font-weight:bold; color:var(--primary-gold);">🔍 快速篩選：</span>
                 <input type="text" id="searchDateInput" class="input-field" style="max-width:140px;" placeholder="日期 (例如: 2026/06)" oninput="filterOrderMgmtTable()">
@@ -1150,7 +1149,6 @@
             refreshActiveGrid();
         }
 
-        let tempFlavor = "";
         let tempSpice = "";
         let tempSalt = "";
 
@@ -1162,14 +1160,8 @@
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
 
-            tempFlavor = "";
             tempSpice = "";
             tempSalt = "";
-
-            let flavorBtnsHtml = '';
-            ["原味", "微辣", "小辣", "中辣", "大辣"].forEach(fl => {
-                flavorBtnsHtml += `<button class="modal-opt-btn hot-flavor-btn" onclick="selectHotOpt('flavor', '${fl}', this)">${fl}</button>`;
-            });
 
             let spiceBtnsHtml = '';
             ["不辣", "小辣", "中辣", "大辣"].forEach(sp => {
@@ -1184,11 +1176,6 @@
             content.innerHTML = `
                 <button class="modal-close-x" onclick="closeOptModal()">✕</button>
                 <h4 style="margin-bottom:15px; text-align:center; color:var(--text-gold);">【${item.name}】 客製調味</h4>
-                
-                <div class="modal-option-group">
-                    <span class="modal-option-label">選擇口味 (點選第二次取消)：</span>
-                    <div class="modal-btn-row">${flavorBtnsHtml}</div>
-                </div>
                 
                 <div class="modal-option-group">
                     <span class="modal-option-label">選擇辣度 (點選第二次取消)：</span>
@@ -1206,16 +1193,7 @@
         }
 
         function selectHotOpt(type, val, btn) {
-            if (type === 'flavor') {
-                if (tempFlavor === val) {
-                    tempFlavor = "";
-                    btn.classList.remove('active');
-                } else {
-                    tempFlavor = val;
-                    document.querySelectorAll('.hot-flavor-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                }
-            } else if (type === 'spice') {
+            if (type === 'spice') {
                 if (tempSpice === val) {
                     tempSpice = "";
                     btn.classList.remove('active');
@@ -1238,7 +1216,6 @@
 
         function confirmHotFoodCustom(id, name, price) {
             let prefsArr = [];
-            if (tempFlavor) prefsArr.push(tempFlavor);
             if (tempSpice) prefsArr.push(tempSpice);
             if (tempSalt) prefsArr.push(tempSalt);
 
@@ -1622,9 +1599,9 @@
                 discountNote: "",
                 payment: currentPayment,
                 prefs: {
-                    flavor: isOnlyHotFood && !orderPrefs.flavor ? "無(厝邊溫食單點)" : orderPrefs.flavor,
-                    spice: isOnlyHotFood && !orderPrefs.spice ? "無" : orderPrefs.spice,
-                    salt: isOnlyHotFood && !orderPrefs.salt ? "無" : orderPrefs.salt,
+                    flavor: isOnlyHotFood ? "無" : orderPrefs.flavor,
+                    spice: orderPrefs.spice || "無",
+                    salt: orderPrefs.salt || "無",
                     extras: allExtras
                 },
                 items: currentCart.map(item => ({
@@ -1801,7 +1778,6 @@
             }
 
             ordersToRender.forEach((ord) => {
-                // 找出該筆訂單在原始 localOrderHistory 中的真實索引
                 const realIndex = localOrderHistory.findIndex(item => item.id === ord.id);
 
                 if (ord.discountPercent === undefined) ord.discountPercent = 100;
