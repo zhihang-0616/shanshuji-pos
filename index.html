@@ -28,11 +28,9 @@
         
         .header-left-group { display: flex; align-items: center; gap: 10px; }
         
-        /* 顧客頁面顯示狀態 (無法修改) */
         .store-status-display { background: #150d07; color: #ff6b6b; border: 1px solid var(--border-gold); padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; white-space: nowrap; }
         .store-status-display.open { color: #81c784; }
         
-        /* 管理者下拉選單 */
         .store-status-select { background: #150d07; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 5px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; outline: none; display: none; }
         body.admin-mode .store-status-select { display: inline-block; background: #2b1f13; }
         body.admin-mode .store-status-display { display: none; }
@@ -132,7 +130,6 @@
         .pref-label { font-weight: bold; min-width: 45px; color: #c4ae85; }
         .pref-btn { padding: 6px 10px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; position: relative; }
         .pref-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
-        .pref-btn.addon-active { background: #2d556e; color: #ffffff; border-color: #6bb0db; }
         .pref-btn.disabled { background: #222; color: #555; text-decoration: line-through; cursor: not-allowed; border-color: #333; }
         .eco-notice { font-size: 11px; color: #9c8458; margin-top: 4px; width: 100%; text-align: center; font-weight: bold; }
 
@@ -748,7 +745,7 @@
                 } else {
                     disabledPrefs.extra.push(val);
                     btnEl.classList.add('disabled');
-                    btnEl.classList.remove('addon-active');
+                    btnEl.classList.remove('active');
                 }
             } else {
                 if (disabledPrefs.extra.includes(val)) {
@@ -1144,17 +1141,17 @@
                 <h4 style="margin-bottom:15px; text-align:center; color:var(--text-gold);">【${item.name}】 客製調味</h4>
                 
                 <div class="modal-option-group">
-                    <span class="modal-option-label">選擇口味：</span>
+                    <span class="modal-option-label">選擇口味 (點選第二次取消)：</span>
                     <div class="modal-btn-row">${flavorBtnsHtml}</div>
                 </div>
                 
                 <div class="modal-option-group">
-                    <span class="modal-option-label">選擇辣度：</span>
+                    <span class="modal-option-label">選擇辣度 (點選第二次取消)：</span>
                     <div class="modal-btn-row">${spiceBtnsHtml}</div>
                 </div>
                 
                 <div class="modal-option-group" style="margin-bottom:15px;">
-                    <span class="modal-option-label">選擇鹹度：</span>
+                    <span class="modal-option-label">選擇鹹度 (點選第二次取消)：</span>
                     <div class="modal-btn-row">${saltBtnsHtml}</div>
                 </div>
 
@@ -1165,25 +1162,44 @@
 
         function selectHotOpt(type, val, btn) {
             if (type === 'flavor') {
-                tempFlavor = val;
-                document.querySelectorAll('.hot-flavor-btn').forEach(b => b.classList.remove('active'));
+                if (tempFlavor === val) {
+                    tempFlavor = "";
+                    btn.classList.remove('active');
+                } else {
+                    tempFlavor = val;
+                    document.querySelectorAll('.hot-flavor-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                }
             } else if (type === 'spice') {
-                tempSpice = val;
-                document.querySelectorAll('.hot-spice-btn').forEach(b => b.classList.remove('active'));
+                if (tempSpice === val) {
+                    tempSpice = "";
+                    btn.classList.remove('active');
+                } else {
+                    tempSpice = val;
+                    document.querySelectorAll('.hot-spice-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                }
             } else {
-                tempSalt = val;
-                document.querySelectorAll('.hot-salt-btn').forEach(b => b.classList.remove('active'));
+                if (tempSalt === val) {
+                    tempSalt = "";
+                    btn.classList.remove('active');
+                } else {
+                    tempSalt = val;
+                    document.querySelectorAll('.hot-salt-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                }
             }
-            btn.classList.add('active');
         }
 
         function confirmHotFoodCustom(id, name, price) {
-            if (!tempFlavor || !tempSpice || !tempSalt) {
-                alert("請完整選擇 口味、辣度 與 鹹度 喔！");
-                return;
-            }
-            let fullName = `${name} [${tempFlavor}/${tempSpice}/${tempSalt}]`;
-            addToCart({ id: id + '_' + tempFlavor + '_' + tempSpice + '_' + tempSalt, name: fullName, price: price, category: "厝邊溫食(炒麵/燴飯)", qty: 1 });
+            let prefsArr = [];
+            if (tempFlavor) prefsArr.push(tempFlavor);
+            if (tempSpice) prefsArr.push(tempSpice);
+            if (tempSalt) prefsArr.push(tempSalt);
+
+            let fullName = prefsArr.length > 0 ? `${name} [${prefsArr.join('/')}]` : name;
+            let uniqueId = id + '_' + prefsArr.join('_');
+            addToCart({ id: uniqueId, name: fullName, price: price, category: "厝邊溫食(炒麵/燴飯)", qty: 1 });
             closeOptModal();
         }
 
@@ -1332,10 +1348,10 @@
             const idx = orderPrefs.extras.indexOf(value);
             if (idx > -1) {
                 orderPrefs.extras.splice(idx, 1);
-                btnEl.classList.remove('addon-active');
+                btnEl.classList.remove('active');
             } else {
                 orderPrefs.extras.push(value);
-                btnEl.classList.add('addon-active');
+                btnEl.classList.add('active');
             }
         }
 
@@ -1351,7 +1367,7 @@
             orderPrefs.spice = "";
             orderPrefs.salt = "";
             orderPrefs.extras = [];
-            document.querySelectorAll('.preferences-box .pref-btn').forEach(b => b.classList.remove('active', 'addon-active'));
+            document.querySelectorAll('.preferences-box .pref-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('custName').value = '';
             document.getElementById('custPhone').value = '';
             document.getElementById('custNotes').value = '';
