@@ -298,6 +298,7 @@
             <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
+                <button class="btn btn-submit" onclick="openBackdateModalFromAdmin()">➕ 補登往日訂單</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
@@ -328,9 +329,10 @@
             
             <div style="display:flex; gap:10px; align-items:center; background:#140f0a; padding:12px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
                 <span style="font-size:14px; font-weight:bold; color:var(--primary-gold);">🔍 快速篩選：</span>
-                <input type="text" id="searchDateInput" class="input-field" style="max-width:150px;" placeholder="日期 (例如: 2026/06)" oninput="filterOrderMgmtTable()">
+                <input type="text" id="searchDateInput" class="input-field" style="max-width:150px;" placeholder="日期 (例如: 2026/09/07)" oninput="filterOrderMgmtTable()">
                 <input type="text" id="searchKeywordInput" class="input-field" style="max-width:200px;" placeholder="搜尋 姓名 或 電話" oninput="filterOrderMgmtTable()">
                 <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">清除篩選</button>
+                <button class="header-btn" style="background:linear-gradient(135deg, #1e7e34, #145222);" onclick="openBackdateModalFromMgmt()">➕ 手動補單</button>
                 <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
                 <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存修改</button>
             </div>
@@ -339,7 +341,7 @@
                 <table class="order-mgmt-table" id="mgmtTable">
                     <thead>
                         <tr>
-                            <th>時間</th>
+                            <th>日期 / 時間</th>
                             <th>訂購人</th>
                             <th>電話</th>
                             <th style="width:120px;">折扣/折讓調整</th>
@@ -354,6 +356,47 @@
                     <tbody id="mgmtTableBody"></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- 補登往日單 Modal -->
+    <div class="modal" id="backdateModal">
+        <div class="modal-content" style="width:420px; max-width:90vw;">
+            <button class="modal-close-x" onclick="closeBackdateModal()">✕</button>
+            <h4 style="text-align:center; margin-bottom:14px; color:var(--text-gold);">➕ 補登往日訂單</h4>
+            <div style="font-size:13px; color:#a89269; margin-bottom:12px; text-align:center;">
+                在此補登的訂單，系統會自動歸類在你指定的日期中（例如 9/7），並計入該日的報表與歷史查詢！
+            </div>
+            <div class="input-row">
+                <span class="input-label" style="min-width:90px;">補登日期*:</span>
+                <input type="date" id="backdateDate" class="input-field">
+            </div>
+            <div class="input-row">
+                <span class="input-label" style="min-width:90px;">訂購人*:</span>
+                <input type="text" id="backdateName" class="input-field" placeholder="請輸入姓名">
+            </div>
+            <div class="input-row">
+                <span class="input-label" style="min-width:90px;">電話*:</span>
+                <input type="tel" id="backdatePhone" class="input-field" placeholder="0912345678" maxlength="10">
+            </div>
+            <div class="input-row">
+                <span class="input-label" style="min-width:90px;">總金額*:</span>
+                <input type="number" id="backdateTotal" class="input-field" placeholder="請輸入該筆總額">
+            </div>
+            <div class="input-row">
+                <span class="input-label" style="min-width:90px;">品項摘要*:</span>
+                <input type="text" id="backdateItemsDesc" class="input-field" placeholder="例如：鹹水半雞、高麗菜">
+            </div>
+            <div class="input-row">
+                <span class="input-label" style="min-width:90px;">付款方式:</span>
+                <select id="backdatePayment" class="input-field" style="background:#150d07; color:#f5e4b3;">
+                    <option value="現金">現金</option>
+                    <option value="轉帳">轉帳</option>
+                    <option value="Linepay">Linepay</option>
+                    <option value="全支付">全支付</option>
+                </select>
+            </div>
+            <button class="btn btn-submit" style="width:100%; margin-top:10px;" onclick="confirmAddBackdateOrder()">確認新增補登</button>
         </div>
     </div>
 
@@ -642,6 +685,91 @@
 
         function openOrderManagerFromAdmin() {
             closeAdminMenu();
+            openOrderManager();
+        }
+
+        function openBackdateModalFromAdmin() {
+            closeAdminMenu();
+            openBackdateModal();
+        }
+
+        function openBackdateModalFromMgmt() {
+            closeOrderManager();
+            openBackdateModal();
+        }
+
+        function openBackdateModal() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('backdateDate').value = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('backdateName').value = '';
+            document.getElementById('backdatePhone').value = '';
+            document.getElementById('backdateTotal').value = '';
+            document.getElementById('backdateItemsDesc').value = '';
+            document.getElementById('backdateModal').style.display = 'flex';
+        }
+
+        function closeBackdateModal() {
+            document.getElementById('backdateModal').style.display = 'none';
+        }
+
+        function confirmAddBackdateOrder() {
+            const dateVal = document.getElementById('backdateDate').value; // YYYY-MM-DD
+            const name = document.getElementById('backdateName').value.trim();
+            const phone = document.getElementById('backdatePhone').value.trim();
+            const total = parseInt(document.getElementById('backdateTotal').value);
+            const itemsDesc = document.getElementById('backdateItemsDesc').value.trim();
+            const payment = document.getElementById('backdatePayment').value;
+
+            if (!dateVal || !name || !phone || isNaN(total) || !itemsDesc) {
+                alert("請完整填寫補登日期、姓名、電話、總金額與品項摘要！");
+                return;
+            }
+
+            const phoneRegex = /^09\d{8}$/;
+            if (!phoneRegex.test(phone)) {
+                alert("手機號碼格式錯誤！請輸入10碼手機號碼 (例如：0912345678)");
+                return;
+            }
+
+            // 轉換日期格式為 YYYY/MM/DD 並計算星期幾
+            const dateParts = dateVal.split('-');
+            const formattedDateStr = `${dateParts[0]}/${dateParts[1]}/${dateParts[2]}`;
+            const targetDateObj = new Date(dateVal);
+            const weekDayStr = !isNaN(targetDateObj.getTime()) ? weekDaysArr[targetDateObj.getDay()] : "";
+
+            const backdateOrder = {
+                id: Date.now(),
+                status: "已完成",
+                date: formattedDateStr,
+                weekDay: weekDayStr,
+                time: "12:00",
+                fullTime: `${formattedDateStr} 12:00`,
+                customer: name,
+                phone: phone,
+                pickupTime: `${formattedDateStr} 12:00 (${weekDayStr})`,
+                custNotes: "手動補登訂單",
+                originalTotal: total,
+                total: total,
+                discountPercent: 100,
+                deductAmount: 0,
+                discountNote: "",
+                payment: payment,
+                prefs: { flavor: "原味", spice: "不辣", salt: "正常", extras: [] },
+                items: [
+                    { name: itemsDesc, qty: 1, price: total, subItems: null }
+                ]
+            };
+
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            history.push(backdateOrder);
+            localStorage.setItem('pos_order_history', JSON.stringify(history));
+            updatePendingCountHeader();
+
+            alert(`成功補登 ${formattedDateStr} 的訂單 (${name})！已歸類至對應日期。`);
+            closeBackdateModal();
             openOrderManager();
         }
 
@@ -1445,6 +1573,7 @@
                         <span style="color:var(--primary-gold);">$${ord.total}</span>
                     </div>
                     <div style="font-size:14px; line-height:1.5; margin-bottom:8px;">
+                        <div>📅 訂單日期：<strong style="color:#f3e5ab;">${ord.date}</strong></div>
                         <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
                         <div>🧂 調味口味：${flavorStr}</div>
                         <div>📝 顧客備註：${ord.custNotes || '無'}</div>
@@ -1457,11 +1586,21 @@
                     <div class="accept-btn-group">
                         <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
                         <button class="accept-btn-done" onclick="quickUpdateStatus(${ord.originalIndex}, '已完成')">🔵 完成</button>
-                        <button class="accept-btn-reject" onclick="quickUpdateStatus(${ord.originalIndex}, '已被店家拒絕')">🔴 拒單</button>
+                        <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
                     </div>
                 `;
                 container.appendChild(card);
             });
+        }
+
+        function confirmRejectOrder(originalIndex) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[originalIndex]) {
+                let custName = history[originalIndex].customer;
+                if (confirm(`⚠️ 確定要將【${custName}】的訂單拒絕嗎？拒絕後將取消該訂單。`)) {
+                    quickUpdateStatus(originalIndex, '已被店家拒絕');
+                }
+            }
         }
 
         function quickChangeItemQty(orderIndex, itemIdx, delta) {
@@ -1551,14 +1690,14 @@
             const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
             const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
 
-            let now = new Date();
-            let bizDateObj = new Date(now);
-            if (now.getHours() >= 0 && now.getHours() < 2) {
+            // 依據取餐時間或當前時間自動解析日期歸屬（支援補登前幾天）
+            let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
+            if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
                 bizDateObj.setDate(bizDateObj.getDate() - 1);
             }
             
             let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
-            let timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            let timeStr = `${bizDateObj.getHours().toString().padStart(2,'0')}:${bizDateObj.getMinutes().toString().padStart(2,'0')}`;
             let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
             let subtotal = 0;
@@ -1624,7 +1763,7 @@
                 <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custName}</span></div>
                 <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custPhone}</span></div>
                 <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${formattedPickupTime}</span></div>
-                <div class="receipt-line"><span>下單時間:</span> <span>${dateStr} (${weekDayStr}) ${timeStr}</span></div>
+                <div class="receipt-line"><span>歸屬日期:</span> <span style="font-weight:bold; color:var(--primary-gold);">${dateStr} (${weekDayStr})</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
@@ -1762,7 +1901,7 @@
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${ord.date}<br>${ord.time}</td>
+                    <td><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="updateHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
                     <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${realIndex}, 'customer', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${realIndex}, 'phone', this.value)"></td>
                     <td>
@@ -1791,6 +1930,16 @@
 
         function updateHistoryItem(index, key, val) {
             localOrderHistory[index][key] = val;
+            if (key === 'date') {
+                // 自動更新星期幾
+                let parts = val.split('/');
+                if (parts.length === 3) {
+                    let dt = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
+                    if (!isNaN(dt.getTime())) {
+                        localOrderHistory[index].weekDay = weekDaysArr[dt.getDay()];
+                    }
+                }
+            }
         }
 
         function updateHistoryPrefItem(index, key, val) {
