@@ -326,7 +326,7 @@
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
             <button class="modal-close-x" onclick="closeOrderManager()">✕</button>
-            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 3個月歷史訂單查詢與編輯</h3>
+            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 歷史訂單查詢與編輯</h3>
             
             <div style="display:flex; gap:8px; align-items:center; background:#140f0a; padding:12px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
                 <span style="font-size:14px; font-weight:bold; color:var(--primary-gold);">🔍 日期查詢：</span>
@@ -353,8 +353,8 @@
                             <th style="width:120px;">折扣/折讓調整</th>
                             <th style="width:80px;">實收總額</th>
                             <th>付款</th>
-                            <th>品項與單價修改</th>
-                            <th>口味/調味</th>
+                            <th>品項 / 單價</th>
+                            <th>口味 / 調味</th>
                             <th>備註</th>
                             <th>操作</th>
                         </tr>
@@ -673,14 +673,14 @@
             openOrderManager();
         }
 
-        // 自動同步資料到 Google 試算表
-        function syncOrderToCloud(orderData) {
+        function syncOrderToCloud(orderData, actionType = "append") {
             if (!GAS_WEB_APP_URL) return;
+            let payload = Object.assign({}, orderData, { action: actionType });
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(orderData)
+                body: JSON.stringify(payload)
             }).catch(err => {
                 console.error("雲端同步失敗:", err);
             });
@@ -1407,7 +1407,7 @@
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
             updatePendingCountHeader();
-            syncOrderToCloud(orderData);
+            syncOrderToCloud(orderData, "append");
         }
 
         function checkOrderStatusByPhone() {
@@ -1529,6 +1529,7 @@
                 }
                 calculateOrderFinalTotal(history[orderIndex]);
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
+                syncOrderToCloud(history[orderIndex], "update");
                 renderQuickAcceptList();
             }
         }
@@ -1539,6 +1540,7 @@
                 history[orderIndex].items.splice(itemIdx, 1);
                 calculateOrderFinalTotal(history[orderIndex]);
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
+                syncOrderToCloud(history[orderIndex], "update");
                 renderQuickAcceptList();
             }
         }
@@ -1552,6 +1554,7 @@
                 }
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
                 updatePendingCountHeader();
+                syncOrderToCloud(history[originalIndex], "update");
                 renderQuickAcceptList();
                 if (newStatus === "已被店家拒絕") {
                     alert(`已成功將 ${history[originalIndex].customer} 的訂單拒絕，該訂單已從歷史與日報中移除。`);
@@ -1623,10 +1626,15 @@
                 subtotal += 5;
             }
 
-            let allExtras = [...orderPrefs.extras];
-            if (custNotes) {
-                allExtras.push(`顧客備註:${custNotes}`);
+            // 將配備與顧客備註全部合併整理進 custNotes 欄位，確保雲端與明細都能完整記錄
+            let allNotesParts = [];
+            if (orderPrefs.extras.length > 0) {
+                allNotesParts.push(orderPrefs.extras.join(', '));
             }
+            if (custNotes) {
+                allNotesParts.push(custNotes);
+            }
+            let finalCustNotes = allNotesParts.join(' / ');
 
             const orderStatus = isBackdate ? "已完成" : "等待接單";
 
@@ -1634,7 +1642,7 @@
             if (orderPrefs.flavor) finalPrefs.flavor = orderPrefs.flavor;
             if (orderPrefs.spice) finalPrefs.spice = orderPrefs.spice;
             if (orderPrefs.salt) finalPrefs.salt = orderPrefs.salt;
-            if (allExtras.length > 0) finalPrefs.extras = allExtras;
+            if (orderPrefs.extras.length > 0) finalPrefs.extras = orderPrefs.extras;
 
             const orderPayload = {
                 id: Date.now(),
@@ -1646,7 +1654,7 @@
                 customer: custName,
                 phone: custPhone,
                 pickupTime: formattedPickupTime,
-                custNotes: custNotes,
+                custNotes: finalCustNotes,
                 originalTotal: subtotal,
                 total: subtotal,
                 discountPercent: 100,
@@ -1694,8 +1702,7 @@
                 <div class="receipt-line"><span>口味:</span> <span>${orderPayload.prefs.flavor || '無'}</span></div>
                 <div class="receipt-line"><span>辣度:</span> <span>${orderPayload.prefs.spice || '無'}</span></div>
                 <div class="receipt-line"><span>鹹度:</span> <span>${orderPayload.prefs.salt || '無'}</span></div>
-                <div class="receipt-line"><span>顧客備註:</span> <span>${custNotes || '無'}</span></div>
-                <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
+                <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>備註/配備:</span> <span>${finalCustNotes || '無'}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:15px; color:var(--text-gold);">【點購品項】</div>
             `;
@@ -1851,6 +1858,16 @@
                 if (ord.deductAmount === undefined) ord.deduraAmount = 0;
                 calculateOrderFinalTotal(ord);
 
+                // 組合完整的口味字串 (包含口味、辣度、鹹度)
+                let flavorFullStr = "";
+                if (ord.prefs) {
+                    let fParts = [];
+                    if (ord.prefs.flavor) fParts.push(ord.prefs.flavor);
+                    if (ord.prefs.spice) fParts.push(ord.prefs.spice);
+                    if (ord.prefs.salt) fParts.push(ord.prefs.salt);
+                    flavorFullStr = fParts.join(" ");
+                }
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="updateHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
@@ -1872,7 +1889,7 @@
                         </select>
                     </td>
                     <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${realIndex})">調整品項 (${ord.items.length})</button></td>
-                    <td><input type="text" class="edit-input" value="${(ord.prefs && ord.prefs.flavor) ? ord.prefs.flavor : ''}" onchange="updateHistoryPrefItem(${realIndex}, 'flavor', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${flavorFullStr}" onchange="updateHistoryFlavorFull(${realIndex}, this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${realIndex}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${realIndex})">刪除</button></td>
                 `;
@@ -1893,9 +1910,12 @@
             }
         }
 
-        function updateHistoryPrefItem(index, key, val) {
+        function updateHistoryFlavorFull(index, val) {
             if (!localOrderHistory[index].prefs) localOrderHistory[index].prefs = {};
-            localOrderHistory[index].prefs[key] = val;
+            let parts = val.split(' ');
+            localOrderHistory[index].prefs.flavor = parts[0] || '';
+            localOrderHistory[index].prefs.spice = parts[1] || '';
+            localOrderHistory[index].prefs.salt = parts[2] || '';
         }
 
         function updateHistoryDiscount(index, key, val) {
@@ -2018,7 +2038,12 @@
         function saveEditedOrdersHistory() {
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
             updatePendingCountHeader();
-            alert("歷史訂單修改已成功儲存！");
+            
+            localOrderHistory.forEach(ord => {
+                syncOrderToCloud(ord, "update");
+            });
+
+            alert("歷史訂單修改已成功儲存，並同步更新至雲端試算表！");
         }
 
         window.onload = initPOS;
