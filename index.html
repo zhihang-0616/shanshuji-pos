@@ -35,6 +35,9 @@
         .header-btn:hover { filter: brightness(1.15); }
         
         .store-status-select { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; outline: none; z-index: 2; }
+        
+        .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 2; }
+        .login-btn.logged-in { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border-color: #81c784; }
 
         .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); border: 1px solid #81c784; }
         .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
@@ -182,7 +185,7 @@
                     <option value="休息中">🔴 休息中</option>
                 </select>
                 <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
-                <div style="width: 100px;"></div> <!-- 佔位保持平衡 -->
+                <button id="loginStatusBtn" class="login-btn" onclick="toggleAdminLogin()">🔒 管理員登入</button>
             </div>
             <div class="admin-action-group">
                 <button class="header-btn quick-accept-btn" id="quickAcceptHeaderBtn" onclick="openQuickAcceptModal()">⚡ 接單系統 (0)</button>
@@ -377,11 +380,49 @@
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
         function getAdminPassword() {
-            return localStorage.getItem('pos_admin_password') || '8888';
+            return localStorage.getItem('pos_admin_password') || '888';
         }
 
         function setAdminPassword(newPwd) {
             localStorage.setItem('pos_admin_password', newPwd);
+        }
+
+        function isAdminLoggedIn() {
+            return localStorage.getItem('pos_is_logged_in') === 'true';
+        }
+
+        function setAdminLoggedIn(status) {
+            localStorage.setItem('pos_is_logged_in', status ? 'true' : 'false');
+            updateLoginButtonUI();
+        }
+
+        function updateLoginButtonUI() {
+            const btn = document.getElementById('loginStatusBtn');
+            if (isAdminLoggedIn()) {
+                btn.innerText = "🔓 已登入 (點擊登出)";
+                btn.className = "login-btn logged-in";
+            } else {
+                btn.innerText = "🔒 管理員登入";
+                btn.className = "login-btn";
+            }
+        }
+
+        function toggleAdminLogin() {
+            if (isAdminLoggedIn()) {
+                if (confirm("確定要登出管理員身分嗎？")) {
+                    setAdminLoggedIn(false);
+                    alert("已成功登出！");
+                }
+            } else {
+                let pwd = prompt("請輸入管理者密碼 (預設 888):");
+                if (pwd === null) return;
+                if (pwd === getAdminPassword()) {
+                    setAdminLoggedIn(true);
+                    alert("登入成功！目前處於登入狀態，可直接使用管理模式。");
+                } else {
+                    alert("密碼錯誤，登入失敗！");
+                }
+            }
         }
 
         const categoryNotices = {
@@ -548,13 +589,17 @@
         }
 
         function openAdminMenu() {
-            let pwd = prompt("進入管理模式，請輸入密碼:");
-            if (pwd === null) return;
-            if (pwd === getAdminPassword()) {
-                document.getElementById('adminMenuModal').style.display = 'flex';
-            } else {
-                alert("密碼錯誤，請重新輸入！");
+            if (!isAdminLoggedIn()) {
+                let pwd = prompt("尚未登入管理員，請輸入密碼進入管理模式:");
+                if (pwd === null) return;
+                if (pwd === getAdminPassword()) {
+                    setAdminLoggedIn(true);
+                } else {
+                    alert("密碼錯誤！");
+                    return;
+                }
             }
+            document.getElementById('adminMenuModal').style.display = 'flex';
         }
 
         function closeAdminMenu() {
@@ -795,6 +840,7 @@
 
         function initPOS() {
             updatePendingCountHeader();
+            updateLoginButtonUI();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
