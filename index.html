@@ -306,10 +306,10 @@
     </div>
 
     <div class="modal" id="quickAcceptModal">
-        <div class="modal-content" style="width:500px; max-width:90vw;">
+        <div class="modal-content" style="width:540px; max-width:95vw;">
             <button class="modal-close-x" onclick="closeQuickAcceptModal()">✕</button>
             <h3 style="text-align:center; color:var(--text-gold); margin-bottom:12px;">⚡ 店家接單系統面板</h3>
-            <div id="quickAcceptContainer" style="max-height:60vh; overflow-y:auto;"></div>
+            <div id="quickAcceptContainer" style="max-height:65vh; overflow-y:auto;"></div>
         </div>
     </div>
 
@@ -914,7 +914,6 @@
                 btn.className = `tab-btn ${isAllSoldOut ? 'category-sold-out' : ''}`;
                 btn.setAttribute('data-category', category);
 
-                // 左上角精緻 X 按鈕
                 const closeBtn = document.createElement('div');
                 closeBtn.className = 'cat-close-btn';
                 closeBtn.innerText = '✕';
@@ -1422,7 +1421,22 @@
                 const card = document.createElement('div');
                 card.className = 'quick-accept-card';
                 
-                let itemListStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+                let itemsHtml = '';
+                ord.items.forEach((item, itemIdx) => {
+                    let subNames = item.subItems ? ` <span style="font-size:12px; color:#a38c62;">(${item.subItems.map(s=>s.name).join(', ')})</span>` : '';
+                    itemsHtml += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0; background:#140f0a; padding:4px 8px; border-radius:4px;">
+                            <span style="flex:2;">${item.name}${subNames} ($${item.price})</span>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <button class="qty-btn" style="width:24px; height:24px; font-size:12px;" onclick="quickChangeItemQty(${ord.originalIndex}, ${itemIdx}, -1)">-</button>
+                                <span style="font-weight:bold; min-width:20px; text-align:center;">${item.qty}</span>
+                                <button class="qty-btn" style="width:24px; height:24px; font-size:12px;" onclick="quickChangeItemQty(${ord.originalIndex}, ${itemIdx}, 1)">+</button>
+                                <button class="delete-item-btn" style="width:22px; height:22px; font-size:11px;" onclick="quickRemoveItem(${ord.originalIndex}, ${itemIdx})">✕</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
                 let flavorStr = ord.prefs ? `${ord.prefs.flavor}/${ord.prefs.spice}/${ord.prefs.salt}` : '';
 
                 card.innerHTML = `
@@ -1430,22 +1444,47 @@
                         <span>${ord.customer} (${ord.phone})</span>
                         <span style="color:var(--primary-gold);">$${ord.total}</span>
                     </div>
-                    <div style="font-size:14px; line-height:1.6;">
+                    <div style="font-size:14px; line-height:1.5; margin-bottom:8px;">
                         <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
-                        <div>🍗 訂購內容：${itemListStr}</div>
                         <div>🧂 調味口味：${flavorStr}</div>
                         <div>📝 顧客備註：${ord.custNotes || '無'}</div>
-                        <div>📌 當前狀態：<strong style="color:${ord.status === '已接單' ? '#81c784' : '#f3e5ab'};">${ord.status || '等待接單'}</strong></div>
+                        <div style="margin-top:6px; font-weight:bold; color:var(--primary-gold);">🍗 訂購品項與數量調整：</div>
+                        <div style="max-height:150px; overflow-y:auto; margin-top:4px;">${itemsHtml}</div>
+                    </div>
+                    <div style="display:flex; gap:6px; margin-bottom:8px;">
+                        <button class="header-btn" style="flex:1; background:#3d2b1a; font-size:13px;" onclick="openItemEditModal(${ord.originalIndex})">+ 新增品項</button>
                     </div>
                     <div class="accept-btn-group">
                         <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
                         <button class="accept-btn-done" onclick="quickUpdateStatus(${ord.originalIndex}, '已完成')">🔵 完成</button>
-                        <button class="accept-btn-edit" onclick="openItemEditModalFromQuick(${ord.originalIndex})">✏️ 改品項</button>
                         <button class="accept-btn-reject" onclick="quickUpdateStatus(${ord.originalIndex}, '已被店家拒絕')">🔴 拒單</button>
                     </div>
                 `;
                 container.appendChild(card);
             });
+        }
+
+        function quickChangeItemQty(orderIndex, itemIdx, delta) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[orderIndex] && history[orderIndex].items[itemIdx]) {
+                history[orderIndex].items[itemIdx].qty += delta;
+                if (history[orderIndex].items[itemIdx].qty <= 0) {
+                    history[orderIndex].items.splice(itemIdx, 1);
+                }
+                calculateOrderFinalTotal(history[orderIndex]);
+                localStorage.setItem('pos_order_history', JSON.stringify(history));
+                renderQuickAcceptList();
+            }
+        }
+
+        function quickRemoveItem(orderIndex, itemIdx) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[orderIndex] && history[orderIndex].items[itemIdx]) {
+                history[orderIndex].items.splice(itemIdx, 1);
+                calculateOrderFinalTotal(history[orderIndex]);
+                localStorage.setItem('pos_order_history', JSON.stringify(history));
+                renderQuickAcceptList();
+            }
         }
 
         function quickUpdateStatus(originalIndex, newStatus) {
@@ -1462,11 +1501,6 @@
                     alert(`已成功將 ${history[originalIndex].customer} 的訂單拒絕，該訂單已從歷史與日報中移除。`);
                 }
             }
-        }
-
-        function openItemEditModalFromQuick(originalIndex) {
-            closeQuickAcceptModal();
-            openItemEditModal(originalIndex);
         }
 
         function submitOrder() {
@@ -1770,6 +1804,7 @@
         }
 
         function openItemEditModal(index) {
+            closeQuickAcceptModal();
             currentEditingOrderIndex = index;
             renderItemEditList();
             document.getElementById('itemEditModal').style.display = 'flex';
@@ -1777,33 +1812,49 @@
 
         function closeItemEditModal() {
             document.getElementById('itemEditModal').style.display = 'none';
-            filterOrderMgmtTable();
+            openQuickAcceptModal();
         }
 
         function renderItemEditList() {
             const container = document.getElementById('itemEditContainer');
             container.innerHTML = '';
-            let ord = localOrderHistory[currentEditingOrderIndex];
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let ord = history[currentEditingOrderIndex];
+            if (!ord) return;
 
             ord.items.forEach((item, itemIdx) => {
                 const div = document.createElement('div');
                 div.style.cssText = "display:flex; gap:6px; align-items:center; margin-bottom:10px;";
                 div.innerHTML = `
-                    <input type="text" class="edit-input" style="flex:2;" value="${item.name}" onchange="updateItemDetail(${itemIdx}, 'name', this.value)">
+                    <input type="text" class="edit-input" style="flex:2;" value="${item.name}" onchange="updateItemDetailQuick(${currentEditingOrderIndex}, ${itemIdx}, 'name', this.value)">
                     <span style="font-size:13px;">數量:</span>
-                    <input type="number" class="edit-input" style="width:50px;" value="${item.qty}" onchange="updateItemDetail(${itemIdx}, 'qty', parseInt(this.value))">
+                    <input type="number" class="edit-input" style="width:50px;" value="${item.qty}" onchange="updateItemDetailQuick(${currentEditingOrderIndex}, ${itemIdx}, 'qty', parseInt(this.value))">
                     <span style="font-size:13px;">單價:</span>
-                    <input type="number" class="edit-input" style="width:60px;" value="${item.price}" onchange="updateItemDetail(${itemIdx}, 'price', parseInt(this.value))">
-                    <button style="background:#8b1e0f; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;" onclick="removeItemFromEditingOrder(${itemIdx})">✕</button>
+                    <input type="number" class="edit-input" style="width:60px;" value="${item.price}" onchange="updateItemDetailQuick(${currentEditingOrderIndex}, ${itemIdx}, 'price', parseInt(this.value))">
+                    <button style="background:#8b1e0f; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;" onclick="removeItemFromEditingOrderQuick(${currentEditingOrderIndex}, ${itemIdx})">✕</button>
                 `;
                 container.appendChild(div);
             });
         }
 
-        function updateItemDetail(itemIdx, field, value) {
-            let item = localOrderHistory[currentEditingOrderIndex].items[itemIdx];
-            item[field] = value;
-            calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+        function updateItemDetailQuick(orderIdx, itemIdx, field, value) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[orderIdx] && history[orderIdx].items[itemIdx]) {
+                history[orderIdx].items[itemIdx][field] = value;
+                calculateOrderFinalTotal(history[orderIdx]);
+                localStorage.setItem('pos_order_history', JSON.stringify(history));
+                renderItemEditList();
+            }
+        }
+
+        function removeItemFromEditingOrderQuick(orderIdx, itemIdx) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[orderIdx] && history[orderIdx].items[itemIdx]) {
+                history[orderIdx].items.splice(itemIdx, 1);
+                calculateOrderFinalTotal(history[orderIdx]);
+                localStorage.setItem('pos_order_history', JSON.stringify(history));
+                renderItemEditList();
+            }
         }
 
         function showMenuSelectModalForEdit() {
@@ -1835,26 +1886,24 @@
             const opt = flatMenuOptions[selectedIdx];
 
             if (opt) {
-                localOrderHistory[currentEditingOrderIndex].items.push({
-                    name: opt.name,
-                    qty: 1,
-                    price: opt.price,
-                    subItems: null
-                });
-                calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-                renderItemEditList();
+                let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+                if (history[currentEditingOrderIndex]) {
+                    history[currentEditingOrderIndex].items.push({
+                        name: opt.name,
+                        qty: 1,
+                        price: opt.price,
+                        subItems: null
+                    });
+                    calculateOrderFinalTotal(history[currentEditingOrderIndex]);
+                    localStorage.setItem('pos_order_history', JSON.stringify(history));
+                    renderItemEditList();
+                }
                 closeMenuSelectModal();
             }
         }
 
         function closeMenuSelectModal() {
             document.getElementById('menuSelectModal').style.display = 'none';
-        }
-
-        function removeItemFromEditingOrder(itemIdx) {
-            localOrderHistory[currentEditingOrderIndex].items.splice(itemIdx, 1);
-            calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-            renderItemEditList();
         }
 
         function deleteHistoryOrder(index) {
