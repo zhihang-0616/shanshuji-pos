@@ -214,7 +214,7 @@
             <div class="menu-header-center">
                 <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
                 <div class="store-info-inline">
-                    <span>🕒 <strong>營業：</strong>平日17:00-00:00 週五&週六17:00-02:00 (週一公休/不定時電洽)</span>
+                    <span>🕒 <strong>營業：</strong>平日17:00-00:00 週五&週六17:00-02:00 (週一公休/不定時休假 請來電詢問)</span>
                     <span>📍 <strong>地址：</strong>新竹市南大路550巷82號</span>
                 </div>
             </div>
@@ -526,7 +526,6 @@
 
         let isStoreClosed = false;
 
-        // 從 GAS 雲端讀取最新營業狀態與售完品項 (強制略過快取)
         async function fetchCloudStatus() {
             try {
                 let noCacheUrl = GAS_URL + "?t=" + new Date().getTime();
@@ -552,7 +551,6 @@
             }
         }
 
-        // 將最新狀態同步寫入 GAS 雲端
         async function syncStatusToCloud() {
             let soldOutMap = {};
             for (let cat in menuData) {
@@ -910,7 +908,6 @@
             updateCartUI();
             updatePendingCountHeader();
 
-            // 每 5 秒自動向 GAS 雲端同步一次狀態（實現跨手機即時同步）
             setInterval(() => {
                 fetchCloudStatus();
             }, 5000);
