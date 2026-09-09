@@ -28,9 +28,14 @@
         
         .header-left-group { display: flex; align-items: center; gap: 10px; }
         
-        /* 營業中 / 休息中開關 */
-        .store-status-select { background: #150d07; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 5px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; outline: none; }
-        body.admin-mode .store-status-select { background: #2b1f13; }
+        /* 顧客頁面顯示狀態 (無法修改) */
+        .store-status-display { background: #150d07; color: #ff6b6b; border: 1px solid var(--border-gold); padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; white-space: nowrap; }
+        .store-status-display.open { color: #81c784; }
+        
+        /* 管理者下拉選單 */
+        .store-status-select { background: #150d07; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 5px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; outline: none; display: none; }
+        body.admin-mode .store-status-select { display: inline-block; background: #2b1f13; }
+        body.admin-mode .store-status-display { display: none; }
 
         .menu-header-center { display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; }
         .menu-header-title { text-shadow: 0 2px 4px rgba(0,0,0,0.8); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 1px; font-size: 17px; font-weight: bold; }
@@ -192,7 +197,9 @@
     <div class="menu-container">
         <div class="menu-header">
             <div class="header-left-group">
-                <!-- 營業中 / 休息中 下拉選單 (左上方) -->
+                <!-- 顧客頁面顯示狀態 (無法修改) -->
+                <div id="storeStatusDisplay" class="store-status-display open">🟢 營業中</div>
+                <!-- 管理者頁面下拉選單 (僅管理模式顯示) -->
                 <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
                     <option value="營業中">🟢 營業中</option>
                     <option value="休息中">🔴 休息中</option>
@@ -304,7 +311,7 @@
         </div>
     </div>
 
-    <!-- 各種彈跳視窗 -->
+    <!-- 彈跳視窗 -->
     <div class="modal" id="optModal">
         <div class="modal-content" id="optModalContent"></div>
     </div>
@@ -519,25 +526,55 @@
             ]
         };
 
-        function loadSoldOutStatus() {
-            const savedSoldOut = JSON.parse(localStorage.getItem('pos_sold_out_status') || '{}');
-            for (let cat in menuData) {
-                menuData[cat].forEach(item => {
-                    if (savedSoldOut[item.id] !== undefined) {
-                        item.soldOut = savedSoldOut[item.id];
+        let isStoreClosed = false;
+
+        // 從 GAS 雲端讀取最新營業狀態與售完品項
+        async function fetchCloudStatus() {
+            try {
+                let res = await fetch(GAS_URL);
+                let data = await res.json();
+                if (data) {
+                    isStoreClosed = !!data.isStoreClosed;
+                    if (data.soldOutMap) {
+                        for (let cat in menuData) {
+                            menuData[cat].forEach(item => {
+                                if (data.soldOutMap[item.id] !== undefined) {
+                                    item.soldOut = data.soldOutMap[item.id];
+                                }
+                            });
+                        }
                     }
-                });
+                    updateStoreStatusUI();
+                    refreshMenuTabs();
+                    refreshActiveGrid();
+                }
+            } catch (err) {
+                console.error("雲端狀態同步失敗:", err);
             }
         }
 
-        function saveSoldOutStatus() {
+        // 將最新狀態同步寫入 GAS 雲端
+        async function syncStatusToCloud() {
             let soldOutMap = {};
             for (let cat in menuData) {
                 menuData[cat].forEach(item => {
                     soldOutMap[item.id] = item.soldOut;
                 });
             }
-            localStorage.setItem('pos_sold_out_status', JSON.stringify(soldOutMap));
+
+            try {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "syncStatus",
+                        isStoreClosed: isStoreClosed,
+                        soldOutMap: soldOutMap
+                    })
+                });
+            } catch (err) {
+                console.error("同步狀態至雲端失敗:", err);
+            }
         }
 
         let flatMenuOptions = [];
@@ -557,15 +594,30 @@
         let isEditMode = false;
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
-        let isStoreClosed = false; // 營業狀態變數
 
         function changeStoreStatus(val) {
             if (val === "休息中") {
                 isStoreClosed = true;
-                alert("目前設定為【休息中】，顧客將無法進行點餐！");
+                alert("已切換為【休息中】，顧客端將無法進行點餐！");
             } else {
                 isStoreClosed = false;
                 alert("已切換為【營業中】！");
+            }
+            syncStatusToCloud();
+            updateStoreStatusUI();
+        }
+
+        function updateStoreStatusUI() {
+            const displayEl = document.getElementById('storeStatusDisplay');
+            const selectEl = document.getElementById('storeStatusSelect');
+            if (isStoreClosed) {
+                displayEl.className = "store-status-display";
+                displayEl.innerHTML = "🔴 休息中";
+                selectEl.value = "休息中";
+            } else {
+                displayEl.className = "store-status-display open";
+                displayEl.innerHTML = "🟢 營業中";
+                selectEl.value = "營業中";
             }
         }
 
@@ -663,7 +715,6 @@
             alert("已切換為店家接單介面！");
         }
 
-        // 💡 點選兩次即取消的開倉調整邏輯
         function handlePrefClick(type, val, btnEl) {
             if (isEditMode) {
                 const idx = disabledPrefs[type].indexOf(val);
@@ -681,7 +732,6 @@
                     return;
                 }
                 
-                // 如果已經是 active 狀態，再次點擊即取消
                 if (orderPrefs[type] === val) {
                     orderPrefs[type] = "";
                     btnEl.classList.remove('active');
@@ -740,7 +790,7 @@
             if (changedItemName === "煙燻半雞" && !isSoldOut && m5) {
                 m5.soldOut = false;
             }
-            saveSoldOutStatus();
+            syncStatusToCloud();
         }
 
         function toggleOrderList() {
@@ -830,7 +880,7 @@
             if (item) {
                 item.soldOut = false;
                 checkInventoryLogic(item.name, false);
-                saveSoldOutStatus();
+                syncStatusToCloud();
                 refreshMenuTabs();
                 refreshActiveGrid();
                 openSoldoutListModal();
@@ -839,7 +889,7 @@
 
         function restoreCategory(category) {
             menuData[category].forEach(i => i.soldOut = false);
-            saveSoldOutStatus();
+            syncStatusToCloud();
             refreshMenuTabs();
             refreshActiveGrid();
             openSoldoutListModal();
@@ -854,12 +904,17 @@
 
         function initPOS() {
             checkAdminModeFromUrl();
-            loadSoldOutStatus();
+            fetchCloudStatus();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
             updateCartUI();
             updatePendingCountHeader();
+
+            // 每 5 秒自動向 GAS 雲端同步一次狀態（實現跨手機即時同步）
+            setInterval(() => {
+                fetchCloudStatus();
+            }, 5000);
         }
 
         function refreshMenuTabs() {
@@ -889,7 +944,7 @@
                     if (isEditMode) {
                         const targetStatus = !isAllSoldOut;
                         menuData[category].forEach(i => i.soldOut = targetStatus);
-                        saveSoldOutStatus();
+                        syncStatusToCloud();
                         refreshMenuTabs();
                         renderGrid(category);
                     } else {
@@ -918,11 +973,10 @@
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
                     checkInventoryLogic(item.name, item.soldOut);
-                    saveSoldOutStatus();
+                    syncStatusToCloud();
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
-                    // 若非管理員模式，檢查是否營業中
                     if (!document.body.classList.contains('admin-mode') && isStoreClosed) {
                         alert("目前店家【休息中】，暫停點餐！");
                         return;
@@ -951,7 +1005,7 @@
             card.onclick = () => {
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
-                    saveSoldOutStatus();
+                    syncStatusToCloud();
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
@@ -1431,10 +1485,8 @@
                 return;
             }
 
-            // 💡 檢查購物車是否全部都是「厝邊溫食」的品項
             const isOnlyHotFood = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
 
-            // 💡 如果不是全部都是厝邊溫食，才需要強制驗證主畫面的開倉調整
             if (!isOnlyHotFood) {
                 if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
                     alert("請完整選擇「開倉調整」的口味、辣度與鹹度才可結帳！");
