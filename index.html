@@ -297,10 +297,13 @@
             <button class="modal-close-x" onclick="closeAdminMenu()">✕</button>
             <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
-                <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
+                <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄 (含日曆與左右鍵)</button>
                 <button class="btn btn-submit" onclick="openBackdateModalFromAdmin()">➕ 補登往日訂單</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
+                <button class="btn btn-submit" style="background: linear-gradient(135deg, #1b5e20, #004d40); color: #e0f2f1;" onclick="exportAllHistoryJSON()">📤 備份3個月紀錄 (JSON)</button>
+                <button class="btn btn-submit" style="background: linear-gradient(135deg, #0d47a1, #1a237e); color: #e8eaf6;" onclick="document.getElementById('importFileJson').click()">📥 還原/匯入備份</button>
+                <input type="file" id="importFileJson" style="display:none;" accept=".json" onchange="importAllHistoryJSON(event)">
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
             </div>
         </div>
@@ -325,13 +328,19 @@
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
             <button class="modal-close-x" onclick="closeOrderManager()">✕</button>
-            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 本地歷史訂單查詢與編輯</h3>
+            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 3個月歷史訂單查詢與編輯</h3>
             
-            <div style="display:flex; gap:10px; align-items:center; background:#140f0a; padding:12px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
-                <span style="font-size:14px; font-weight:bold; color:var(--primary-gold);">🔍 快速篩選：</span>
-                <input type="text" id="searchDateInput" class="input-field" style="max-width:150px;" placeholder="日期 (例如: 2026/09/07)" oninput="filterOrderMgmtTable()">
-                <input type="text" id="searchKeywordInput" class="input-field" style="max-width:200px;" placeholder="搜尋 姓名 或 電話" oninput="filterOrderMgmtTable()">
-                <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">清除篩選</button>
+            <div style="display:flex; gap:8px; align-items:center; background:#140f0a; padding:12px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
+                <span style="font-size:14px; font-weight:bold; color:var(--primary-gold);">🔍 日期查詢：</span>
+                
+                <!-- 左右鍵與日曆選擇控制列 -->
+                <button class="header-btn" style="background:#3d2b1a; padding:6px 10px;" onclick="shiftSearchDate(-1)" title="前一天">◀ 前一天</button>
+                <input type="date" id="searchDateSingle" class="input-field" style="max-width:150px;" onchange="filterOrderMgmtTable()">
+                <button class="header-btn" style="background:#3d2b1a; padding:6px 10px;" onclick="shiftSearchDate(1)" title="後一天">後一天 ▶</button>
+                
+                <input type="text" id="searchKeywordInput" class="input-field" style="max-width:160px;" placeholder="搜尋 姓名 或 電話" oninput="filterOrderMgmtTable()">
+                <button class="header-btn" style="background:#3d2b1a;" onclick="setTodaySearch()">今天</button>
+                <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">顯示全部</button>
                 <button class="header-btn" style="background:linear-gradient(135deg, #1e7e34, #145222);" onclick="openBackdateModalFromMgmt()">➕ 手動補單</button>
                 <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
                 <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存修改</button>
@@ -365,7 +374,7 @@
             <button class="modal-close-x" onclick="closeBackdateModal()">✕</button>
             <h4 style="text-align:center; margin-bottom:14px; color:var(--text-gold);">➕ 補登往日訂單</h4>
             <div style="font-size:13px; color:#a89269; margin-bottom:12px; text-align:center;">
-                在此補登的訂單，系統會自動歸類在你指定的日期中（例如 9/7），並計入該日的報表與歷史查詢！
+                在此補登的訂單，系統會自動歸類在你指定的日期中，並計入該日的報表與歷史查詢！
             </div>
             <div class="input-row">
                 <span class="input-label" style="min-width:90px;">補登日期*:</span>
@@ -734,7 +743,6 @@
                 return;
             }
 
-            // 轉換日期格式為 YYYY/MM/DD 並計算星期幾
             const dateParts = dateVal.split('-');
             const formattedDateStr = `${dateParts[0]}/${dateParts[1]}/${dateParts[2]}`;
             const targetDateObj = new Date(dateVal);
@@ -766,11 +774,60 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(backdateOrder);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
+            checkAndPromptBackup(history.length);
             updatePendingCountHeader();
 
             alert(`成功補登 ${formattedDateStr} 的訂單 (${name})！已歸類至對應日期。`);
             closeBackdateModal();
             openOrderManager();
+        }
+
+        // 檢查 100 筆訂單提醒備份
+        function checkAndPromptBackup(totalCount) {
+            if (totalCount > 0 && totalCount % 100 === 0) {
+                if (confirm(`⚠️ 提醒溫小帥：目前歷史訂單已累積達 ${totalCount} 筆！為了安全起見，建議您現在進行資料備份。是否立即下載備份 JSON 檔？`)) {
+                    exportAllHistoryJSON();
+                }
+            }
+        }
+
+        function exportAllHistoryJSON() {
+            closeAdminMenu();
+            const history = localStorage.getItem('pos_order_history') || '[]';
+            const blob = new Blob([history], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            let now = new Date();
+            let dateTag = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+            link.setAttribute("href", url);
+            link.setAttribute("download", `去中心鹹水雞_3個月歷史訂單備份_${dateTag}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function importAllHistoryJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        if (confirm(`確定要還原這份備份檔案嗎？將匯入 ${importedData.length} 筆歷史訂單紀錄。`)) {
+                            localStorage.setItem('pos_order_history', JSON.stringify(importedData));
+                            updatePendingCountHeader();
+                            alert("歷史訂單備份還原成功！");
+                            closeAdminMenu();
+                        }
+                    } else {
+                        alert("檔案格式錯誤：不是有效的訂單歷史清單！");
+                    }
+                } catch (err) {
+                    alert("解析 JSON 檔案失敗，請確認檔案格式是否正確！");
+                }
+            };
+            reader.readAsText(file);
         }
 
         function exportDailyReportFromAdmin() {
@@ -1490,6 +1547,7 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
+            checkAndPromptBackup(history.length);
             updatePendingCountHeader();
         }
 
@@ -1690,7 +1748,6 @@
             const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
             const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
 
-            // 依據取餐時間或當前時間自動解析日期歸屬（支援補登前幾天）
             let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
             if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
                 bizDateObj.setDate(bizDateObj.getDate() - 1);
@@ -1818,14 +1875,37 @@
 
         function openOrderManager() {
             localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            document.getElementById('searchDateInput').value = '';
-            document.getElementById('searchKeywordInput').value = '';
-            renderOrderMgmtTable(localOrderHistory);
+            setTodaySearch(); // 預設帶入今天日期，並可透過左右鍵或日曆切換
             document.getElementById('adminMgmtModal').style.display = 'flex';
         }
 
         function closeOrderManager() {
             document.getElementById('adminMgmtModal').style.display = 'none';
+        }
+
+        function setTodaySearch() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('searchDateSingle').value = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('searchKeywordInput').value = '';
+            filterOrderMgmtTable();
+        }
+
+        function shiftSearchDate(days) {
+            const dateInput = document.getElementById('searchDateSingle');
+            let val = dateInput.value;
+            let targetDate = val ? new Date(val) : new Date();
+            if (isNaN(targetDate.getTime())) targetDate = new Date();
+
+            targetDate.setDate(targetDate.getDate() + days);
+
+            const yyyy = targetDate.getFullYear();
+            const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(targetDate.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+            filterOrderMgmtTable();
         }
 
         function calculateOrderFinalTotal(ord) {
@@ -1860,14 +1940,19 @@
         }
 
         function filterOrderMgmtTable() {
-            const dateQuery = document.getElementById('searchDateInput').value.trim().toLowerCase();
+            const dateVal = document.getElementById('searchDateSingle').value; // YYYY-MM-DD
             const keywordQuery = document.getElementById('searchKeywordInput').value.trim().toLowerCase();
 
             const filtered = localOrderHistory.filter(ord => {
-                let matchDate = !dateQuery || (ord.date && ord.date.toLowerCase().includes(dateQuery));
+                let ordDateStandard = ord.date ? ord.date.replace(/\//g, '-') : "";
+                
+                let matchDate = true;
+                if (dateVal && ordDateStandard !== dateVal) matchDate = false;
+
                 let matchKeyword = !keywordQuery || 
                     (ord.customer && ord.customer.toLowerCase().includes(keywordQuery)) || 
                     (ord.phone && ord.phone.toLowerCase().includes(keywordQuery));
+
                 return matchDate && matchKeyword;
             });
 
@@ -1875,7 +1960,7 @@
         }
 
         function clearOrderSearchFilters() {
-            document.getElementById('searchDateInput').value = '';
+            document.getElementById('searchDateSingle').value = '';
             document.getElementById('searchKeywordInput').value = '';
             renderOrderMgmtTable(localOrderHistory);
         }
@@ -1888,7 +1973,7 @@
                 `總訂單筆數：${localOrderHistory.length} 筆`;
 
             if (ordersToRender.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合條件的歷史訂單紀錄</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合指定日期的歷史訂單紀錄</td></tr>`;
                 return;
             }
 
@@ -1931,7 +2016,6 @@
         function updateHistoryItem(index, key, val) {
             localOrderHistory[index][key] = val;
             if (key === 'date') {
-                // 自動更新星期幾
                 let parts = val.split('/');
                 if (parts.length === 3) {
                     let dt = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
