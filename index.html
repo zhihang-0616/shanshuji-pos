@@ -344,7 +344,7 @@
     <div class="modal" id="adminMgmtModal">
         <div class="admin-modal-content">
             <button class="modal-close-x" onclick="closeOrderManager()">✕</button>
-            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 3個月歷史訂單查詢與編輯 (雲端同步)</h3>
+            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:10px;">📋 本地歷史訂單查詢與編輯</h3>
             
             <div style="display:flex; gap:10px; align-items:center; background:#140f0a; padding:12px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
                 <span style="font-size:14px; font-weight:bold; color:var(--primary-gold);">🔍 快速篩選：</span>
@@ -352,7 +352,7 @@
                 <input type="text" id="searchKeywordInput" class="input-field" style="max-width:200px;" placeholder="搜尋 姓名 或 電話" oninput="filterOrderMgmtTable()">
                 <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">清除篩選</button>
                 <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
-                <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存並同步至雲端</button>
+                <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存修改</button>
             </div>
 
             <div style="max-height: 55vh; overflow-y: auto;">
@@ -399,8 +399,6 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxif5NC6LNZvEEyhAHm94D-YKABzAABO6Yn2BzzFOIPgdexqja3YiBhxoqYqEUBJL5FtA/exec";
-
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
         function getAdminPassword() {
@@ -526,84 +524,6 @@
 
         let isStoreClosed = false;
 
-        async function fetchCloudStatus() {
-            try {
-                let noCacheUrl = GAS_URL + "?t=" + new Date().getTime();
-                let res = await fetch(noCacheUrl);
-                let data = await res.json();
-                if (data) {
-                    isStoreClosed = !!data.isStoreClosed;
-                    if (data.soldOutMap) {
-                        for (let cat in menuData) {
-                            menuData[cat].forEach(item => {
-                                if (data.soldOutMap[item.id] !== undefined) {
-                                    item.soldOut = data.soldOutMap[item.id];
-                                }
-                            });
-                        }
-                    }
-                    updateStoreStatusUI();
-                    refreshMenuTabs();
-                    refreshActiveGrid();
-                }
-            } catch (err) {
-                console.error("雲端狀態同步失敗:", err);
-            }
-        }
-
-        async function syncStatusToCloud() {
-            let soldOutMap = {};
-            for (let cat in menuData) {
-                menuData[cat].forEach(item => {
-                    soldOutMap[item.id] = item.soldOut;
-                });
-            }
-
-            try {
-                await fetch(GAS_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({
-                        action: "syncStatus",
-                        isStoreClosed: isStoreClosed,
-                        soldOutMap: soldOutMap
-                    })
-                });
-            } catch (err) {
-                console.error("同步狀態至雲端失敗:", err);
-            }
-        }
-
-        async function fetchCloudOrdersHistory() {
-            try {
-                let res = await fetch(GAS_URL + "?action=getOrders&t=" + new Date().getTime());
-                let data = await res.json();
-                if (data && data.status === "success" && data.orders) {
-                    if (data.orders.length > 0) {
-                        localStorage.setItem('pos_order_history', JSON.stringify(data.orders));
-                    }
-                }
-            } catch (err) {
-                console.error("讀取雲端歷史訂單失敗:", err);
-            }
-            updatePendingCountHeader();
-        }
-
-        async function syncOrdersHistoryToCloud(orders) {
-            try {
-                await fetch(GAS_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({
-                        action: "updateOrders",
-                        orders: orders
-                    })
-                });
-            } catch (err) {
-                console.error("備份歷史訂單至雲端失敗:", err);
-            }
-        }
-
         let flatMenuOptions = [];
         function initFlatMenuOptions() {
             flatMenuOptions = [];
@@ -630,7 +550,6 @@
                 isStoreClosed = false;
                 alert("已切換為【營業中】！");
             }
-            syncStatusToCloud();
             updateStoreStatusUI();
         }
 
@@ -817,7 +736,6 @@
             if (changedItemName === "煙燻半雞" && !isSoldOut && m5) {
                 m5.soldOut = false;
             }
-            syncStatusToCloud();
         }
 
         function toggleOrderList() {
@@ -907,7 +825,6 @@
             if (item) {
                 item.soldOut = false;
                 checkInventoryLogic(item.name, false);
-                syncStatusToCloud();
                 refreshMenuTabs();
                 refreshActiveGrid();
                 openSoldoutListModal();
@@ -916,7 +833,6 @@
 
         function restoreCategory(category) {
             menuData[category].forEach(i => i.soldOut = false);
-            syncStatusToCloud();
             refreshMenuTabs();
             refreshActiveGrid();
             openSoldoutListModal();
@@ -931,16 +847,11 @@
 
         function initPOS() {
             checkAdminModeFromUrl();
-            fetchCloudStatus();
-            fetchCloudOrdersHistory();
+            updatePendingCountHeader();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
             updateCartUI();
-
-            setInterval(() => {
-                fetchCloudStatus();
-            }, 5000);
         }
 
         function refreshMenuTabs() {
@@ -970,7 +881,6 @@
                     if (isEditMode) {
                         const targetStatus = !isAllSoldOut;
                         menuData[category].forEach(i => i.soldOut = targetStatus);
-                        syncStatusToCloud();
                         refreshMenuTabs();
                         renderGrid(category);
                     } else {
@@ -999,7 +909,6 @@
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
                     checkInventoryLogic(item.name, item.soldOut);
-                    syncStatusToCloud();
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
@@ -1031,7 +940,6 @@
             card.onclick = () => {
                 if (isEditMode) {
                     item.soldOut = !item.soldOut;
-                    syncStatusToCloud();
                     refreshMenuTabs();
                     renderGrid(category);
                 } else {
@@ -1399,7 +1307,6 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
-            syncOrdersHistoryToCloud(history);
             updatePendingCountHeader();
         }
 
@@ -1493,7 +1400,6 @@
                     history[originalIndex].date = "";
                 }
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
-                syncOrdersHistoryToCloud(history);
                 updatePendingCountHeader();
                 renderQuickAcceptList();
                 if (newStatus === "已被店家拒絕") {
@@ -1507,7 +1413,7 @@
             openItemEditModal(originalIndex);
         }
 
-        async function submitOrder() {
+        function submitOrder() {
             if (!document.body.classList.contains('admin-mode') && isStoreClosed) {
                 alert("目前店家【休息中】，無法進行結帳！");
                 return;
@@ -1611,16 +1517,6 @@
 
             saveOrderToHistory(orderPayload);
 
-            try {
-                fetch(GAS_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(orderPayload)
-                });
-            } catch (err) {
-                console.error("LINE 通知發送失敗:", err);
-            }
-
             const modal = document.getElementById('receiptModal');
             const content = document.getElementById('receiptContent');
             
@@ -1632,12 +1528,6 @@
                     <p style="font-size:13px; color:#a89269;">點單明細收據</p>
                 </div>
                 
-                <div style="background:linear-gradient(135deg, #2b1f13, #1f140c); border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:12px; text-align:center;">
-                    <div style="font-weight:bold; color:var(--primary-gold); font-size:14px; margin-bottom:4px;">✨ 加入官方帳號 @281mmggn</div>
-                    <div style="font-size:12px; color:#eddab2; line-height:1.4; margin-bottom:8px;">加入好友，即可隨時接收即時訂單進度、拒單或品項變更通知！</div>
-                    <a href="https://line.me/R/ti/p/@281mmggn" target="_blank" style="display:inline-block; background:linear-gradient(135deg, #00B900, #009900); color:#fff; padding:6px 12px; border-radius:4px; font-size:13px; font-weight:bold; text-decoration:none; box-shadow:0 2px 4px rgba(0,0,0,0.4);">👉 點我立即加入 @281mmggn</a>
-                </div>
-
                 <div style="background:#fff3cd; color:#856404; padding:8px; font-size:13px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
                     💡 您可以隨時點擊查詢訂單接單進度並輸入電話 (${custPhone}) 查看最新接單或變更狀態！
                 </div>
@@ -1697,8 +1587,7 @@
             clearCart();
         }
 
-        async function openOrderManager() {
-            await fetchCloudOrdersHistory();
+        function openOrderManager() {
             localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             document.getElementById('searchDateInput').value = '';
             document.getElementById('searchKeywordInput').value = '';
@@ -1767,7 +1656,7 @@
             tbody.innerHTML = '';
             document.getElementById('mgmtOrderCount').innerText = isFiltered ? 
                 `篩選結果：${ordersToRender.length} / ${localOrderHistory.length} 筆` : 
-                `總訂單筆數：${localOrderHistory.length} 筆 (雲端長期保存)`;
+                `總訂單筆數：${localOrderHistory.length} 筆`;
 
             if (ordersToRender.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合條件的歷史訂單紀錄</td></tr>`;
@@ -1922,9 +1811,8 @@
 
         function saveEditedOrdersHistory() {
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
-            syncOrdersHistoryToCloud(localOrderHistory);
             updatePendingCountHeader();
-            alert("歷史訂單修改已成功儲存並同步至雲端（長期保存）！");
+            alert("歷史訂單修改已成功儲存！");
         }
 
         function downloadCSV(csvContent, fileName) {
