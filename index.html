@@ -59,6 +59,9 @@
         body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
         .tab-btn.category-sold-out { background: #1f1813 !important; opacity: 0.6; color: #8a7356 !important; text-decoration: line-through; border-color: #888 !important; }
 
+        .cat-toggle-checkbox { position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; display: none; cursor: pointer; z-index: 5; }
+        body.edit-mode .cat-toggle-checkbox { display: block; }
+
         .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 3px; }
 
         .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 12px 18px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
@@ -187,16 +190,10 @@
 
     <div class="menu-container">
         <div class="menu-header">
-            <div class="header-top-row" id="headerTopRow">
-                <!-- 動態注入左上狀態與右上登入 -->
-            </div>
+            <div class="header-top-row" id="headerTopRow"></div>
             <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
-            <div id="storeInfoContainer">
-                <!-- 僅顧客網站顯示的店面資訊 -->
-            </div>
-            <div class="admin-action-group" id="adminActionGroup">
-                <!-- 動態注入按鈕群組 -->
-            </div>
+            <div id="storeInfoContainer"></div>
+            <div class="admin-action-group" id="adminActionGroup"></div>
         </div>
 
         <div class="menu-tabs" id="menuTabs"></div>
@@ -411,7 +408,6 @@
             const adminActionGroup = document.getElementById('adminActionGroup');
 
             if (!isUserAdminMode()) {
-                // 顧客網站
                 headerTopRow.innerHTML = `
                     <div class="store-status-static">🟢 營業中</div>
                     <div></div>
@@ -430,7 +426,6 @@
                 `;
                 adminActionGroup.innerHTML = ``;
             } else {
-                // 管理者網站
                 const loggedIn = isAdminLoggedIn();
                 headerTopRow.innerHTML = `
                     <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
@@ -748,31 +743,64 @@
 
         function checkInventoryLogic(changedItemName, isSoldOut) {
             const chickenList = menuData["信仰雞本位主義 (主食)"];
+            const comboList = menuData["智能合約 (套餐)"];
             if (!chickenList) return;
-            const m1 = chickenList.find(i => i.id === "m1");
-            const m2 = chickenList.find(i => i.id === "m2");
-            const m3 = chickenList.find(i => i.id === "m3");
-            const m5 = chickenList.find(i => i.id === "m5");
-            const m6 = chickenList.find(i => i.id === "m6");
 
-            if (m1 && m2 && m3) {
-                if (m1.soldOut || m2.soldOut) {
-                    m3.soldOut = true;
-                } else {
-                    m3.soldOut = false;
-                }
-            }
+            const m1 = chickenList.find(i => i.id === "m1"); // 鹹水雞胸
+            const m2 = chickenList.find(i => i.id === "m2"); // 鹹水雞腿
+            const m3 = chickenList.find(i => i.id === "m3"); // 鹹水半雞
+            const m4 = chickenList.find(i => i.id === "m4"); // 煙燻雞胸
+            const m5 = chickenList.find(i => i.id === "m5"); // 煙燻雞腿
+            const m6 = chickenList.find(i => i.id === "m6"); // 煙燻半雞
 
-            if (changedItemName === "煙燻雞腿" && m6) {
+            // 1. 鹹水連動規則
+            if (changedItemName === "鹹水雞腿" || changedItemName === "鹹水雞胸") {
                 if (isSoldOut) {
-                    m6.soldOut = true;
+                    // 若關閉鹹水雞腿或鹹水雞胸，自動關閉鹹水半雞
+                    if (m3) m3.soldOut = true;
                 } else {
-                    m6.soldOut = false;
+                    // 若要開啟，必須兩者皆非售完才能開啟鹹水半雞
+                    if (m1 && m2 && !m1.soldOut && !m2.soldOut) {
+                        if (m3) m3.soldOut = false;
+                    }
+                }
+            } else if (changedItemName === "鹹水半雞") {
+                if (isSoldOut) {
+                    // 關閉鹹水半雞，自動關閉鹹水雞腿與鹹水雞胸
+                    if (m1) m1.soldOut = true;
+                    if (m2) m2.soldOut = true;
+                } else {
+                    if (m1) m1.soldOut = false;
+                    if (m2) m2.soldOut = false;
                 }
             }
 
-            if (changedItemName === "煙燻半雞" && !isSoldOut && m5) {
-                m5.soldOut = false;
+            // 2. 煙燻連動規則
+            if (changedItemName === "煙燻雞腿" || changedItemName === "煙燻雞胸") {
+                if (isSoldOut) {
+                    if (m6) m6.soldOut = true;
+                } else {
+                    if (m4 && m5 && !m4.soldOut && !m5.soldOut) {
+                        if (m6) m6.soldOut = false;
+                    }
+                }
+            } else if (changedItemName === "煙燻半雞") {
+                if (isSoldOut) {
+                    if (m4) m4.soldOut = true;
+                    if (m5) m5.soldOut = true;
+                } else {
+                    if (m4) m4.soldOut = false;
+                    if (m5) m5.soldOut = false;
+                }
+            }
+
+            // 3. 智慧套餐 (智能合約) 連動檢查：散戶、巨鯨套餐內含鹹水半雞或煙燻半雞，依半雞狀態同步更新
+            if (comboList) {
+                const sanhu = comboList.find(i => i.id === "s1"); // 散戶 (鹹水/煙燻半雞)
+                const jujing = comboList.find(i => i.id === "s2"); // 巨鯨 (鹹水/煙燻半雞)
+                const dao = comboList.find(i => i.id === "s3");   // DAO (全鹹水/全煙燻)
+                
+                // 若鹹水半雞售完，散戶或巨鯨若選鹹水也會受影響 (由套餐點擊時動態阻擋或同步)
             }
         }
 
@@ -896,10 +924,33 @@
             for (let category in menuData) {
                 const isAllSoldOut = menuData[category].every(i => i.soldOut);
                 
-                const btn = document.createElement('button');
+                const btn = document.createElement('div');
                 btn.className = `tab-btn ${isAllSoldOut ? 'category-sold-out' : ''}`;
                 btn.setAttribute('data-category', category);
-                btn.innerHTML = formatTitleWithBracket(category);
+
+                // 大選項左上角的關閉/開啟勾選框
+                const chk = document.createElement('input');
+                chk.type = 'checkbox';
+                chk.className = 'cat-toggle-checkbox';
+                chk.checked = !isAllSoldOut;
+                chk.title = "勾選以開啟/關閉整大類";
+                chk.onclick = (e) => {
+                    e.stopPropagation();
+                    const targetStatus = !chk.checked; // 如果取消勾選代表要全部關閉售完
+                    menuData[category].forEach(i => {
+                        i.soldOut = targetStatus;
+                        checkInventoryLogic(i.name, targetStatus);
+                    });
+                    refreshMenuTabs();
+                    renderGrid(category);
+                };
+
+                const contentSpan = document.createElement('span');
+                contentSpan.innerHTML = formatTitleWithBracket(category);
+                contentSpan.style.pointerEvents = 'none';
+
+                btn.appendChild(chk);
+                btn.appendChild(contentSpan);
 
                 if (!currentActiveCategory && firstCategory) {
                     btn.classList.add('active');
@@ -908,17 +959,11 @@
                     btn.classList.add('active');
                 }
 
+                // 點擊大選項本身僅切換顯示頁籤，不會整類關閉
                 btn.onclick = () => {
-                    if (isEditMode) {
-                        const targetStatus = !isAllSoldOut;
-                        menuData[category].forEach(i => i.soldOut = targetStatus);
-                        refreshMenuTabs();
-                        renderGrid(category);
-                    } else {
-                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        renderGrid(category);
-                    }
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderGrid(category);
                 };
 
                 tabsContainer.appendChild(btn);
@@ -1033,7 +1078,6 @@
             const chickenList = menuData["信仰雞本位主義 (主食)"];
             const saltHalfSoldOut = chickenList.find(i => i.id === "m3").soldOut;
             const smokeHalfSoldOut = chickenList.find(i => i.id === "m6").soldOut;
-            const smokeLegSoldOut = chickenList.find(i => i.id === "m5").soldOut;
 
             const modal = document.getElementById('optModal');
             const content = document.getElementById('optModalContent');
@@ -1044,14 +1088,11 @@
             
             item.chickenOptions.forEach(opt => {
                 let isDisabled = false;
-                if (opt === "鹹水半雞" && saltHalfSoldOut) isDisabled = true;
-                if (opt === "煙燻半雞" && (smokeHalfSoldOut || smokeLegSoldOut)) isDisabled = true;
-                if (opt === "全鹹水" && saltHalfSoldOut) isDisabled = true;
-                if (opt === "全煙燻" && (smokeHalfSoldOut || smokeLegSoldOut)) isDisabled = true;
-                if (opt === "鹹水半雞 + 煙燻半雞" && (saltHalfSoldOut || smokeHalfSoldOut || smokeLegSoldOut)) isDisabled = true;
+                if ((opt === "鹹水半雞" || opt === "全鹹水" || opt.includes("鹹水半雞")) && saltHalfSoldOut) isDisabled = true;
+                if ((opt === "煙燻半雞" || opt === "全煙燻" || opt.includes("煙燻半雞")) && smokeHalfSoldOut) isDisabled = true;
 
                 if (isDisabled) {
-                    html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0; padding:10px;" disabled>${opt} (售完)</button>`;
+                    html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0; padding:10px;" disabled>${opt} (對應半雞已售完)</button>`;
                 } else {
                     html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0; padding:10px;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
                 }
