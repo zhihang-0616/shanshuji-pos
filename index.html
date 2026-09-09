@@ -1458,7 +1458,6 @@
             localStorage.setItem('pos_order_history', JSON.stringify(history));
             checkAndPromptBackup(history.length);
             updatePendingCountHeader();
-            // 自動備份至 Google 雲端
             syncOrderToCloud(orderData);
         }
 
@@ -1534,7 +1533,7 @@
                     `;
                 });
 
-                let flavorStr = ord.prefs ? `${ord.prefs.flavor}/${ord.prefs.spice}/${ord.prefs.salt}` : '';
+                let flavorStr = (ord.prefs && (ord.prefs.flavor || ord.prefs.spice || ord.prefs.salt)) ? `${ord.prefs.flavor || ''} ${ord.prefs.spice || ''} ${ord.prefs.salt || ''}`.trim() : '無';
 
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; border-bottom:1px dashed var(--border-gold); padding-bottom:6px; margin-bottom:8px;">
@@ -1622,23 +1621,13 @@
                 return;
             }
 
-            const loggedIn = isAdminLoggedIn();
-            const isOnlyHotFood = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
-
-            if (!isOnlyHotFood && !loggedIn) {
-                if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
-                    alert("請完整選擇「開倉調整」的口味、辣度與鹹度才可結帳！");
-                    return;
-                }
-            }
-
             let custName = document.getElementById('custName').value.trim();
             let custPhone = document.getElementById('custPhone').value.trim();
             const pickupTimeRaw = document.getElementById('pickupTime').value;
             const custNotes = document.getElementById('custNotes').value.trim();
 
             if (!custName) {
-                if (loggedIn && isBackdate) {
+                if (isAdminLoggedIn() && isBackdate) {
                     custName = "補單客戶";
                 } else {
                     alert("請填寫【訂購人】才可完成下單！");
@@ -1647,7 +1636,7 @@
                 }
             }
 
-            if (!loggedIn) {
+            if (!isAdminLoggedIn()) {
                 const phoneRegex = /^09\d{8}$/;
                 if (!phoneRegex.test(custPhone)) {
                     alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
@@ -1692,6 +1681,13 @@
 
             const orderStatus = isBackdate ? "已完成" : "等待接單";
 
+            // 只有當使用者有點選時才傳入對應屬性，否則不填入或傳空
+            let finalPrefs = {};
+            if (orderPrefs.flavor) finalPrefs.flavor = orderPrefs.flavor;
+            if (orderPrefs.spice) finalPrefs.spice = orderPrefs.spice;
+            if (orderPrefs.salt) finalPrefs.salt = orderPrefs.salt;
+            if (allExtras.length > 0) finalPrefs.extras = allExtras;
+
             const orderPayload = {
                 id: Date.now(),
                 status: orderStatus,
@@ -1709,12 +1705,7 @@
                 deductAmount: 0,
                 discountNote: "",
                 payment: currentPayment,
-                prefs: {
-                    flavor: orderPrefs.flavor || "原味",
-                    spice: orderPrefs.spice || "不辣",
-                    salt: orderPrefs.salt || "正常",
-                    extras: allExtras
-                },
+                prefs: finalPrefs,
                 items: currentCart.map(item => ({
                     name: item.name,
                     qty: item.qty,
@@ -1752,9 +1743,9 @@
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
                 
                 <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
-                <div class="receipt-line"><span>口味:</span> <span>${orderPayload.prefs.flavor}</span></div>
-                <div class="receipt-line"><span>辣度:</span> <span>${orderPayload.prefs.spice}</span></div>
-                <div class="receipt-line"><span>鹹度:</span> <span>${orderPayload.prefs.salt}</span></div>
+                <div class="receipt-line"><span>口味:</span> <span>${orderPayload.prefs.flavor || '無'}</span></div>
+                <div class="receipt-line"><span>辣度:</span> <span>${orderPayload.prefs.spice || '無'}</span></div>
+                <div class="receipt-line"><span>鹹度:</span> <span>${orderPayload.prefs.salt || '無'}</span></div>
                 <div class="receipt-line"><span>顧客備註:</span> <span>${custNotes || '無'}</span></div>
                 <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>特殊要求:</span> <span>${orderPrefs.extras.join(', ') || '無'}</span></div>
                 
@@ -1803,7 +1794,7 @@
 
         function openOrderManager() {
             localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            setTodaySearch(); // 預設帶入今天日期，並可透過左右鍵或日曆切換
+            setTodaySearch();
             document.getElementById('adminMgmtModal').style.display = 'flex';
         }
 
@@ -1868,7 +1859,7 @@
         }
 
         function filterOrderMgmtTable() {
-            const dateVal = document.getElementById('searchDateSingle').value; // YYYY-MM-DD
+            const dateVal = document.getElementById('searchDateSingle').value;
             const keywordQuery = document.getElementById('searchKeywordInput').value.trim().toLowerCase();
 
             const filtered = localOrderHistory.filter(ord => {
@@ -1909,7 +1900,7 @@
                 const realIndex = localOrderHistory.findIndex(item => item.id === ord.id);
 
                 if (ord.discountPercent === undefined) ord.discountPercent = 100;
-                if (ord.deductAmount === undefined) ord.deductAmount = 0;
+                if (ord.deductAmount === undefined) ord.deduraAmount = 0;
                 calculateOrderFinalTotal(ord);
 
                 const tr = document.createElement('tr');
@@ -1919,8 +1910,8 @@
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${realIndex}, 'phone', this.value)"></td>
                     <td>
                         <div class="discount-container">
-                            <div style="font-size:12px;">折數: <input type="number" class="edit-input" style="width:50px; inline-block;" value="${ord.discountPercent}" placeholder="80" onchange="updateHistoryDiscount(${realIndex}, 'discountPercent', this.value)"> %</div>
-                            <div style="font-size:12px;">扣錢: $<input type="number" class="edit-input" style="width:50px; inline-block;" value="${ord.deductAmount}" placeholder="3" onchange="updateHistoryDiscount(${realIndex}, 'deductAmount', this.value)"></div>
+                            <div style="font-size:12px;">折數: <input type="number" class="edit-input" style="width:50px;" value="${ord.discountPercent}" onchange="updateHistoryDiscount(${realIndex}, 'discountPercent', this.value)"> %</div>
+                            <div style="font-size:12px;">扣錢: $<input type="number" class="edit-input" style="width:50px;" value="${ord.deductAmount}" onchange="updateHistoryDiscount(${realIndex}, 'deductAmount', this.value)"></div>
                         </div>
                     </td>
                     <td style="font-weight:bold; color:var(--primary-gold); font-size:15px;">$${ord.total}</td>
@@ -1933,7 +1924,7 @@
                         </select>
                     </td>
                     <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${realIndex})">調整品項 (${ord.items.length})</button></td>
-                    <td><input type="text" class="edit-input" value="${ord.prefs.flavor}" onchange="updateHistoryPrefItem(${realIndex}, 'flavor', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${(ord.prefs && ord.prefs.flavor) ? ord.prefs.flavor : ''}" onchange="updateHistoryPrefItem(${realIndex}, 'flavor', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${realIndex}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${realIndex})">刪除</button></td>
                 `;
@@ -1955,6 +1946,7 @@
         }
 
         function updateHistoryPrefItem(index, key, val) {
+            if (!localOrderHistory[index].prefs) localOrderHistory[index].prefs = {};
             localOrderHistory[index].prefs[key] = val;
         }
 
@@ -2079,163 +2071,6 @@
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
             updatePendingCountHeader();
             alert("歷史訂單修改已成功儲存！");
-        }
-
-        function downloadCSV(csvContent, fileName) {
-            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", fileName);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function formatOrderItemsForCSV(order) {
-            let itemList = [];
-            order.items.forEach(item => {
-                let nameStr = item.qty > 1 ? `${item.name}*${item.qty}` : item.name;
-                itemList.push({ name: nameStr, price: item.price * item.qty });
-
-                if (item.subItems) {
-                    item.subItems.forEach(sub => {
-                        itemList.push({ name: sub.name, price: 0 });
-                    });
-                }
-            });
-
-            if (order.prefs && order.prefs.flavor === "泰式+5元") {
-                itemList.push({ name: "泰式醬料加價", price: 5 });
-            }
-
-            return itemList;
-        }
-
-        function exportDailyReport() {
-            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            let now = new Date();
-            let defaultDate = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}`;
-            let targetDate = prompt("請輸入要匯出的日報日期 (格式：YYYY/MM/DD):", defaultDate);
-
-            if (!targetDate) return;
-
-            const filteredOrders = history.filter(o => o.date === targetDate);
-
-            if (filteredOrders.length === 0) {
-                alert(`找不到 ${targetDate} 的訂單紀錄！`);
-                return;
-            }
-
-            let maxItemsCount = 0;
-            filteredOrders.forEach(o => {
-                let formattedItems = formatOrderItemsForCSV(o);
-                if (formattedItems.length > maxItemsCount) maxItemsCount = formattedItems.length;
-            });
-
-            let csv = "日期,星期,時間,訂購人,電話,總額";
-            for (let i = 0; i < maxItemsCount; i++) {
-                csv += ",單品,單價";
-            }
-            csv += ",口味,備註\n";
-
-            let dayTotalAmount = 0;
-
-            filteredOrders.forEach(o => {
-                calculateOrderFinalTotal(o);
-                dayTotalAmount += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "";
-                let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
-                
-                let notesArr = [];
-                if (payNotes) notesArr.push(payNotes);
-                if (o.custNotes) notesArr.push(o.custNotes);
-                if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
-
-                let notesText = notesArr.join(" ");
-
-                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
-
-                let formattedItems = formatOrderItemsForCSV(o);
-                formattedItems.forEach(item => {
-                    line += `,"${item.name}","${item.price}"`;
-                });
-
-                for (let i = formattedItems.length; i < maxItemsCount; i++) {
-                    line += `,"",""`;
-                }
-
-                line += `,"${flavorText}","${notesText}"\n`;
-                csv += line;
-            });
-
-            let dateParts = targetDate.split('/');
-            let shortDateTag = `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}當日總計`;
-            csv += `"${shortDateTag}","","","","共 ${filteredOrders.length} 筆","${dayTotalAmount}"\n`;
-
-            downloadCSV(csv, `去中心鹹水雞_日報_${targetDate.replace(/\//g, '-')}.csv`);
-        }
-
-        function exportMonthlyReport() {
-            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            let now = new Date();
-            let defaultMonth = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}`;
-            let targetMonth = prompt("請輸入要匯出的月報月份 (格式：YYYY/MM):", defaultMonth);
-
-            if (!targetMonth) return;
-
-            const filteredOrders = history.filter(o => o.date && o.date.startsWith(targetMonth));
-
-            if (filteredOrders.length === 0) {
-                alert(`找不到 ${targetMonth} 的月報訂單紀錄！`);
-                return;
-            }
-
-            let maxItemsCount = 0;
-            filteredOrders.forEach(o => {
-                let formattedItems = formatOrderItemsForCSV(o);
-                if (formattedItems.length > maxItemsCount) maxItemsCount = formattedItems.length;
-            });
-
-            let csv = "日期,星期,時間,訂購人,電話,總額";
-            for (let i = 0; i < maxItemsCount; i++) {
-                csv += ",單品,單價";
-            }
-            csv += ",口味,備註\n";
-
-            let grandTotal = 0;
-
-            filteredOrders.forEach(o => {
-                calculateOrderFinalTotal(o);
-                grandTotal += o.total;
-                let flavorText = o.prefs ? `${o.prefs.flavor}${o.prefs.spice}${o.prefs.salt}` : "";
-                let payNotes = o.payment === "現金" ? "" : o.payment.toLowerCase();
-
-                let notesArr = [];
-                if (payNotes) notesArr.push(payNotes);
-                if (o.custNotes) notesArr.push(o.custNotes);
-                if (o.discountNote) notesArr.push(`[${o.discountNote}]`);
-
-                let notesText = notesArr.join(" ");
-
-                let line = `"${o.date}","${o.weekDay || ''}","${o.time}","${o.customer || ''}","${o.phone || ''}","${o.total}"`;
-
-                let formattedItems = formatOrderItemsForCSV(o);
-                formattedItems.forEach(item => {
-                    line += `,"${item.name}","${item.price}"`;
-                });
-
-                for (let i = formattedItems.length; i < maxItemsCount; i++) {
-                    line += `,"",""`;
-                }
-
-                line += `,"${flavorText}","${notesText}"\n`;
-                csv += line;
-            });
-
-            csv += `"當月總計","","","","共 ${filteredOrders.length} 筆","${grandTotal}"\n`;
-
-            downloadCSV(csv, `去中心鹹水雞_月報_${targetMonth.replace(/\//g, '-')}.csv`);
         }
 
         window.onload = initPOS;
