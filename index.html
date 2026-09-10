@@ -314,7 +314,7 @@
         <div class="modal-content" style="width:540px; max-width:95vw;">
             <button class="modal-close-x" onclick="closeShiftReportModal()">✕</button>
             <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 當日結算與現金點交</h3>
-            <div id="shiftReportContent" style="font-size:14px; line-height:1.6; max-height:70vh; overflow-y:auto;"></div>
+            <div id="shiftReportContent" style="font-size:14px; line-height:1.6;"></div>
         </div>
     </div>
 
@@ -737,7 +737,6 @@
         let currentEditingOrderIndex = null;
         let activeCashOrderIndex = null;
         
-        // 結算點交明細數據
         let shiftDenomData = {
             principal: { 1000: 0, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 },
             reserve: { 1000: 0, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 },
@@ -818,7 +817,6 @@
             exportMonthlyReport();
         }
 
-        // ================= 📊 當日結算與現金點交 (細項面額) =================
         function openShiftReportModal() {
             closeAdminMenu();
             renderShiftReportModalContent();
@@ -1701,7 +1699,6 @@
             activeCashOrderIndex = null;
         }
 
-        // ================= 👤 會員標籤與熟客消費累積 =================
         function getCustomerCRMInfo(phone, currentOrderId) {
             if (!phone || phone === "0900000000") return null;
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
@@ -1842,7 +1839,6 @@
             });
         }
 
-        // 🟢 點擊接單時：更新狀態為已接單，並上傳雲端
         function quickAcceptOrder(originalIndex) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
@@ -1910,7 +1906,6 @@
             quickUpdateStatus(originalIndex, '待顧客取餐');
         }
 
-        // 🔵 點擊已取餐：必須結帳後才可點，狀態改為已完成
         function clickPickupDone(originalIndex) {
             quickUpdateStatus(originalIndex, '已完成');
             playSound('done');
@@ -1922,17 +1917,14 @@
                 let targetOrd = history[originalIndex];
                 if (targetOrd) {
                     let bizDate = targetOrd.date;
-                    // 從本地完全刪除
                     history.splice(originalIndex, 1);
                     localStorage.setItem('pos_order_history', JSON.stringify(history));
                     
-                    // 重新排序流水號
                     reindexOrderNumbers(bizDate);
                     
                     updatePendingCountHeader();
                     renderQuickAcceptList();
 
-                    // 通知雲端刪除
                     syncOrderToCloud(targetOrd, "delete");
                     playSound('reject');
                 }
@@ -2061,7 +2053,7 @@
 
             const orderPayload = {
                 id: Date.now(),
-                orderNo: "", // 稍後由 reindexOrderNumbers 自動填入
+                orderNo: "",
                 status: orderStatus,
                 date: dateStr,
                 weekDay: weekDayStr,
@@ -2087,7 +2079,6 @@
             };
 
             saveOrderToHistory(orderPayload);
-            // 重新取得帶有正確流水號的訂單物件
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             let savedOrder = history.find(o => o.id === orderPayload.id);
 
