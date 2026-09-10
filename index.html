@@ -390,53 +390,103 @@
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz7SS82hI1lUOH5OCgorlw-FOeP9xqZlynmCQNMaP1LJZEpL-BhZiJvTxGzdn6ooeMmtg/exec";
 
-        // ================= 🔊 內建動態音效系統 (Web Audio API) =================
+        // ================= 🔊 升級版：大聲、長音、明顯的動態音效系統 =================
         function playSound(type) {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
                 const ctx = new AudioContext();
 
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-
                 const now = ctx.currentTime;
 
                 if (type === 'new_order') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(587.33, now); // D5
-                    osc.frequency.setValueAtTime(880, now + 0.15); // A5
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                    osc.start(now);
-                    osc.stop(now + 0.4);
+                    // 🔊 新訂單：高亢雙頻和弦 (連續三段雙音報單聲，音量放大)
+                    [0, 0.25, 0.5].forEach((offset, idx) => {
+                        const osc1 = ctx.createOscillator();
+                        const osc2 = ctx.createOscillator();
+                        const gain = ctx.createGain();
+
+                        osc1.connect(gain);
+                        osc2.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        const freq = idx === 2 ? 1046.50 : (idx === 1 ? 880 : 659.25); // E5, A5, C6
+                        osc1.type = 'triangle';
+                        osc1.frequency.setValueAtTime(freq, now + offset);
+
+                        osc2.type = 'sine';
+                        osc2.frequency.setValueAtTime(freq * 1.5, now + offset);
+
+                        gain.gain.setValueAtTime(0.5, now + offset);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.35);
+
+                        osc1.start(now + offset);
+                        osc2.start(now + offset);
+                        osc1.stop(now + offset + 0.35);
+                        osc2.stop(now + offset + 0.35);
+                    });
                 } else if (type === 'accept') {
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(330, now); // E4
-                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.25); // E5
-                    gain.gain.setValueAtTime(0.25, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-                    osc.start(now);
-                    osc.stop(now + 0.3);
+                    // 🔊 接單：上升動感和弦 (厚實清脆的連續上升音)
+                    [0, 0.15, 0.3].forEach((offset, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        const freqs = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freqs[idx], now + offset);
+
+                        gain.gain.setValueAtTime(0.5, now + offset);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.4);
+
+                        osc.start(now + offset);
+                        osc.stop(now + offset + 0.4);
+                    });
                 } else if (type === 'done') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(523.25, now);     // C5
-                    osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
-                    osc.frequency.setValueAtTime(783.99, now + 0.24); // G5
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                    osc.start(now);
-                    osc.stop(now + 0.5);
+                    // 🔊 完成：三音階完美的清脆響亮和弦 (長音，宏亮)
+                    [0, 0.2, 0.4].forEach((offset, idx) => {
+                        const osc1 = ctx.createOscillator();
+                        const osc2 = ctx.createOscillator();
+                        const gain = ctx.createGain();
+
+                        osc1.connect(gain);
+                        osc2.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        const baseFreqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+                        osc1.type = 'sine';
+                        osc1.frequency.setValueAtTime(baseFreqs[idx], now + offset);
+
+                        osc2.type = 'triangle';
+                        osc2.frequency.setValueAtTime(baseFreqs[idx] * 2, now + offset);
+
+                        gain.gain.setValueAtTime(0.5, now + offset);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.6);
+
+                        osc1.start(now + offset);
+                        osc2.start(now + offset);
+                        osc1.stop(now + offset + 0.6);
+                        osc2.stop(now + offset + 0.6);
+                    });
                 } else if (type === 'reject') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(220, now); // A3
-                    osc.frequency.setValueAtTime(146.83, now + 0.2); // D3
-                    gain.gain.setValueAtTime(0.25, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                    osc.start(now);
-                    osc.stop(now + 0.4);
+                    // 🔊 拒單：強烈明顯的低音鋸齒波雙響警示音 (低沈震撼)
+                    [0, 0.3].forEach((offset, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(idx === 0 ? 220 : 164.81, now + offset); // A3降到E3
+                        osc.frequency.exponentialRampToValueAtTime(110, now + offset + 0.3);
+
+                        gain.gain.setValueAtTime(0.6, now + offset);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.45);
+
+                        osc.start(now + offset);
+                        osc.stop(now + offset + 0.45);
+                    });
                 }
             } catch (e) {
                 console.error("音效播放失敗:", e);
