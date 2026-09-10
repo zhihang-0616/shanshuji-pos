@@ -1663,12 +1663,17 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
                 if (newStatus === "已被店家拒絕") {
+                    let rejectedOrder = history[originalIndex];
                     history.splice(originalIndex, 1);
                     localStorage.setItem('pos_order_history', JSON.stringify(history));
                     updatePendingCountHeader();
                     renderQuickAcceptList();
+                    
+                    // 同步發送 delete 動作至雲端，將該筆訂單從雲端試算表中移除
+                    syncOrderToCloud(rejectedOrder, "delete");
+
                     playSound('reject');
-                    alert("已成功拒絕訂單 該訂單不會上傳至後台歷史與雲端");
+                    alert("已成功拒絕訂單，該訂單已從歷史紀錄與雲端試算表中完全移除。");
                     return;
                 }
 
