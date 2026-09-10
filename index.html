@@ -229,7 +229,7 @@
            </div>
            <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
-                <input type="datetime-local" id="pickupTime" class="input-field" onchange="updateWeekdayBadge()">
+                <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
                 <span id="weekdayBadge" class="weekday-badge">星期--</span>
            </div>
            <div class="input-row">
@@ -284,6 +284,27 @@
                 <button class="btn btn-clear" onclick="clearCart()">清除</button>
                 <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
            </div>
+       </div>
+   </div>
+
+   <!-- 取餐時間選擇 Modal (強制 24 小時制) -->
+   <div class="modal" id="pickupTimeModal">
+       <div class="modal-content" style="width:340px; text-align:center;">
+           <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
+           <h3 style="color:var(--primary-gold); margin-bottom:14px;">選擇 24 小時制取餐時間</h3>
+           
+           <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:15px; text-align:left;">
+               <div>
+                   <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇日期：</label>
+                   <input type="date" id="modalPickupDate" class="input-field" style="width:100%;">
+               </div>
+               <div>
+                   <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制)：</label>
+                   <select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select>
+               </div>
+           </div>
+
+           <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmPickupTimeModal()">確定選擇</button>
        </div>
    </div>
 
@@ -866,17 +887,76 @@
 
        function setDefaultPickupTime() {
            const now = new Date();
-           now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-           // 強制確保 datetime-local 帶出正確 24 小時制格式
-           document.getElementById('pickupTime').value = now.toISOString().slice(0,16);
+           let yyyy = now.getFullYear();
+           let mm = String(now.getMonth() + 1).padStart(2, '0');
+           let dd = String(now.getDate()).padStart(2, '0');
+           let hh = String(now.getHours()).padStart(2, '0');
+           let min = String(now.getMinutes()).padStart(2, '0');
+           
+           // 強制 24 小時制格式：YYYY/MM/DD HH:MM
+           document.getElementById('pickupTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
            updateWeekdayBadge();
+       }
+
+       function openPickupTimeModal() {
+           const now = new Date();
+           let yyyy = now.getFullYear();
+           let mm = String(now.getMonth() + 1).padStart(2, '0');
+           let dd = String(now.getDate()).padStart(2, '0');
+           
+           document.getElementById('modalPickupDate').value = `${yyyy}-${mm}-${dd}`;
+           
+           const selectElem = document.getElementById('modalPickupTimeSelect');
+           selectElem.innerHTML = '';
+
+           for (let h = 0; h < 27; h++) {
+               let actualH = h % 24;
+               for (let m of [0, 30]) {
+                   if (h >= 24 && m > 0) break;
+                   let hStr = String(actualH).padStart(2, '0');
+                   let mStr = String(m).padStart(2, '0');
+                   let timeStr = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
+                   
+                   let opt = document.createElement('option');
+                   opt.value = `${hStr}:${mStr}`;
+                   if (h >= 24) opt.dataset.nextDay = "true";
+                   opt.text = timeStr;
+                   
+                   if (actualH === now.getHours() && Math.abs(m - now.getMinutes()) < 30) {
+                       opt.selected = true;
+                   }
+                   selectElem.appendChild(opt);
+               }
+           }
+
+           document.getElementById('pickupTimeModal').style.display = 'flex';
+       }
+
+       function closePickupTimeModal() {
+           document.getElementById('pickupTimeModal').style.display = 'none';
+       }
+
+       function confirmPickupTimeModal() {
+           const dateVal = document.getElementById('modalPickupDate').value;
+           const timeVal = document.getElementById('modalPickupTimeSelect').value;
+           
+           if (!dateVal || !timeVal) {
+               alert("請完整選擇日期與時間！");
+               return;
+           }
+
+           let formattedDate = dateVal.replace(/-/g, '/');
+           document.getElementById('pickupTime').value = `${formattedDate} ${timeVal}`;
+           updateWeekdayBadge();
+           closePickupTimeModal();
        }
 
        function updateWeekdayBadge() {
            const val = document.getElementById('pickupTime').value;
            const badge = document.getElementById('weekdayBadge');
            if (val) {
-               const dt = new Date(val);
+               let datePart = val.split(' ')[0].replace(/\//g, '-');
+               const dt = new Date(datePart);
                if (!isNaN(dt.getTime())) {
                    badge.innerText = weekDaysArr[dt.getDay()];
                    return;
@@ -2222,16 +2302,15 @@
 
            if (!pickupTimeRaw) {
                alert("請選擇【取餐時間】才可完成下單！");
-               document.getElementById('pickupTime').focus();
                return;
            }
 
-           const pickupDateObj = new Date(pickupTimeRaw);
+           let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
+           const pickupDateObj = new Date(datePart);
            const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
            
-           // 強制將取餐時間格式化為 24 小時制 (YYYY-MM-DD HH:MM)
-           let formattedPickupTime = pickupTimeRaw.replace('T', ' ');
-           if (pickupWeekDayStr) {
+           let formattedPickupTime = `${pickupTimeRaw}`;
+           if (pickupWeekDayStr && !formattedPickupTime.includes('星期')) {
                formattedPickupTime += ` (${pickupWeekDayStr})`;
            }
 
@@ -2243,10 +2322,7 @@
            let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
            
            // 強制 24 小時制時間字串 (HH:MM)
-           let hours24 = String(pickupDateObj.getHours()).padStart(2, '0');
-           let minutes24 = String(pickupDateObj.getMinutes()).padStart(2, '0');
-           let timeStr = `${hours24}:${minutes24}`;
-           
+           let timeStr = pickupTimeRaw.split(' ')[1] || "00:00";
            let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
            let subtotal = 0;
@@ -2504,7 +2580,6 @@
                    flavorFullStr = fParts.join(" ");
                }
 
-               // 確保歷史管理表格中的時間欄位為 24 小時制
                let displayTime = ord.time || "";
 
                const tr = document.createElement('tr');
