@@ -341,7 +341,6 @@
                 <button class="header-btn" style="background:#3d2b1a;" onclick="setTodaySearch()">今天</button>
                 <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">顯示全部</button>
                 <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
-                <button class="header-btn" onclick="saveEditedOrdersHistory()">💾 儲存修改</button>
             </div>
 
             <div style="max-height: 55vh; overflow-y: auto;">
@@ -500,7 +499,7 @@
             const container = document.getElementById('actionButtonsContainer');
             const loggedIn = isAdminLoggedIn();
             
-            if (loggedIn) {
+            if (loggedIn && isUserAdminMode()) {
                 container.innerHTML = `
                     <button class="btn btn-clear" onclick="clearCart()">清除</button>
                     <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
@@ -727,7 +726,7 @@
         let isEditMode = false;
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
-        let activeCashOrderIndex = null; // 用於記錄正在進行現金找零的訂單索引
+        let activeCashOrderIndex = null;
 
         function setDefaultPickupTime() {
             const now = new Date();
@@ -1604,7 +1603,6 @@
                             <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
                         `;
 
-                        // 如果正在對這張單進行現金找零，下方直接展開計算框
                         if (activeCashOrderIndex === ord.originalIndex) {
                             cashBoxHtml = `
                                 <div class="cash-box-inline">
@@ -2086,7 +2084,7 @@
                 const realIndex = localOrderHistory.findIndex(item => item.id === ord.id);
 
                 if (ord.discountPercent === undefined) ord.discountPercent = 100;
-                if (ord.deductAmount === undefined) ord.deduraAmount = 0;
+                if (ord.deductAmount === undefined) ord.deductAmount = 0;
                 calculateOrderFinalTotal(ord);
 
                 let flavorFullStr = "";
@@ -2100,18 +2098,18 @@
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="updateHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
-                    <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${realIndex}, 'customer', this.value)"></td>
-                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${realIndex}, 'phone', this.value)"></td>
+                    <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="autoSaveHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
+                    <td><input type="text" class="edit-input" value="${ord.customer}" onchange="autoSaveHistoryItem(${realIndex}, 'customer', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="autoSaveHistoryItem(${realIndex}, 'phone', this.value)"></td>
                     <td>
                         <div class="discount-container">
-                            <div style="font-size:12px;">折數: <input type="number" class="edit-input" style="width:50px;" value="${ord.discountPercent}" onchange="updateHistoryDiscount(${realIndex}, 'discountPercent', this.value)"> %</div>
-                            <div style="font-size:12px;">扣錢: $<input type="number" class="edit-input" style="width:50px;" value="${ord.deductAmount}" onchange="updateHistoryDiscount(${realIndex}, 'deductAmount', this.value)"></div>
+                            <div style="font-size:12px;">折數: <input type="number" class="edit-input" style="width:50px;" value="${ord.discountPercent}" onchange="autoSaveHistoryDiscount(${realIndex}, 'discountPercent', this.value)"> %</div>
+                            <div style="font-size:12px;">扣錢: $<input type="number" class="edit-input" style="width:50px;" value="${ord.deductAmount}" onchange="autoSaveHistoryDiscount(${realIndex}, 'deductAmount', this.value)"></div>
                         </div>
                     </td>
-                    <td style="font-weight:bold; color:var(--primary-gold); font-size:15px;">$${ord.total}</td>
+                    <td style="font-weight:bold; color:var(--primary-gold); font-size:15px;" id="mgmtTotal_${realIndex}">$${ord.total}</td>
                     <td>
-                        <select class="edit-input" onchange="updateHistoryItem(${realIndex}, 'payment', this.value)">
+                        <select class="edit-input" onchange="autoSaveHistoryItem(${realIndex}, 'payment', this.value)">
                             <option value="現金" ${ord.payment === '現金' ? 'selected' : ''}>現金</option>
                             <option value="轉帳" ${ord.payment === '轉帳' ? 'selected' : ''}>轉帳</option>
                             <option value="Linepay" ${ord.payment === 'Linepay' ? 'selected' : ''}>Linepay</option>
@@ -2119,15 +2117,24 @@
                         </select>
                     </td>
                     <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${realIndex})">調整品項 (${ord.items.length})</button></td>
-                    <td><input type="text" class="edit-input" value="${flavorFullStr}" onchange="updateHistoryFlavorFull(${realIndex}, this.value)"></td>
-                    <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="updateHistoryItem(${realIndex}, 'custNotes', this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${flavorFullStr}" onchange="autoSaveHistoryFlavorFull(${realIndex}, this.value)"></td>
+                    <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="autoSaveHistoryItem(${realIndex}, 'custNotes', this.value)"></td>
                     <td><button style="background:#8b1e0f; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${realIndex})">刪除</button></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function updateHistoryItem(index, key, val) {
+        // 即時自動儲存相關函式
+        function commitAndSync(index) {
+            localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+            updatePendingCountHeader();
+            if (localOrderHistory[index]) {
+                syncOrderToCloud(localOrderHistory[index], "update");
+            }
+        }
+
+        function autoSaveHistoryItem(index, key, val) {
             localOrderHistory[index][key] = val;
             if (key === 'date') {
                 let parts = val.split('/');
@@ -2138,20 +2145,24 @@
                     }
                 }
             }
+            commitAndSync(index);
         }
 
-        function updateHistoryFlavorFull(index, val) {
+        function autoSaveHistoryFlavorFull(index, val) {
             if (!localOrderHistory[index].prefs) localOrderHistory[index].prefs = {};
             let parts = val.split(' ');
             localOrderHistory[index].prefs.flavor = parts[0] || '';
             localOrderHistory[index].prefs.spice = parts[1] || '';
             localOrderHistory[index].prefs.salt = parts[2] || '';
+            commitAndSync(index);
         }
 
-        function updateHistoryDiscount(index, key, val) {
+        function autoSaveHistoryDiscount(index, key, val) {
             localOrderHistory[index][key] = val;
             calculateOrderFinalTotal(localOrderHistory[index]);
-            filterOrderMgmtTable();
+            const totalCell = document.getElementById(`mgmtTotal_${index}`);
+            if (totalCell) totalCell.innerText = `$${localOrderHistory[index].total}`;
+            commitAndSync(index);
         }
 
         function openItemEditModal(index) {
@@ -2164,7 +2175,7 @@
         function closeItemEditModal() {
             if (currentEditingOrderIndex !== null && localOrderHistory[currentEditingOrderIndex]) {
                 calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+                commitAndSync(currentEditingOrderIndex);
                 filterOrderMgmtTable();
             }
             document.getElementById('itemEditModal').style.display = 'none';
@@ -2182,31 +2193,31 @@
                 const div = document.createElement('div');
                 div.style.cssText = "display:flex; gap:6px; align-items:center; margin-bottom:10px;";
                 div.innerHTML = `
-                    <input type="text" class="edit-input" style="flex:2;" value="${item.name}" onchange="updateItemDetailQuick(${currentEditingOrderIndex}, ${itemIdx}, 'name', this.value)">
+                    <input type="text" class="edit-input" style="flex:2;" value="${item.name}" onchange="updateItemDetailAuto(${currentEditingOrderIndex}, ${itemIdx}, 'name', this.value)">
                     <span style="font-size:13px;">數量:</span>
-                    <input type="number" class="edit-input" style="width:50px;" value="${item.qty}" onchange="updateItemDetailQuick(${currentEditingOrderIndex}, ${itemIdx}, 'qty', parseInt(this.value))">
+                    <input type="number" class="edit-input" style="width:50px;" value="${item.qty}" onchange="updateItemDetailAuto(${currentEditingOrderIndex}, ${itemIdx}, 'qty', parseInt(this.value))">
                     <span style="font-size:13px;">單價:</span>
-                    <input type="number" class="edit-input" style="width:60px;" value="${item.price}" onchange="updateItemDetailQuick(${currentEditingOrderIndex}, ${itemIdx}, 'price', parseInt(this.value))">
-                    <button style="background:#8b1e0f; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;" onclick="removeItemFromEditingOrderQuick(${currentEditingOrderIndex}, ${itemIdx})">✕</button>
+                    <input type="number" class="edit-input" style="width:60px;" value="${item.price}" onchange="updateItemDetailAuto(${currentEditingOrderIndex}, ${itemIdx}, 'price', parseInt(this.value))">
+                    <button style="background:#8b1e0f; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;" onclick="removeItemFromEditingOrderAuto(${currentEditingOrderIndex}, ${itemIdx})">✕</button>
                 `;
                 container.appendChild(div);
             });
         }
 
-        function updateItemDetailQuick(orderIdx, itemIdx, field, value) {
+        function updateItemDetailAuto(orderIdx, itemIdx, field, value) {
             if (localOrderHistory[orderIdx] && localOrderHistory[orderIdx].items[itemIdx]) {
                 localOrderHistory[orderIdx].items[itemIdx][field] = value;
                 calculateOrderFinalTotal(localOrderHistory[orderIdx]);
-                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+                commitAndSync(orderIdx);
                 renderItemEditList();
             }
         }
 
-        function removeItemFromEditingOrderQuick(orderIdx, itemIdx) {
+        function removeItemFromEditingOrderAuto(orderIdx, itemIdx) {
             if (localOrderHistory[orderIdx] && localOrderHistory[orderIdx].items[itemIdx]) {
                 localOrderHistory[orderIdx].items.splice(itemIdx, 1);
                 calculateOrderFinalTotal(localOrderHistory[orderIdx]);
-                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+                commitAndSync(orderIdx);
                 renderItemEditList();
             }
         }
@@ -2248,7 +2259,7 @@
                         subItems: null
                     });
                     calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-                    localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+                    commitAndSync(currentEditingOrderIndex);
                     renderItemEditList();
                 }
                 closeMenuSelectModal();
@@ -2261,21 +2272,15 @@
 
         function deleteHistoryOrder(index) {
             if (confirm("確定要刪除這筆訂單嗎？")) {
+                let deletedOrd = localOrderHistory[index];
                 localOrderHistory.splice(index, 1);
-                filterOrderMgmtTable();
+                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
                 updatePendingCountHeader();
+                if (deletedOrd) {
+                    syncOrderToCloud(deletedOrd, "delete");
+                }
+                filterOrderMgmtTable();
             }
-        }
-
-        function saveEditedOrdersHistory() {
-            localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
-            updatePendingCountHeader();
-            
-            localOrderHistory.forEach(ord => {
-                syncOrderToCloud(ord, "update");
-            });
-
-            alert("歷史訂單修改已成功儲存，並同步更新至雲端試算表！");
         }
 
         window.onload = initPOS;
