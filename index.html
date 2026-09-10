@@ -168,7 +168,8 @@
         .accept-btn-accept { flex: 2; padding: 9px; background: linear-gradient(135deg, #1e7e34, #145222); color: #fff; border: 1px solid #81c784; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; }
         .accept-btn-done { flex: 1; padding: 9px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
         .accept-btn-reject { flex: 1; padding: 9px; background: linear-gradient(135deg, #8b1e0f, #4a0d05); color: #fff; border: 1px solid #ff9999; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
-        .accept-btn-edit { flex: 2; padding: 9px; background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        
+        .cash-box-inline { background: #140f0a; border: 1px solid var(--border-gold); padding: 12px; border-radius: 6px; margin-top: 10px; }
 
         .modal-option-group { margin-bottom: 14px; }
         .modal-option-label { font-weight: bold; color: var(--primary-gold); margin-bottom: 8px; display: block; font-size: 15px; }
@@ -295,23 +296,6 @@
         <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
     </div>
 
-    <!-- 現金找零計算視窗 -->
-    <div class="modal" id="cashChangeModal">
-        <div class="modal-content" style="width:360px; text-align:center;">
-            <button class="modal-close-x" onclick="closeCashChangeModal()">✕</button>
-            <h3 style="color:var(--primary-gold); margin-bottom:14px;">💵 現金收銀與找零計算</h3>
-            <div style="font-size:16px; margin-bottom:10px;">應收總額：<strong id="cashModalTotal" style="color:#fff1cd; font-size:20px;">$0</strong></div>
-            <div class="input-row" style="margin-bottom:14px;">
-                <span class="input-label" style="min-width:70px;">實收現金:</span>
-                <input type="number" id="cashGivenInput" class="input-field" placeholder="請輸入實收金額" oninput="calculateChange()">
-            </div>
-            <div style="font-size:18px; font-weight:bold; color:#81c784; margin-bottom:18px; background:#140f0a; padding:10px; border-radius:6px; border:1px solid var(--border-gold);" id="changeResultText">
-                應找零錢：$0
-            </div>
-            <button class="btn btn-submit" style="width:100%;" onclick="confirmCashAndFinish()">確認完成找零 (進入待取餐)</button>
-        </div>
-    </div>
-
     <div class="modal" id="adminMenuModal">
         <div class="modal-content" style="width:340px; text-align:center;">
             <button class="modal-close-x" onclick="closeAdminMenu()">✕</button>
@@ -407,100 +391,79 @@
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz7SS82hI1lUOH5OCgorlw-FOeP9xqZlynmCQNMaP1LJZEpL-BhZiJvTxGzdn6ooeMmtg/exec";
 
-        // ================= 🔊 升級版：大聲、長音、明顯的動態音效系統 =================
+        // ================= 🔊 音效系統 =================
         function playSound(type) {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
                 const ctx = new AudioContext();
-
                 const now = ctx.currentTime;
 
                 if (type === 'new_order') {
-                    // 🔊 新訂單：高亢雙頻和弦 (連續三段雙音報單聲，音量放大)
                     [0, 0.25, 0.5].forEach((offset, idx) => {
                         const osc1 = ctx.createOscillator();
                         const osc2 = ctx.createOscillator();
                         const gain = ctx.createGain();
-
                         osc1.connect(gain);
                         osc2.connect(gain);
                         gain.connect(ctx.destination);
-
-                        const freq = idx === 2 ? 1046.50 : (idx === 1 ? 880 : 659.25); // E5, A5, C6
+                        const freq = idx === 2 ? 1046.50 : (idx === 1 ? 880 : 659.25);
                         osc1.type = 'triangle';
                         osc1.frequency.setValueAtTime(freq, now + offset);
-
                         osc2.type = 'sine';
                         osc2.frequency.setValueAtTime(freq * 1.5, now + offset);
-
                         gain.gain.setValueAtTime(0.5, now + offset);
                         gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.35);
-
                         osc1.start(now + offset);
                         osc2.start(now + offset);
                         osc1.stop(now + offset + 0.35);
                         osc2.stop(now + offset + 0.35);
                     });
                 } else if (type === 'accept') {
-                    // 🔊 接單：上升動感和弦 (厚實清脆的連續上升音)
                     [0, 0.15, 0.3].forEach((offset, idx) => {
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
                         osc.connect(gain);
                         gain.connect(ctx.destination);
-
-                        const freqs = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+                        const freqs = [440, 554.37, 659.25, 880];
                         osc.type = 'sine';
                         osc.frequency.setValueAtTime(freqs[idx], now + offset);
-
                         gain.gain.setValueAtTime(0.5, now + offset);
                         gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.4);
-
                         osc.start(now + offset);
                         osc.stop(now + offset + 0.4);
                     });
                 } else if (type === 'done') {
-                    // 🔊 完成：三音階完美的清脆響亮和弦 (長音，宏亮)
                     [0, 0.2, 0.4].forEach((offset, idx) => {
                         const osc1 = ctx.createOscillator();
                         const osc2 = ctx.createOscillator();
                         const gain = ctx.createGain();
-
                         osc1.connect(gain);
                         osc2.connect(gain);
                         gain.connect(ctx.destination);
-
-                        const baseFreqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+                        const baseFreqs = [523.25, 659.25, 783.99];
                         osc1.type = 'sine';
                         osc1.frequency.setValueAtTime(baseFreqs[idx], now + offset);
-
                         osc2.type = 'triangle';
                         osc2.frequency.setValueAtTime(baseFreqs[idx] * 2, now + offset);
-
                         gain.gain.setValueAtTime(0.5, now + offset);
                         gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.6);
-
                         osc1.start(now + offset);
                         osc2.start(now + offset);
                         osc1.stop(now + offset + 0.6);
                         osc2.stop(now + offset + 0.6);
                     });
                 } else if (type === 'reject') {
-                    // 🔊 拒單：強烈明顯的低音鋸齒波雙響警示音 (低沈震撼)
                     [0, 0.3].forEach((offset, idx) => {
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
                         osc.connect(gain);
                         gain.connect(ctx.destination);
-
                         osc.type = 'sawtooth';
-                        osc.frequency.setValueAtTime(idx === 0 ? 220 : 164.81, now + offset); // A3降到E3
+                        osc.frequency.setValueAtTime(idx === 0 ? 220 : 164.81, now + offset);
                         osc.frequency.exponentialRampToValueAtTime(110, now + offset + 0.3);
-
                         gain.gain.setValueAtTime(0.6, now + offset);
                         gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.45);
-
                         osc.start(now + offset);
                         osc.stop(now + offset + 0.45);
                     });
@@ -509,7 +472,6 @@
                 console.error("音效播放失敗:", e);
             }
         }
-        // ====================================================================
 
         function isUserAdminMode() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -765,7 +727,7 @@
         let isEditMode = false;
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
-        let activeCashOrderIndex = null; // 用於現金找零暫存
+        let activeCashOrderIndex = null; // 用於記錄正在進行現金找零的訂單索引
 
         function setDefaultPickupTime() {
             const now = new Date();
@@ -1535,7 +1497,6 @@
             refreshActiveGrid();
         }
 
-        // 生成當日流水號 #001, #002...
         function generateDailyOrderNo(bizDateStr) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             let todayOrders = history.filter(o => o.date === bizDateStr);
@@ -1591,6 +1552,7 @@
 
         function closeQuickAcceptModal() {
             document.getElementById('quickAcceptModal').style.display = 'none';
+            activeCashOrderIndex = null;
         }
 
         function renderQuickAcceptList() {
@@ -1628,16 +1590,43 @@
                 let flavorStr = (ord.prefs && (ord.prefs.flavor || ord.prefs.spice || ord.prefs.salt)) ? `${ord.prefs.flavor || ''} ${ord.prefs.spice || ''} ${ord.prefs.salt || ''}`.trim() : '無';
 
                 let actionButtonsHtml = '';
+                let cashBoxHtml = '';
+
                 if (!ord.status || ord.status === "等待接單") {
                     actionButtonsHtml = `
                         <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
                         <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
                     `;
                 } else if (ord.status === "已接單") {
-                    actionButtonsHtml = `
-                        <button class="accept-btn-done" style="flex:2;" onclick="clickFinishOrder(${ord.originalIndex})">✔️ 完成 (結帳/找零)</button>
-                        <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
-                    `;
+                    if (ord.payment === '現金') {
+                        actionButtonsHtml = `
+                            <button class="accept-btn-done" style="flex:2;" onclick="clickFinishOrder(${ord.originalIndex})">✔️ 完成 (結帳/找零)</button>
+                            <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
+                        `;
+
+                        // 如果正在對這張單進行現金找零，下方直接展開計算框
+                        if (activeCashOrderIndex === ord.originalIndex) {
+                            cashBoxHtml = `
+                                <div class="cash-box-inline">
+                                    <div style="font-size:15px; margin-bottom:8px; font-weight:bold; color:var(--primary-gold);">💵 現金收銀與找零計算</div>
+                                    <div style="font-size:14px; margin-bottom:8px;">應收總額：<strong style="color:#fff1cd; font-size:17px;">$${ord.total}</strong></div>
+                                    <div class="input-row" style="margin-bottom:8px;">
+                                        <span class="input-label" style="min-width:70px; font-size:13px;">實收現金:</span>
+                                        <input type="number" id="cashGivenInput_${ord.originalIndex}" class="input-field" placeholder="請輸入實收金額" oninput="calculateInlineChange(${ord.originalIndex})">
+                                    </div>
+                                    <div style="font-size:15px; font-weight:bold; color:#81c784; margin-bottom:10px; background:#1a110a; padding:8px; border-radius:4px; border:1px solid var(--border-gold);" id="changeResultText_${ord.originalIndex}">
+                                        應找零錢：$0
+                                    </div>
+                                    <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmInlineCashAndFinish(${ord.originalIndex})">確認完成找零 (進入待取餐)</button>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        actionButtonsHtml = `
+                            <button class="accept-btn-done" style="flex:2;" onclick="quickUpdateStatus(${ord.originalIndex}, '待顧客取餐'); playSound('done');">✔️ 完成 (進入待取餐)</button>
+                            <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
+                        `;
+                    }
                 } else if (ord.status === "待顧客取餐") {
                     actionButtonsHtml = `
                         <button class="accept-btn-accept" style="flex:1; background:linear-gradient(135deg, #1565c0, #0d47a1);" onclick="clickPickupDone(${ord.originalIndex})">🔵 已取餐 (上傳雲端)</button>
@@ -1664,6 +1653,7 @@
                     <div class="accept-btn-group">
                         ${actionButtonsHtml}
                     </div>
+                    ${cashBoxHtml}
                 `;
                 container.appendChild(card);
             });
@@ -1676,72 +1666,61 @@
 
             if (ord.payment === '現金') {
                 activeCashOrderIndex = originalIndex;
-                document.getElementById('cashModalTotal').innerText = `$${ord.total}`;
-                document.getElementById('cashGivenInput').value = '';
-                document.getElementById('changeResultText').innerText = `應找零錢：$0`;
-                document.getElementById('cashChangeModal').style.display = 'flex';
-                document.getElementById('cashGivenInput').focus();
+                renderQuickAcceptList();
+                setTimeout(() => {
+                    const inputElem = document.getElementById(`cashGivenInput_${originalIndex}`);
+                    if (inputElem) inputElem.focus();
+                }, 100);
             } else {
-                // 非現金直接進入待取餐
                 quickUpdateStatus(originalIndex, '待顧客取餐');
                 playSound('done');
             }
         }
 
-        function calculateChange() {
+        function calculateInlineChange(originalIndex) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            let ord = history[activeCashOrderIndex];
+            let ord = history[originalIndex];
             if (!ord) return;
 
-            let given = parseFloat(document.getElementById('cashGivenInput').value) || 0;
+            let givenInput = document.getElementById(`cashGivenInput_${originalIndex}`);
+            let changeResultElem = document.getElementById(`changeResultText_${originalIndex}`);
+            if (!givenInput || !changeResultElem) return;
+
+            let given = parseFloat(givenInput.value) || 0;
             let change = given - ord.total;
-            let changeTextElem = document.getElementById('changeResultText');
             
             if (change >= 0) {
-                changeTextElem.innerText = `應找零錢：$${change}`;
-                changeTextElem.style.color = '#81c784';
+                changeResultElem.innerText = `應找零錢：$${change}`;
+                changeResultElem.style.color = '#81c784';
             } else {
-                changeTextElem.innerText = `金額不足！還差：$${Math.abs(change)}`;
-                changeTextElem.style.color = '#ff9999';
+                changeResultElem.innerText = `金額不足！還差：$${Math.abs(change)}`;
+                changeResultElem.style.color = '#ff9999';
             }
         }
 
-        function confirmCashAndFinish() {
+        function confirmInlineCashAndFinish(originalIndex) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            let ord = history[activeCashOrderIndex];
+            let ord = history[originalIndex];
             if (!ord) return;
 
-            let given = parseFloat(document.getElementById('cashGivenInput').value) || 0;
+            let givenInput = document.getElementById(`cashGivenInput_${originalIndex}`);
+            let given = givenInput ? (parseFloat(givenInput.value) || 0) : 0;
+
             if (given < ord.total) {
                 alert("實收現金小於應收總額，請確認金額！");
                 return;
             }
 
-            closeCashChangeModal();
-            quickUpdateStatus(activeCashOrderIndex, '待顧客取餐');
+            activeCashOrderIndex = null;
+            quickUpdateStatus(originalIndex, '待顧客取餐');
             playSound('done');
             alert(`現金結帳成功！實收：$${given}，應找零：$${given - ord.total}`);
-        }
-
-        function closeCashChangeModal() {
-            document.getElementById('cashChangeModal').style.display = 'none';
-            activeCashOrderIndex = null;
         }
 
         function clickPickupDone(originalIndex) {
             quickUpdateStatus(originalIndex, '已完成');
             playSound('done');
             alert("已確認顧客取餐，訂單已正式歸檔並同步上傳至雲端！");
-        }
-
-        function confirmRejectOrder(originalIndex) {
-            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            if (history[originalIndex]) {
-                let custName = history[originalIndex].customer;
-                if (confirm(`⚠️ 確定要將【${custName}】的訂單拒絕嗎？拒絕後將取消並從歷史與雲端移除。`)) {
-                    quickUpdateStatus(originalIndex, '已被店家拒絕');
-                }
-            }
         }
 
         function quickChangeItemQty(orderIndex, itemIdx, delta) {
@@ -1858,7 +1837,6 @@
             const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
             const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
 
-            // 跨日營業邏輯 (00:00 - 02:00 歸類在前一日)
             let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
             if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
                 bizDateObj.setDate(bizDateObj.getDate() - 1);
