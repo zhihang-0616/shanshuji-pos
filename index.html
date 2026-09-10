@@ -302,7 +302,7 @@
            <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
            <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
-                <button class="btn btn-submit" onclick="openShiftReportModal()">📊 當日結算 (現金點交)</button>
+                <button class="btn btn-submit" onclick="openShiftReportModal()">📊 當日結算</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
@@ -313,7 +313,7 @@
    <div class="modal" id="shiftReportModal">
        <div class="modal-content" style="width:540px; max-width:95vw;">
            <button class="modal-close-x" onclick="closeShiftReportModal()">✕</button>
-           <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 當日結算與現金點交</h3>
+           <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 當日結算</h3>
            <div id="shiftReportContent" style="font-size:14px; line-height:1.6;"></div>
        </div>
    </div>
@@ -2326,18 +2326,20 @@
        function clearOrderSearchFilters() {
            document.getElementById('searchDateSingle').value = '';
            document.getElementById('searchKeywordInput').value = '';
-           renderOrderMgmtTable(localOrderHistory);
+           renderOrderMgmtTable(localOrderHistory, false);
        }
 
        function renderOrderMgmtTable(ordersToRender, isFiltered = false) {
            const tbody = document.getElementById('mgmtTableBody');
            tbody.innerHTML = '';
-           document.getElementById('mgmtOrderCount').innerText = isFiltered ? 
-               `篩選結果：${ordersToRender.length} / ${localOrderHistory.length} 筆` : 
-               `總訂單筆數：${localOrderHistory.length} 筆`;
+           
+           // 修復篩選筆數顯示：若有篩選，顯示「符合筆數 / 總歷史筆數」；若無篩選（顯示全部），則兩者相同
+           const totalCount = localOrderHistory.length;
+           const displayCount = isFiltered ? ordersToRender.length : totalCount;
+           document.getElementById('mgmtOrderCount').innerText = `篩選結果：${displayCount} / ${totalCount} 筆`;
 
            if (ordersToRender.length === 0) {
-               tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合指定日期的歷史訂單紀錄</td></tr>`;
+               tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合指定條件的歷史訂單紀錄</td></tr>`;
                return;
            }
 
