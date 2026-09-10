@@ -229,8 +229,7 @@
            </div>
            <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
-                <!-- 強制啟用 24 小時制輸入屬性 -->
-                <input type="datetime-local" id="pickupTime" class="input-field" step="60" onchange="updateWeekdayBadge()">
+                <input type="datetime-local" id="pickupTime" class="input-field" onchange="updateWeekdayBadge()">
                 <span id="weekdayBadge" class="weekday-badge">星期--</span>
            </div>
            <div class="input-row">
@@ -591,7 +590,7 @@
 
                    let hStr = String(actualH).padStart(2, '0');
                    let mStr = String(m).padStart(2, '0');
-                   let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
+                   let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`; // 24小時制格式
                    
                    let option = document.createElement('option');
                    let targetDate = new Date();
@@ -623,7 +622,6 @@
                    return;
                }
                localStorage.setItem('pos_store_resume_time', resumeTimestamp);
-               let resumeDateStr = new Date(parseInt(resumeTimestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                executeChangeStoreStatus(pendingTargetStatus);
            }
            closeStatusTimeModal();
@@ -869,6 +867,7 @@
        function setDefaultPickupTime() {
            const now = new Date();
            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+           // 強制確保 datetime-local 帶出正確 24 小時制格式
            document.getElementById('pickupTime').value = now.toISOString().slice(0,16);
            updateWeekdayBadge();
        }
@@ -1092,8 +1091,8 @@
                status: "已結算",
                date: todayStr,
                weekDay: weekDaysArr[todayObj.getDay()],
-               time: "23:59",
-               fullTime: `${todayStr} 23:59`,
+               time: "23:59", // 24小時制
+               fullTime: `${todayStr} 23:59`, // 24小時制
                customer: "【當日總結報表】",
                phone: "-",
                pickupTime: "-",
@@ -2230,13 +2229,11 @@
            const pickupDateObj = new Date(pickupTimeRaw);
            const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
            
-           // 將取餐時間字串格式化為 24 小時制 (例如 2026-09-10 23:30)
-           const pYear = pickupDateObj.getFullYear();
-           const pMonth = String(pickupDateObj.getMonth() + 1).padStart(2, '0');
-           const pDay = String(pickupDateObj.getDate()).padStart(2, '0');
-           const pHour = String(pickupDateObj.getHours()).padStart(2, '0');
-           const pMin = String(pickupDateObj.getMinutes()).padStart(2, '0');
-           const formattedPickupTime = `${pYear}-${pMonth}-${pDay} ${pHour}:${pMin} (${pickupWeekDayStr})`;
+           // 強制將取餐時間格式化為 24 小時制 (YYYY-MM-DD HH:MM)
+           let formattedPickupTime = pickupTimeRaw.replace('T', ' ');
+           if (pickupWeekDayStr) {
+               formattedPickupTime += ` (${pickupWeekDayStr})`;
+           }
 
            let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
            if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
@@ -2244,7 +2241,12 @@
            }
            
            let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
-           let timeStr = `${pHour}:${pMin}`;
+           
+           // 強制 24 小時制時間字串 (HH:MM)
+           let hours24 = String(pickupDateObj.getHours()).padStart(2, '0');
+           let minutes24 = String(pickupDateObj.getMinutes()).padStart(2, '0');
+           let timeStr = `${hours24}:${minutes24}`;
+           
            let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
            let subtotal = 0;
@@ -2278,11 +2280,11 @@
                status: orderStatus,
                date: dateStr,
                weekDay: weekDayStr,
-               time: timeStr,
+               time: timeStr, // 24小時制時間
                fullTime: `${dateStr} ${timeStr}`,
                customer: custName,
                phone: custPhone,
-               pickupTime: formattedPickupTime,
+               pickupTime: formattedPickupTime, // 24小時制取餐時間
                custNotes: finalCustNotes,
                originalTotal: subtotal,
                total: subtotal,
@@ -2502,9 +2504,12 @@
                    flavorFullStr = fParts.join(" ");
                }
 
+               // 確保歷史管理表格中的時間欄位為 24 小時制
+               let displayTime = ord.time || "";
+
                const tr = document.createElement('tr');
                tr.innerHTML = `
-                   <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="autoSaveHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
+                   <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="autoSaveHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> <input type="text" class="edit-input" style="max-width:60px; display:inline-block;" value="${displayTime}" onchange="autoSaveHistoryItem(${realIndex}, 'time', this.value)"></td>
                    <td><input type="text" class="edit-input" value="${ord.customer}" onchange="autoSaveHistoryItem(${realIndex}, 'customer', this.value)"></td>
                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="autoSaveHistoryItem(${realIndex}, 'phone', this.value)"></td>
                    <td>
