@@ -1626,7 +1626,6 @@
                 subtotal += 5;
             }
 
-            // 將配備與顧客備註全部合併整理進 custNotes 欄位，確保雲端與明細都能完整記錄
             let allNotesParts = [];
             if (orderPrefs.extras.length > 0) {
                 allNotesParts.push(orderPrefs.extras.join(', '));
@@ -1858,7 +1857,6 @@
                 if (ord.deductAmount === undefined) ord.deduraAmount = 0;
                 calculateOrderFinalTotal(ord);
 
-                // 組合完整的口味字串 (包含口味、辣度、鹹度)
                 let flavorFullStr = "";
                 if (ord.prefs) {
                     let fParts = [];
@@ -1932,6 +1930,12 @@
         }
 
         function closeItemEditModal() {
+            // 離開品項修改時自動重新計算總額並存入 localStorage
+            if (currentEditingOrderIndex !== null && localOrderHistory[currentEditingOrderIndex]) {
+                calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
+                filterOrderMgmtTable();
+            }
             document.getElementById('itemEditModal').style.display = 'none';
             openQuickAcceptModal();
         }
@@ -1959,21 +1963,19 @@
         }
 
         function updateItemDetailQuick(orderIdx, itemIdx, field, value) {
-            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            if (history[orderIdx] && history[orderIdx].items[itemIdx]) {
-                history[orderIdx].items[itemIdx][field] = value;
-                calculateOrderFinalTotal(history[orderIdx]);
-                localStorage.setItem('pos_order_history', JSON.stringify(history));
+            if (localOrderHistory[orderIdx] && localOrderHistory[orderIdx].items[itemIdx]) {
+                localOrderHistory[orderIdx].items[itemIdx][field] = value;
+                calculateOrderFinalTotal(localOrderHistory[orderIdx]);
+                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
                 renderItemEditList();
             }
         }
 
         function removeItemFromEditingOrderQuick(orderIdx, itemIdx) {
-            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            if (history[orderIdx] && history[orderIdx].items[itemIdx]) {
-                history[orderIdx].items.splice(itemIdx, 1);
-                calculateOrderFinalTotal(history[orderIdx]);
-                localStorage.setItem('pos_order_history', JSON.stringify(history));
+            if (localOrderHistory[orderIdx] && localOrderHistory[orderIdx].items[itemIdx]) {
+                localOrderHistory[orderIdx].items.splice(itemIdx, 1);
+                calculateOrderFinalTotal(localOrderHistory[orderIdx]);
+                localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
                 renderItemEditList();
             }
         }
@@ -2007,16 +2009,15 @@
             const opt = flatMenuOptions[selectedIdx];
 
             if (opt) {
-                let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-                if (history[currentEditingOrderIndex]) {
-                    history[currentEditingOrderIndex].items.push({
+                if (localOrderHistory[currentEditingOrderIndex]) {
+                    localOrderHistory[currentEditingOrderIndex].items.push({
                         name: opt.name,
                         qty: 1,
                         price: opt.price,
                         subItems: null
                     });
-                    calculateOrderFinalTotal(history[currentEditingOrderIndex]);
-                    localStorage.setItem('pos_order_history', JSON.stringify(history));
+                    calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
+                    localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
                     renderItemEditList();
                 }
                 closeMenuSelectModal();
