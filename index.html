@@ -303,8 +303,6 @@
            <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
                 <button class="btn btn-submit" onclick="openShiftReportModal()">📊 當日結算</button>
-                <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
-                <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
            </div>
        </div>
@@ -805,16 +803,6 @@
            }).catch(err => {
                console.error("雲端同步失敗:", err);
            });
-       }
-
-       function exportDailyReportFromAdmin() {
-           closeAdminMenu();
-           exportDailyReport();
-       }
-
-       function exportMonthlyReportFromAdmin() {
-           closeAdminMenu();
-           exportMonthlyReport();
        }
 
        function openShiftReportModal() {
