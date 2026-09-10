@@ -311,10 +311,10 @@
     </div>
 
     <div class="modal" id="shiftReportModal">
-        <div class="modal-content" style="width:480px; max-width:95vw;">
+        <div class="modal-content" style="width:540px; max-width:95vw;">
             <button class="modal-close-x" onclick="closeShiftReportModal()">✕</button>
-            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 當日/當班現金點交結算</h3>
-            <div id="shiftReportContent" style="font-size:14px; line-height:1.8;"></div>
+            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 當日結算與現金點交</h3>
+            <div id="shiftReportContent" style="font-size:14px; line-height:1.6; max-height:70vh; overflow-y:auto;"></div>
         </div>
     </div>
 
@@ -736,7 +736,13 @@
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
         let activeCashOrderIndex = null;
-        let shiftModalData = { principal: 0, reserve: 0 };
+        
+        // 結算點交明細數據
+        let shiftDenomData = {
+            principal: { 1000: 0, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 },
+            reserve: { 1000: 0, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 },
+            actualCash: ""
+        };
 
         function setDefaultPickupTime() {
             const now = new Date();
@@ -758,7 +764,6 @@
             badge.innerText = "星期--";
         }
 
-        // ================= ☁️ 雲端初始化同步 =================
         async function initCloudSync() {
             if (!GAS_WEB_APP_URL) return;
             try {
@@ -767,10 +772,9 @@
                 if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
                     localStorage.setItem('pos_order_history', JSON.stringify(cloudOrders));
                     updatePendingCountHeader();
-                    console.log("雲端資料同步成功，已更新本地快取");
                 }
             } catch (e) {
-                console.log("網路離線或同步失敗，使用本地端快取資料");
+                console.log("網路離線或同步失敗，使用本地端快取");
             }
         }
 
@@ -814,7 +818,7 @@
             exportMonthlyReport();
         }
 
-        // ================= 📊 當班現金點交結算 (Z-Report) =================
+        // ================= 📊 當日結算與現金點交 (細項面額) =================
         function openShiftReportModal() {
             closeAdminMenu();
             renderShiftReportModalContent();
@@ -829,73 +833,102 @@
             const content = document.getElementById('shiftReportContent');
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
 
-            // 計算系統數據
             let cashTotal = history.filter(o => o.payment === '現金').reduce((sum, o) => sum + o.total, 0);
             let mobileTotal = history.filter(o => o.payment === '轉帳' || o.payment === 'Linepay' || o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
             let allTotal = cashTotal + mobileTotal;
 
-            let diff = shiftModalData.actualCash ? (shiftModalData.actualCash - (shiftModalData.principal + shiftModalData.reserve + cashTotal)) : 0;
+            // 計算本金總額
+            let principalSum = (shiftDenomData.principal[1000] * 1000) + (shiftDenomData.principal[500] * 500) + (shiftDenomData.principal[100] * 100) + (shiftDenomData.principal[50] * 50) + (shiftDenomData.principal[10] * 10) + (shiftDenomData.principal[5] * 5) + (shiftDenomData.principal[1] * 1);
+            // 計算備用金總額
+            let reserveSum = (shiftDenomData.reserve[1000] * 1000) + (shiftDenomData.reserve[500] * 500) + (shiftDenomData.reserve[100] * 100) + (shiftDenomData.reserve[50] * 50) + (shiftDenomData.reserve[10] * 10) + (shiftDenomData.reserve[5] * 5) + (shiftDenomData.reserve[1] * 1);
+
+            let actualCashNum = parseFloat(shiftDenomData.actualCash) || 0;
+            let diff = actualCashNum - (principalSum + reserveSum + cashTotal);
+
+            let makeDenomRows = (type) => {
+                const denoms = [1000, 500, 100, 50, 10, 5, 1];
+                let html = '<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-top:6px; margin-bottom:8px;">';
+                denoms.forEach(d => {
+                    let val = shiftDenomData[type][d] || '';
+                    html += `
+                        <div style="background:#150d07; border:1px solid var(--border-gold); padding:4px; border-radius:4px; text-align:center;">
+                            <div style="font-size:11px; color:var(--primary-gold);">${d}元</div>
+                            <input type="number" class="edit-input" style="font-size:13px; padding:2px;" value="${val}" oninput="updateDenomValue('${type}', ${d}, this.value)">
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                return html;
+            };
 
             content.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:12px;">
-                    <div class="input-row">
-                        <span class="input-label" style="min-width:130px;">初始本金:</span>
-                        <input type="number" id="shiftPrincipal" class="input-field" value="${shiftModalData.principal}" oninput="updateShiftCalc()">
+                    <div>
+                        <div style="font-weight:bold; color:var(--primary-gold);">初始本金細項：</div>
+                        ${makeDenomRows('principal')}
+                        <div style="text-align:right; font-weight:bold; color:#fff1cd;">本金總額：$${principalSum}</div>
                     </div>
-                    <div class="input-row">
-                        <span class="input-label" style="min-width:130px;">備用金:</span>
-                        <input type="number" id="shiftReserve" class="input-field" value="${shiftModalData.reserve}" oninput="updateShiftCalc()">
+
+                    <div>
+                        <div style="font-weight:bold; color:var(--primary-gold);">備用金細項：</div>
+                        ${makeDenomRows('reserve')}
+                        <div style="text-align:right; font-weight:bold; color:#fff1cd;">備用金總額：$${reserveSum}</div>
                     </div>
-                    <div class="input-row">
+
+                    <div class="input-row" style="margin-top:4px;">
                         <span class="input-label" style="min-width:130px;">實收現金總額:</span>
                         <div style="flex:1; display:flex; gap:8px; align-items:center;">
-                            <input type="number" id="shiftActualCash" class="input-field" placeholder="請輸入實點抽屜現額" value="${shiftModalData.actualCash !== undefined ? shiftModalData.actualCash : ''}" oninput="updateShiftCalc()">
+                            <input type="number" id="shiftActualCash" class="input-field" placeholder="請輸入點交現額" value="${shiftDenomData.actualCash}" oninput="updateShiftCalcOnly()">
                             <span style="font-size:13px; color:var(--primary-gold); white-space:nowrap;">(系統計算: $${cashTotal})</span>
                         </div>
                     </div>
+
                     <div class="input-row">
                         <span class="input-label" style="min-width:130px;">行動支付總額:</span>
                         <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:#f5e4b3; font-weight:bold;">
                             $${mobileTotal} <span style="font-size:12px; color:#a89269; font-weight:normal;">(Linepay+轉帳+全支付)</span>
                         </div>
                     </div>
+
                     <div class="input-row">
                         <span class="input-label" style="min-width:130px;">總營業額:</span>
                         <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:var(--primary-gold); font-weight:bold; font-size:16px;">
                             $${allTotal}
                         </div>
                     </div>
-                    <div style="background:#140f0a; border:1px solid var(--border-gold); padding:12px; border-radius:6px; text-align:center; margin-top:5px;">
-                        <div style="font-size:14px; margin-bottom:4px; color:#a89269;">現金抽屜點交盈虧</div>
-                        <div style="font-size:22px; font-weight:bold; color:${(shiftModalData.diff || 0) >= 0 ? '#81c784' : '#ff9999'};" id="shiftDiffDisplay">
-                            $${shiftModalData.diff !== undefined ? shiftModalData.diff : 0}
+
+                    <div style="background:#140f0a; border:1px solid var(--border-gold); padding:12px; border-radius:6px; text-align:center;">
+                        <div style="font-size:14px; margin-bottom:4px; color:#a89269;">今日盈虧 (實點現金 - (本金+備用金+系統現金))</div>
+                        <div style="font-size:22px; font-weight:bold; color:${diff >= 0 ? '#81c784' : '#ff9999'};" id="shiftDiffDisplay">
+                            $${diff}
                         </div>
                     </div>
+
                     <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="closeShiftReportModal()">確認結算</button>
                 </div>
             `;
         }
 
-        function updateShiftCalc() {
-            shiftModalData.principal = parseFloat(document.getElementById('shiftPrincipal').value) || 0;
-            shiftModalData.reserve = parseFloat(document.getElementById('shiftReserve').value) || 0;
-            let actualCash = parseFloat(document.getElementById('shiftActualCash').value);
-            shiftModalData.actualCash = isNaN(actualCash) ? undefined : actualCash;
+        function updateDenomValue(type, denom, val) {
+            shiftDenomData[type][denom] = parseFloat(val) || 0;
+            renderShiftReportModalContent();
+        }
 
+        function updateShiftCalcOnly() {
+            shiftDenomData.actualCash = document.getElementById('shiftActualCash').value;
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             let cashTotal = history.filter(o => o.payment === '現金').reduce((sum, o) => sum + o.total, 0);
 
-            if (shiftModalData.actualCash !== undefined) {
-                // 盈虧 = 實點現額 - (初始本金 + 備用金 + 系統現金總額)
-                shiftModalData.diff = shiftModalData.actualCash - (shiftModalData.principal + shiftModalData.reserve + cashTotal);
-            } else {
-                shiftModalData.diff = 0;
-            }
+            let principalSum = (shiftDenomData.principal[1000] * 1000) + (shiftDenomData.principal[500] * 500) + (shiftDenomData.principal[100] * 100) + (shiftDenomData.principal[50] * 50) + (shiftDenomData.principal[10] * 10) + (shiftDenomData.principal[5] * 5) + (shiftDenomData.principal[1] * 1);
+            let reserveSum = (shiftDenomData.reserve[1000] * 1000) + (shiftDenomData.reserve[500] * 500) + (shiftDenomData.reserve[100] * 100) + (shiftDenomData.reserve[50] * 50) + (shiftDenomData.reserve[10] * 10) + (shiftDenomData.reserve[5] * 5) + (shiftDenomData.reserve[1] * 1);
+
+            let actualCashNum = parseFloat(shiftDenomData.actualCash) || 0;
+            let diff = actualCashNum - (principalSum + reserveSum + cashTotal);
 
             const diffElem = document.getElementById('shiftDiffDisplay');
             if (diffElem) {
-                diffElem.innerText = `$${shiftModalData.diff}`;
-                diffElem.style.color = shiftModalData.diff >= 0 ? '#81c784' : '#ff9999';
+                diffElem.innerText = `$${diff}`;
+                diffElem.style.color = diff >= 0 ? '#81c784' : '#ff9999';
             }
         }
 
@@ -1141,7 +1174,7 @@
             refreshMenuTabs();
             setDefaultPickupTime();
             updateCartUI();
-            await initCloudSync(); // 開機自動從雲端同步
+            await initCloudSync();
         }
 
         function refreshMenuTabs() {
@@ -1665,19 +1698,17 @@
             activeCashOrderIndex = null;
         }
 
-        // ================= 👤 會員標籤與熟客消費累積計算 =================
+        // ================= 👤 會員標籤與熟客消費累積 =================
         function getCustomerCRMInfo(phone, currentOrderId) {
             if (!phone || phone === "0900000000") return null;
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            // 找出該電話過往的所有訂單 (排除當前訂單)
             const pastOrders = history.filter(o => o.phone === phone && o.id !== currentOrderId);
-            const visitCount = pastOrders.length + 1; // 加上當次就是第幾次
+            const visitCount = pastOrders.length + 1;
 
             if (pastOrders.length === 0) {
                 return { visitCount: 1, lastPref: "首次消費新客" };
             }
 
-            // 抓取最近一次的消費喜好
             let lastOrd = pastOrders[pastOrders.length - 1];
             let flavorStr = "";
             if (lastOrd.prefs) {
@@ -1709,7 +1740,6 @@
                 const card = document.createElement('div');
                 card.className = 'quick-accept-card';
                 
-                // 計算CRM熟客資訊
                 const crmInfo = getCustomerCRMInfo(ord.phone, ord.id);
                 let crmBadgeHtml = '';
                 if (crmInfo) {
@@ -1863,13 +1893,17 @@
             activeCashOrderIndex = null;
             quickUpdateStatus(originalIndex, '待顧客取餐');
             playSound('done');
-            alert(`現金結帳成功！實收：$${given}，應找零：$${given - ord.total}`);
         }
 
         function clickPickupDone(originalIndex) {
             quickUpdateStatus(originalIndex, '已完成');
             playSound('done');
-            alert("已確認顧客取餐，訂單已正式歸檔並同步上傳至雲端！");
+        }
+
+        function confirmRejectOrder(originalIndex) {
+            if (confirm("確定要拒絕/取消這筆訂單嗎？")) {
+                quickUpdateStatus(originalIndex, '已被店家拒絕');
+            }
         }
 
         function quickChangeItemQty(orderIndex, itemIdx, delta) {
@@ -1906,7 +1940,6 @@
                     renderQuickAcceptList();
                     syncOrderToCloud(rejectedOrder, "delete");
                     playSound('reject');
-                    alert("已成功拒絕訂單，該訂單已從歷史紀錄與雲端試算表中完全移除。");
                     return;
                 }
 
@@ -1917,7 +1950,6 @@
                     updatePendingCountHeader();
                     renderQuickAcceptList();
                     playSound('accept');
-                    alert("已成功接單！餐點製作中。");
                     return;
                 }
 
