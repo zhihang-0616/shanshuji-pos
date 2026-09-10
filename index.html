@@ -295,6 +295,23 @@
         <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
     </div>
 
+    <!-- 現金找零計算視窗 -->
+    <div class="modal" id="cashChangeModal">
+        <div class="modal-content" style="width:360px; text-align:center;">
+            <button class="modal-close-x" onclick="closeCashChangeModal()">✕</button>
+            <h3 style="color:var(--primary-gold); margin-bottom:14px;">💵 現金收銀與找零計算</h3>
+            <div style="font-size:16px; margin-bottom:10px;">應收總額：<strong id="cashModalTotal" style="color:#fff1cd; font-size:20px;">$0</strong></div>
+            <div class="input-row" style="margin-bottom:14px;">
+                <span class="input-label" style="min-width:70px;">實收現金:</span>
+                <input type="number" id="cashGivenInput" class="input-field" placeholder="請輸入實收金額" oninput="calculateChange()">
+            </div>
+            <div style="font-size:18px; font-weight:bold; color:#81c784; margin-bottom:18px; background:#140f0a; padding:10px; border-radius:6px; border:1px solid var(--border-gold);" id="changeResultText">
+                應找零錢：$0
+            </div>
+            <button class="btn btn-submit" style="width:100%;" onclick="confirmCashAndFinish()">確認完成找零 (進入待取餐)</button>
+        </div>
+    </div>
+
     <div class="modal" id="adminMenuModal">
         <div class="modal-content" style="width:340px; text-align:center;">
             <button class="modal-close-x" onclick="closeAdminMenu()">✕</button>
@@ -347,7 +364,7 @@
                 <table class="order-mgmt-table" id="mgmtTable">
                     <thead>
                         <tr>
-                            <th>日期 / 時間</th>
+                            <th>單號 / 日期</th>
                             <th>訂購人</th>
                             <th>電話</th>
                             <th style="width:120px;">折扣/折讓調整</th>
@@ -748,6 +765,7 @@
         let isEditMode = false;
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
+        let activeCashOrderIndex = null; // 用於現金找零暫存
 
         function setDefaultPickupTime() {
             const now = new Date();
@@ -966,7 +984,7 @@
 
         function updatePendingCountHeader() {
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            const pendingList = history.filter(o => !o.status || o.status === "等待接單" || o.status === "已接單");
+            const pendingList = history.filter(o => !o.status || o.status === "等待接單" || o.status === "已接單" || o.status === "待顧客取餐");
             const btn = document.getElementById('quickAcceptHeaderBtn');
             if (btn) {
                 btn.innerText = `⚡ 接單系統 (${pendingList.length})`;
@@ -1517,6 +1535,14 @@
             refreshActiveGrid();
         }
 
+        // 生成當日流水號 #001, #002...
+        function generateDailyOrderNo(bizDateStr) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let todayOrders = history.filter(o => o.date === bizDateStr);
+            let nextNo = todayOrders.length + 1;
+            return `#${String(nextNo).padStart(3, '0')}`;
+        }
+
         function saveOrderToHistory(orderData) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
@@ -1545,6 +1571,8 @@
                 statusText = "🔴 您的訂單已被店家取消/拒絕";
             } else if (lastOrder.status === "已完成") {
                 statusText = "🔵 餐點已完成 (可前來取餐)";
+            } else if (lastOrder.status === "待顧客取餐") {
+                statusText = "🟡 餐點製作完成，等待顧客取餐";
             } else if (lastOrder.status === "已接單") {
                 statusText = "🟢 店家已接單 (餐點製作中)";
             } else {
@@ -1553,7 +1581,7 @@
 
             let currentItemsStr = lastOrder.items.map(i => `${i.name}x${i.qty}`).join('、');
 
-            alert(`訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n目前總額: $${lastOrder.total}\n目前品項: ${currentItemsStr}\n\n目前狀態：${statusText}`);
+            alert(`訂單編號: ${lastOrder.orderNo}\n訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n目前總額: $${lastOrder.total}\n目前品項: ${currentItemsStr}\n\n目前狀態：${statusText}`);
         }
 
         function openQuickAcceptModal() {
@@ -1570,7 +1598,7 @@
             container.innerHTML = '';
 
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            const pendingOrders = history.map((ord, idx) => ({ ...ord, originalIndex: idx })).filter(o => !o.status || o.status === "等待接單" || o.status === "已接單");
+            const pendingOrders = history.map((ord, idx) => ({ ...ord, originalIndex: idx })).filter(o => !o.status || o.status === "等待接單" || o.status === "已接單" || o.status === "待顧客取餐");
 
             if (pendingOrders.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">目前沒有等待處理的訂單 🎉</div>';
@@ -1599,17 +1627,34 @@
 
                 let flavorStr = (ord.prefs && (ord.prefs.flavor || ord.prefs.spice || ord.prefs.salt)) ? `${ord.prefs.flavor || ''} ${ord.prefs.spice || ''} ${ord.prefs.salt || ''}`.trim() : '無';
 
+                let actionButtonsHtml = '';
+                if (!ord.status || ord.status === "等待接單") {
+                    actionButtonsHtml = `
+                        <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
+                        <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
+                    `;
+                } else if (ord.status === "已接單") {
+                    actionButtonsHtml = `
+                        <button class="accept-btn-done" style="flex:2;" onclick="clickFinishOrder(${ord.originalIndex})">✔️ 完成 (結帳/找零)</button>
+                        <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
+                    `;
+                } else if (ord.status === "待顧客取餐") {
+                    actionButtonsHtml = `
+                        <button class="accept-btn-accept" style="flex:1; background:linear-gradient(135deg, #1565c0, #0d47a1);" onclick="clickPickupDone(${ord.originalIndex})">🔵 已取餐 (上傳雲端)</button>
+                    `;
+                }
+
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; border-bottom:1px dashed var(--border-gold); padding-bottom:6px; margin-bottom:8px;">
-                        <span>${ord.customer} (${ord.phone})</span>
-                        <span style="color:var(--primary-gold);">$${ord.total}</span>
+                        <span><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong> ${ord.customer} (${ord.phone})</span>
+                        <span style="color:var(--primary-gold);">$${ord.total} (${ord.payment})</span>
                     </div>
                     <div style="font-size:14px; line-height:1.5; margin-bottom:8px;">
                         <div>📅 訂單日期：<strong style="color:#f3e5ab;">${ord.date}</strong></div>
                         <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
                         <div>🧂 調味口味：${flavorStr}</div>
                         <div>📝 顧客備註：${ord.custNotes || '無'}</div>
-                        <div>📌 目前狀態：<strong style="color:${ord.status === '已接單' ? '#81c784' : '#f3e5ab'};">${ord.status || '等待接單'}</strong></div>
+                        <div>📌 目前狀態：<strong style="color:${ord.status === '待顧客取餐' ? '#ff9800' : (ord.status === '已接單' ? '#81c784' : '#f3e5ab')};">${ord.status || '等待接單'}</strong></div>
                         <div style="margin-top:6px; font-weight:bold; color:var(--primary-gold);">🍗 訂購品項與數量調整：</div>
                         <div style="max-height:150px; overflow-y:auto; margin-top:4px;">${itemsHtml}</div>
                     </div>
@@ -1617,13 +1662,76 @@
                         <button class="header-btn" style="flex:1; background:#3d2b1a; font-size:13px;" onclick="openItemEditModal(${ord.originalIndex})">+ 新增品項</button>
                     </div>
                     <div class="accept-btn-group">
-                        <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
-                        <button class="accept-btn-done" onclick="quickUpdateStatus(${ord.originalIndex}, '已完成')">🔵 完成</button>
-                        <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
+                        ${actionButtonsHtml}
                     </div>
                 `;
                 container.appendChild(card);
             });
+        }
+
+        function clickFinishOrder(originalIndex) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let ord = history[originalIndex];
+            if (!ord) return;
+
+            if (ord.payment === '現金') {
+                activeCashOrderIndex = originalIndex;
+                document.getElementById('cashModalTotal').innerText = `$${ord.total}`;
+                document.getElementById('cashGivenInput').value = '';
+                document.getElementById('changeResultText').innerText = `應找零錢：$0`;
+                document.getElementById('cashChangeModal').style.display = 'flex';
+                document.getElementById('cashGivenInput').focus();
+            } else {
+                // 非現金直接進入待取餐
+                quickUpdateStatus(originalIndex, '待顧客取餐');
+                playSound('done');
+            }
+        }
+
+        function calculateChange() {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let ord = history[activeCashOrderIndex];
+            if (!ord) return;
+
+            let given = parseFloat(document.getElementById('cashGivenInput').value) || 0;
+            let change = given - ord.total;
+            let changeTextElem = document.getElementById('changeResultText');
+            
+            if (change >= 0) {
+                changeTextElem.innerText = `應找零錢：$${change}`;
+                changeTextElem.style.color = '#81c784';
+            } else {
+                changeTextElem.innerText = `金額不足！還差：$${Math.abs(change)}`;
+                changeTextElem.style.color = '#ff9999';
+            }
+        }
+
+        function confirmCashAndFinish() {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let ord = history[activeCashOrderIndex];
+            if (!ord) return;
+
+            let given = parseFloat(document.getElementById('cashGivenInput').value) || 0;
+            if (given < ord.total) {
+                alert("實收現金小於應收總額，請確認金額！");
+                return;
+            }
+
+            closeCashChangeModal();
+            quickUpdateStatus(activeCashOrderIndex, '待顧客取餐');
+            playSound('done');
+            alert(`現金結帳成功！實收：$${given}，應找零：$${given - ord.total}`);
+        }
+
+        function closeCashChangeModal() {
+            document.getElementById('cashChangeModal').style.display = 'none';
+            activeCashOrderIndex = null;
+        }
+
+        function clickPickupDone(originalIndex) {
+            quickUpdateStatus(originalIndex, '已完成');
+            playSound('done');
+            alert("已確認顧客取餐，訂單已正式歸檔並同步上傳至雲端！");
         }
 
         function confirmRejectOrder(originalIndex) {
@@ -1668,10 +1776,7 @@
                     localStorage.setItem('pos_order_history', JSON.stringify(history));
                     updatePendingCountHeader();
                     renderQuickAcceptList();
-                    
-                    // 同步發送 delete 動作至雲端，將該筆訂單從雲端試算表中移除
                     syncOrderToCloud(rejectedOrder, "delete");
-
                     playSound('reject');
                     alert("已成功拒絕訂單，該訂單已從歷史紀錄與雲端試算表中完全移除。");
                     return;
@@ -1684,14 +1789,19 @@
                     updatePendingCountHeader();
                     renderQuickAcceptList();
                     playSound('accept');
-                    alert("已成功接單！餐點製作中，完成後再點擊完成上傳雲端。");
+                    alert("已成功接單！餐點製作中。");
+                    return;
+                }
+
+                if (newStatus === "待顧客取餐") {
+                    localStorage.setItem('pos_order_history', JSON.stringify(history));
+                    updatePendingCountHeader();
+                    renderQuickAcceptList();
                     return;
                 }
 
                 if (newStatus === "已完成") {
                     syncOrderToCloud(history[originalIndex], "append");
-                    playSound('done');
-                    alert("訂單已完成 並已成功上傳至雲端");
                 }
 
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
@@ -1748,13 +1858,14 @@
             const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
             const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
 
+            // 跨日營業邏輯 (00:00 - 02:00 歸類在前一日)
             let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
             if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
                 bizDateObj.setDate(bizDateObj.getDate() - 1);
             }
             
             let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
-            let timeStr = `${bizDateObj.getHours().toString().padStart(2,'0')}:${bizDateObj.getMinutes().toString().padStart(2,'0')}`;
+            let timeStr = `${pickupDateObj.getHours().toString().padStart(2,'0')}:${pickupDateObj.getMinutes().toString().padStart(2,'0')}`;
             let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
             let subtotal = 0;
@@ -1775,6 +1886,7 @@
             let finalCustNotes = allNotesParts.join(' / ');
 
             const orderStatus = isBackdate ? "已完成" : "等待接單";
+            const orderNo = generateDailyOrderNo(dateStr);
 
             let finalPrefs = {};
             if (orderPrefs.flavor) finalPrefs.flavor = orderPrefs.flavor;
@@ -1784,6 +1896,7 @@
 
             const orderPayload = {
                 id: Date.now(),
+                orderNo: orderNo,
                 status: orderStatus,
                 date: dateStr,
                 weekDay: weekDayStr,
@@ -1813,7 +1926,7 @@
             if (isBackdate) {
                 syncOrderToCloud(orderPayload, "append");
                 playSound('done');
-                alert(`已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
+                alert(`[${orderNo}] 已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
                 clearCart();
                 return;
             }
@@ -1826,11 +1939,11 @@
 
                 <div class="receipt-header">
                     <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
-                    <p style="font-size:13px; color:#a89269;">點單明細收據</p>
+                    <p style="font-size:13px; color:#a89269;">點單明細收據 (流水號: <strong style="color:var(--primary-gold);">${orderNo}</strong>)</p>
                 </div>
                 
                 <div style="background:#fff3cd; color:#856404; padding:8px; font-size:13px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
-                    💡 您可以隨時點擊查詢訂單接單進度並輸入電話 (${custPhone}) 查看最新接單或變更狀態！
+                    💡 流水號：${orderNo} | 電話查詢：${custPhone}
                 </div>
                 <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custName}</span></div>
                 <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custPhone}</span></div>
@@ -2009,7 +2122,7 @@
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="updateHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
+                    <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="updateHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
                     <td><input type="text" class="edit-input" value="${ord.customer}" onchange="updateHistoryItem(${realIndex}, 'customer', this.value)"></td>
                     <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="updateHistoryItem(${realIndex}, 'phone', this.value)"></td>
                     <td>
