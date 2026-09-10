@@ -540,7 +540,6 @@
        }
 
        function getStoreStatus() {
-           // 檢查定時自動恢復
            let resumeTime = localStorage.getItem('pos_store_resume_time');
            if (resumeTime) {
                let now = new Date().getTime();
@@ -576,12 +575,10 @@
            const selectElem = document.getElementById('autoResumeTimeSelect');
            selectElem.innerHTML = '';
 
-           // 產生以 30 分鐘為單位的時間選項 (從現在起算至當天結束)
            let now = new Date();
            let currentHour = now.getHours();
            let currentMin = now.getMinutes();
 
-           // 對齊下一個 30 分鐘
            let startMin = currentMin < 30 ? 30 : 0;
            let startHour = currentMin < 30 ? currentHour : currentHour + 1;
 
@@ -589,7 +586,7 @@
                let actualH = h % 24;
                for (let m of [0, 30]) {
                    if (h === startHour && m < startMin && h === currentHour) continue;
-                   if (h >= 24 && m > 0) break; // 限制到隔日凌晨
+                   if (h >= 24 && m > 0) break;
 
                    let hStr = String(actualH).padStart(2, '0');
                    let mStr = String(m).padStart(2, '0');
@@ -611,7 +608,6 @@
 
        function closeStatusTimeModal() {
            document.getElementById('statusTimeModal').style.display = 'none';
-           // 恢復下拉選單為目前實際狀態
            updateHeaderLayout();
        }
 
@@ -627,12 +623,12 @@
                }
                localStorage.setItem('pos_store_resume_time', resumeTimestamp);
                let resumeDateStr = new Date(parseInt(resumeTimestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-               executeChangeStoreStatus(pendingTargetStatus, `（設定於 ${resumeDateStr} 自動恢復營業）`);
+               executeChangeStoreStatus(pendingTargetStatus);
            }
            closeStatusTimeModal();
        }
 
-       async function executeChangeStoreStatus(val, extraMsg = '') {
+       async function executeChangeStoreStatus(val) {
            setStoreStatus(val);
            updateHeaderLayout();
            
@@ -656,9 +652,9 @@
                let res = await fetch(`${GAS_WEB_APP_URL}?action=getStoreStatus`);
                let data = await res.json();
                if (data && data.storeStatus) {
-                   let currentLocal = getStoreStatus();
+                   let currentLocal = localStorage.getItem('pos_store_status');
                    if (data.storeStatus !== currentLocal) {
-                       setStoreStatus(data.storeStatus);
+                       localStorage.setItem('pos_store_status', data.storeStatus);
                        updateHeaderLayout();
                    }
                }
@@ -1368,9 +1364,8 @@
 
            setInterval(() => {
                fetchStoreStatusFromCloud();
-               // 定期刷新頁面狀態檢查是否自動恢復營業
                updateHeaderLayout();
-           }, 10000);
+           }, 5000); // 縮短為每 5 秒同步一次狀態，讓客人端能更快自動抓到
        }
 
        function refreshMenuTabs() {
@@ -1446,7 +1441,8 @@
                    renderGrid(category);
                } else {
                    const currentStatus = getStoreStatus();
-                   if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+                   // 🔥 嚴格防呆：只要不是「營業中」，且網址沒有帶 ?mode=admin，就強制跳出提醒並阻擋！
+                   if (currentStatus !== "營業中" && !isUserAdminMode()) {
                        alert(`現在店家${currentStatus}`);
                        return;
                    }
@@ -1478,7 +1474,7 @@
                    renderGrid(category);
                } else {
                    const currentStatus = getStoreStatus();
-                   if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+                   if (currentStatus !== "營業中" && !isUserAdminMode()) {
                        alert(`現在店家${currentStatus}`);
                        return;
                    }
@@ -1507,7 +1503,7 @@
 
        function handleItemClick(item, category) {
            const currentStatus = getStoreStatus();
-           if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+           if (currentStatus !== "營業中" && !isUserAdminMode()) {
                alert(`現在店家${currentStatus}`);
                return;
            }
@@ -1522,7 +1518,7 @@
                } else {
                    const chickenList = menuData["信仰雞本位主義 (主食)"];
                    const breast = chickenList.find(i => i.id === "m1");
-                   if (breast && breast.soldOut && !isAdminLoggedIn()) {
+                   if (breast && breast.soldOut && !isUserAdminMode()) {
                        alert("鹹水雞胸已售完, 無法點購此套餐！");
                        return;
                    }
@@ -1553,7 +1549,7 @@
            
            item.chickenOptions.forEach(opt => {
                let isDisabled = false;
-               if (!isAdminLoggedIn()) {
+               if (!isUserAdminMode()) {
                    if ((opt === "鹹水半雞" || opt === "全鹹水" || opt.includes("鹹水半雞")) && saltHalfSoldOut) isDisabled = true;
                    if ((opt === "煙燻半雞" || opt === "全煙燻" || opt.includes("煙燻半雞")) && smokeHalfSoldOut) isDisabled = true;
                }
@@ -1598,12 +1594,12 @@
 
        function showHotFoodCustomModal(item) {
            const currentStatus = getStoreStatus();
-           if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+           if (currentStatus !== "營業中" && !isUserAdminMode()) {
                alert(`現在店家${currentStatus}`);
                return;
            }
 
-           if (item.soldOut && !isAdminLoggedIn()) {
+           if (item.soldOut && !isUserAdminMode()) {
                alert(`【${item.name}】目前已售完，無法點購！`);
                return;
            }
@@ -1730,7 +1726,7 @@
 
        function addToCart(itemObj) {
            const currentStatus = getStoreStatus();
-           if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+           if (currentStatus !== "營業中" && !isUserAdminMode()) {
                alert(`現在店家${currentStatus}`);
                return;
            }
@@ -2189,7 +2185,7 @@
 
        function submitOrder(isBackdate = false) {
            const currentStatus = getStoreStatus();
-           if (currentStatus !== "營業中" && !isAdminLoggedIn() && !isBackdate) {
+           if (currentStatus !== "營業中" && !isUserAdminMode() && !isBackdate) {
                alert(`現在店家${currentStatus}`);
                return;
            }
@@ -2205,7 +2201,7 @@
            const custNotes = document.getElementById('custNotes').value.trim();
 
            if (!custName) {
-               if (isAdminLoggedIn() && isBackdate) {
+               if (isUserAdminMode() && isBackdate) {
                    custName = "補單客戶";
                } else {
                    alert("請填寫【訂購人】才可完成下單！");
@@ -2214,7 +2210,7 @@
                }
            }
 
-           if (!isAdminLoggedIn()) {
+           if (!isUserAdminMode()) {
                const phoneRegex = /^09\d{8}$/;
                if (!phoneRegex.test(custPhone)) {
                    alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
