@@ -831,7 +831,6 @@
            const content = document.getElementById('shiftReportContent');
            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
 
-           // 取得當前營業日字串，確保結算只計算今天且未被拒絕的訂單
            let todayObj = new Date();
            if (todayObj.getHours() >= 0 && todayObj.getHours() < 2) {
                todayObj.setDate(todayObj.getDate() - 1);
@@ -840,7 +839,11 @@
            let todayOrders = history.filter(o => o.date === todayStr && o.status !== "已被店家拒絕");
 
            let cashTotal = todayOrders.filter(o => o.payment === '現金').reduce((sum, o) => sum + o.total, 0);
-           let mobileTotal = todayOrders.filter(o => o.payment === '轉帳' || o.payment === 'Linepay' || o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
+           let linepayTotal = todayOrders.filter(o => o.payment === 'Linepay').reduce((sum, o) => sum + o.total, 0);
+           let allpayTotal = todayOrders.filter(o => o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
+           let transferTotal = todayOrders.filter(o => o.payment === '轉帳').reduce((sum, o) => sum + o.total, 0);
+
+           let mobileTotal = linepayTotal + allpayTotal + transferTotal;
            let allTotal = cashTotal + mobileTotal;
 
            let principalSum = (shiftDenomData.principal[1000] * 1000) + (shiftDenomData.principal[500] * 500) + (shiftDenomData.principal[100] * 100) + (shiftDenomData.principal[50] * 50) + (shiftDenomData.principal[10] * 10) + (shiftDenomData.principal[5] * 5) + (shiftDenomData.principal[1] * 1);
@@ -887,15 +890,27 @@
                        </div>
                    </div>
 
-                   <div class="input-row">
-                       <span class="input-label" style="min-width:130px;">行動支付總額:</span>
-                       <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:#f5e4b3; font-weight:bold;">
-                           $${mobileTotal} <span style="font-size:12px; color:#a89269; font-weight:normal;">(Linepay+轉帳+全支付)</span>
+                   <div style="background:#150d07; border:1px solid var(--border-gold); padding:10px; border-radius:6px; display:flex; flex-direction:column; gap:6px;">
+                       <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary-gold);">
+                           <span>行動支付總額:</span>
+                           <span>$${mobileTotal}</span>
+                       </div>
+                       <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;">
+                           <span>- LINE PAY:</span>
+                           <span>$${linepayTotal}</span>
+                       </div>
+                       <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;">
+                           <span>- 全支付:</span>
+                           <span>$${allpayTotal}</span>
+                       </div>
+                       <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;">
+                           <span>- 轉帳:</span>
+                           <span>$${transferTotal}</span>
                        </div>
                    </div>
 
                    <div class="input-row">
-                       <span class="input-label" style="min-width:130px;">總營業額:</span>
+                       <span class="input-label" style="min-width:130px;">今日總營收:</span>
                        <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:var(--primary-gold); font-weight:bold; font-size:16px;">
                            $${allTotal}
                        </div>
@@ -908,7 +923,7 @@
                        </div>
                    </div>
 
-                   <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="closeShiftReportModal()">確認結算</button>
+                   <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="confirmAndSyncShiftReport()">確認結算 (寫入雲端總結)</button>
                </div>
            `;
        }
@@ -939,6 +954,55 @@
                diffElem.innerText = `$${diff}`;
                diffElem.style.color = diff >= 0 ? '#81c784' : '#ff9999';
            }
+       }
+
+       function confirmAndSyncShiftReport() {
+           const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+           let todayObj = new Date();
+           if (todayObj.getHours() >= 0 && todayObj.getHours() < 2) {
+               todayObj.setDate(todayObj.getDate() - 1);
+           }
+           let todayStr = `${todayObj.getFullYear()}/${(todayObj.getMonth()+1).toString().padStart(2,'0')}/${todayObj.getDate().toString().padStart(2,'0')}`;
+           let todayOrders = history.filter(o => o.date === todayStr && o.status !== "已被店家拒絕");
+
+           let cashTotal = todayOrders.filter(o => o.payment === '現金').reduce((sum, o) => sum + o.total, 0);
+           let linepayTotal = todayOrders.filter(o => o.payment === 'Linepay').reduce((sum, o) => sum + o.total, 0);
+           let allpayTotal = todayOrders.filter(o => o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
+           let transferTotal = todayOrders.filter(o => o.payment === '轉帳').reduce((sum, o) => sum + o.total, 0);
+           let allTotal = cashTotal + linepayTotal + allpayTotal + transferTotal;
+
+           let actualCashNum = parseFloat(shiftDenomData.actualCash) || 0;
+
+           let summaryPayload = {
+               id: "SUMMARY_" + todayStr.replace(/\//g, ''),
+               orderNo: "當日總結",
+               status: "已結算",
+               date: todayStr,
+               weekDay: weekDaysArr[todayObj.getDay()],
+               time: "23:59",
+               fullTime: `${todayStr} 23:59`,
+               customer: "【當日總結報表】",
+               phone: "-",
+               pickupTime: "-",
+               custNotes: `實收現金: $${actualCashNum} | LINE PAY: $${linepayTotal} | 全支付: $${allpayTotal} | 轉帳: $${transferTotal}`,
+               originalTotal: allTotal,
+               total: allTotal,
+               discountPercent: 100,
+               deductAmount: 0,
+               discountNote: "",
+               payment: "綜合結算",
+               prefs: {},
+               items: [
+                   { name: "實收現金", qty: 1, price: actualCashNum },
+                   { name: "LINE PAY", qty: 1, price: linepayTotal },
+                   { name: "全支付", qty: 1, price: allpayTotal },
+                   { name: "轉帳", qty: 1, price: transferTotal }
+               ]
+           };
+
+           syncOrderToCloud(summaryPayload, "append");
+           alert(`已成功送出【當日總結】至雲端試算表！\n今日總營收: $${allTotal}\n實收現金: $${actualCashNum}\nLINE PAY: $${linepayTotal}\n全支付: $${allpayTotal}\n轉帳: $${transferTotal}`);
+           closeShiftReportModal();
        }
 
        function toggleMealMgmtMode() {
