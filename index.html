@@ -331,7 +331,6 @@
             <div style="display:flex; gap:8px; align-items:center; background:#140f0a; padding:12px; border-radius:6px; border:1px solid var(--border-gold); margin-bottom:12px; flex-wrap:wrap;">
                 <span style="font-size:14px; font-weight:bold; color:var(--primary-gold);">🔍 日期查詢：</span>
                 
-                <!-- 左右鍵與日曆選擇控制列 -->
                 <button class="header-btn" style="background:#3d2b1a; padding:6px 10px;" onclick="shiftSearchDate(-1)" title="前一天">◀ 前一天</button>
                 <input type="date" id="searchDateSingle" class="input-field" style="max-width:150px;" onchange="filterOrderMgmtTable()">
                 <button class="header-btn" style="background:#3d2b1a; padding:6px 10px;" onclick="shiftSearchDate(1)" title="後一天">後一天 ▶</button>
@@ -787,12 +786,12 @@
             const chickenList = menuData["信仰雞本位主義 (主食)"];
             if (!chickenList) return;
 
-            const m1 = chickenList.find(i => i.id === "m1"); // 鹹水雞胸
-            const m2 = chickenList.find(i => i.id === "m2"); // 鹹水雞腿
-            const m3 = chickenList.find(i => i.id === "m3"); // 鹹水半雞
-            const m4 = chickenList.find(i => i.id === "m4"); // 煙燻雞胸
-            const m5 = chickenList.find(i => i.id === "m5"); // 煙燻雞腿
-            const m6 = chickenList.find(i => i.id === "m6"); // 煙燻半雞
+            const m1 = chickenList.find(i => i.id === "m1"); 
+            const m2 = chickenList.find(i => i.id === "m2"); 
+            const m3 = chickenList.find(i => i.id === "m3"); 
+            const m4 = chickenList.find(i => i.id === "m4"); 
+            const m5 = chickenList.find(i => i.id === "m5"); 
+            const m6 = chickenList.find(i => i.id === "m6"); 
 
             if (changedItemName === "鹹水雞腿" || changedItemName === "鹹水雞胸") {
                 if (isSoldOut) {
@@ -853,7 +852,7 @@
 
         function updatePendingCountHeader() {
             const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            const pendingList = history.filter(o => !o.status || o.status === "等待接單");
+            const pendingList = history.filter(o => !o.status || o.status === "等待接單" || o.status === "已接單");
             const btn = document.getElementById('quickAcceptHeaderBtn');
             if (btn) {
                 btn.innerText = `⚡ 接單系統 (${pendingList.length})`;
@@ -1407,7 +1406,7 @@
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
             updatePendingCountHeader();
-            syncOrderToCloud(orderData, "append");
+            // 這裡不再主動上傳雲端，改為只有點擊完成時才上傳
         }
 
         function checkOrderStatusByPhone() {
@@ -1514,7 +1513,7 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
                 let custName = history[originalIndex].customer;
-                if (confirm(`⚠️ 確定要將【${custName}】的訂單拒絕嗎？拒絕後將取消該訂單。`)) {
+                if (confirm(`⚠️ 確定要將【${custName}】的訂單拒絕嗎？拒絕後將取消並從歷史與雲端移除。`)) {
                     quickUpdateStatus(originalIndex, '已被店家拒絕');
                 }
             }
@@ -1529,7 +1528,6 @@
                 }
                 calculateOrderFinalTotal(history[orderIndex]);
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
-                syncOrderToCloud(history[orderIndex], "update");
                 renderQuickAcceptList();
             }
         }
@@ -1540,7 +1538,6 @@
                 history[orderIndex].items.splice(itemIdx, 1);
                 calculateOrderFinalTotal(history[orderIndex]);
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
-                syncOrderToCloud(history[orderIndex], "update");
                 renderQuickAcceptList();
             }
         }
@@ -1548,17 +1545,27 @@
         function quickUpdateStatus(originalIndex, newStatus) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
-                history[originalIndex].status = newStatus;
                 if (newStatus === "已被店家拒絕") {
-                    history[originalIndex].date = "";
+                    // 拒絕後直接從本地歷史刪除，不傳送到雲端
+                    history.splice(originalIndex, 1);
+                    localStorage.setItem('pos_order_history', JSON.stringify(history));
+                    updatePendingCountHeader();
+                    renderQuickAcceptList();
+                    alert("已成功拒絕訂單 該訂單不會上傳至後台歷史與雲端");
+                    return;
                 }
+
+                history[originalIndex].status = newStatus;
+
+                // 只有當狀態變更為「已完成」時，才正式上傳到雲端！
+                if (newStatus === "已完成") {
+                    syncOrderToCloud(history[originalIndex], "append");
+                    alert("訂單已完成 並已成功上傳至雲端");
+                }
+
                 localStorage.setItem('pos_order_history', JSON.stringify(history));
                 updatePendingCountHeader();
-                syncOrderToCloud(history[originalIndex], "update");
                 renderQuickAcceptList();
-                if (newStatus === "已被店家拒絕") {
-                    alert(`已成功將 ${history[originalIndex].customer} 的訂單拒絕，該訂單已從歷史與日報中移除。`);
-                }
             }
         }
 
@@ -1635,6 +1642,7 @@
             }
             let finalCustNotes = allNotesParts.join(' / ');
 
+            // 如果是補單，直接視為已完成並上傳雲端；一般下單則為等待接單，不立刻上傳雲端
             const orderStatus = isBackdate ? "已完成" : "等待接單";
 
             let finalPrefs = {};
@@ -1671,7 +1679,9 @@
 
             saveOrderToHistory(orderPayload);
 
+            // 若為補單，直接同步至雲端
             if (isBackdate) {
+                syncOrderToCloud(orderPayload, "append");
                 alert(`已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
                 clearCart();
                 return;
@@ -1930,7 +1940,6 @@
         }
 
         function closeItemEditModal() {
-            // 離開品項修改時自動重新計算總額並存入 localStorage
             if (currentEditingOrderIndex !== null && localOrderHistory[currentEditingOrderIndex]) {
                 calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
                 localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
