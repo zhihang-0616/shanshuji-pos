@@ -1406,7 +1406,6 @@
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
             updatePendingCountHeader();
-            // 這裡不再主動上傳雲端，改為只有點擊完成時才上傳
         }
 
         function checkOrderStatusByPhone() {
@@ -1493,6 +1492,7 @@
                         <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
                         <div>🧂 調味口味：${flavorStr}</div>
                         <div>📝 顧客備註：${ord.custNotes || '無'}</div>
+                        <div>📌 目前狀態：<strong style="color:${ord.status === '已接單' ? '#81c784' : '#f3e5ab'};">${ord.status || '等待接單'}</strong></div>
                         <div style="margin-top:6px; font-weight:bold; color:var(--primary-gold);">🍗 訂購品項與數量調整：</div>
                         <div style="max-height:150px; overflow-y:auto; margin-top:4px;">${itemsHtml}</div>
                     </div>
@@ -1546,7 +1546,6 @@
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
                 if (newStatus === "已被店家拒絕") {
-                    // 拒絕後直接從本地歷史刪除，不傳送到雲端
                     history.splice(originalIndex, 1);
                     localStorage.setItem('pos_order_history', JSON.stringify(history));
                     updatePendingCountHeader();
@@ -1557,7 +1556,16 @@
 
                 history[originalIndex].status = newStatus;
 
-                // 只有當狀態變更為「已完成」時，才正式上傳到雲端！
+                // 點擊「已接單」時：只更新本地狀態保留在接單系統，不上傳雲端
+                if (newStatus === "已接單") {
+                    localStorage.setItem('pos_order_history', JSON.stringify(history));
+                    updatePendingCountHeader();
+                    renderQuickAcceptList();
+                    alert("已成功接單！餐點製作中，完成後再點擊完成上傳雲端。");
+                    return;
+                }
+
+                // 只有點擊「已完成」時：正式上傳到雲端
                 if (newStatus === "已完成") {
                     syncOrderToCloud(history[originalIndex], "append");
                     alert("訂單已完成 並已成功上傳至雲端");
@@ -1642,7 +1650,6 @@
             }
             let finalCustNotes = allNotesParts.join(' / ');
 
-            // 如果是補單，直接視為已完成並上傳雲端；一般下單則為等待接單，不立刻上傳雲端
             const orderStatus = isBackdate ? "已完成" : "等待接單";
 
             let finalPrefs = {};
@@ -1679,7 +1686,6 @@
 
             saveOrderToHistory(orderPayload);
 
-            // 若為補單，直接同步至雲端
             if (isBackdate) {
                 syncOrderToCloud(orderPayload, "append");
                 alert(`已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
