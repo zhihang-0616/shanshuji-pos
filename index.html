@@ -389,6 +389,64 @@
         const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz7SS82hI1lUOH5OCgorlw-FOeP9xqZlynmCQNMaP1LJZEpL-BhZiJvTxGzdn6ooeMmtg/exec";
 
+        // ================= 🔊 內建動態音效系統 (Web Audio API) =================
+        function playSound(type) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const now = ctx.currentTime;
+
+                if (type === 'new_order') {
+                    // 1. 訂單進來：雙響高音叮咚 (清脆)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now); // D5
+                    osc.frequency.setValueAtTime(880, now + 0.15); // A5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'accept') {
+                    // 2. 接單：上升音階 (代表開始製作)
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(330, now); // E4
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.25); // E5
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'done') {
+                    // 3. 完成：和諧三連音大和弦 (代表大功告成)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);     // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.24); // G5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'reject') {
+                    // 4. 拒單：低沉雙音下降 (代表取消)
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now); // A3
+                    osc.frequency.setValueAtTime(146.83, now + 0.2); // D3
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                }
+            } catch (e) {
+                console.error("音效播放失敗:", e);
+            }
+        }
+        // ====================================================================
+
         function isUserAdminMode() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('mode') === 'admin';
@@ -1406,6 +1464,9 @@
             history.push(orderData);
             localStorage.setItem('pos_order_history', JSON.stringify(history));
             updatePendingCountHeader();
+            
+            // 🔊 觸發【新訂單進來】音效
+            playSound('new_order');
         }
 
         function checkOrderStatusByPhone() {
@@ -1550,24 +1611,31 @@
                     localStorage.setItem('pos_order_history', JSON.stringify(history));
                     updatePendingCountHeader();
                     renderQuickAcceptList();
+                    
+                    // 🔊 觸發【拒單】音效
+                    playSound('reject');
                     alert("已成功拒絕訂單 該訂單不會上傳至後台歷史與雲端");
                     return;
                 }
 
                 history[originalIndex].status = newStatus;
 
-                // 點擊「已接單」時：只更新本地狀態保留在接單系統，不上傳雲端
                 if (newStatus === "已接單") {
                     localStorage.setItem('pos_order_history', JSON.stringify(history));
                     updatePendingCountHeader();
                     renderQuickAcceptList();
+                    
+                    // 🔊 觸發【接單】音效
+                    playSound('accept');
                     alert("已成功接單！餐點製作中，完成後再點擊完成上傳雲端。");
                     return;
                 }
 
-                // 只有點擊「已完成」時：正式上傳到雲端
                 if (newStatus === "已完成") {
                     syncOrderToCloud(history[originalIndex], "append");
+                    
+                    // 🔊 觸發【完成】音效
+                    playSound('done');
                     alert("訂單已完成 並已成功上傳至雲端");
                 }
 
@@ -1688,6 +1756,8 @@
 
             if (isBackdate) {
                 syncOrderToCloud(orderPayload, "append");
+                // 🔊 補單完成觸發完成音效
+                playSound('done');
                 alert(`已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
                 clearCart();
                 return;
