@@ -837,9 +837,7 @@
             let mobileTotal = history.filter(o => o.payment === '轉帳' || o.payment === 'Linepay' || o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
             let allTotal = cashTotal + mobileTotal;
 
-            // 計算本金總額
             let principalSum = (shiftDenomData.principal[1000] * 1000) + (shiftDenomData.principal[500] * 500) + (shiftDenomData.principal[100] * 100) + (shiftDenomData.principal[50] * 50) + (shiftDenomData.principal[10] * 10) + (shiftDenomData.principal[5] * 5) + (shiftDenomData.principal[1] * 1);
-            // 計算備用金總額
             let reserveSum = (shiftDenomData.reserve[1000] * 1000) + (shiftDenomData.reserve[500] * 500) + (shiftDenomData.reserve[100] * 100) + (shiftDenomData.reserve[50] * 50) + (shiftDenomData.reserve[10] * 10) + (shiftDenomData.reserve[5] * 5) + (shiftDenomData.reserve[1] * 1);
 
             let actualCashNum = parseFloat(shiftDenomData.actualCash) || 0;
@@ -1640,17 +1638,22 @@
             refreshActiveGrid();
         }
 
-        function generateDailyOrderNo(bizDateStr) {
+        function reindexOrderNumbers(bizDateStr) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-            let todayOrders = history.filter(o => o.date === bizDateStr);
-            let nextNo = todayOrders.length + 1;
-            return `#${String(nextNo).padStart(3, '0')}`;
+            let counter = 1;
+            history.forEach(ord => {
+                if (ord.date === bizDateStr) {
+                    ord.orderNo = `#${String(counter).padStart(3, '0')}`;
+                    counter++;
+                }
+            });
+            localStorage.setItem('pos_order_history', JSON.stringify(history));
         }
 
         function saveOrderToHistory(orderData) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             history.push(orderData);
-            localStorage.setItem('pos_order_history', JSON.stringify(history));
+            reindexOrderNumbers(orderData.date);
             updatePendingCountHeader();
             playSound('new_order');
         }
@@ -1773,7 +1776,7 @@
 
                 if (!ord.status || ord.status === "等待接單") {
                     actionButtonsHtml = `
-                        <button class="accept-btn-accept" onclick="quickUpdateStatus(${ord.originalIndex}, '已接單')">🟢 接單</button>
+                        <button class="accept-btn-accept" onclick="quickAcceptOrder(${ord.originalIndex})">🟢 接單</button>
                         <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
                     `;
                 } else if (ord.status === "已接單") {
@@ -1801,13 +1804,14 @@
                         }
                     } else {
                         actionButtonsHtml = `
-                            <button class="accept-btn-done" style="flex:2;" onclick="quickUpdateStatus(${ord.originalIndex}, '待顧客取餐'); playSound('done');">✔️ 完成 (進入待取餐)</button>
+                            <button class="accept-btn-done" style="flex:2;" onclick="quickUpdateStatus(${ord.originalIndex}, '待顧客取餐')">✔️ 完成 (進入待取餐)</button>
                             <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
                         `;
                     }
                 } else if (ord.status === "待顧客取餐") {
                     actionButtonsHtml = `
-                        <button class="accept-btn-accept" style="flex:1; background:linear-gradient(135deg, #1565c0, #0d47a1);" onclick="clickPickupDone(${ord.originalIndex})">🔵 已取餐 (上傳雲端)</button>
+                        <button class="accept-btn-accept" style="flex:1; background:linear-gradient(135deg, #1565c0, #0d47a1);" onclick="clickPickupDone(${ord.originalIndex})">🔵 已取餐 (狀態改為已完成)</button>
+                        <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
                     `;
                 }
 
@@ -1838,6 +1842,19 @@
             });
         }
 
+        // 🟢 點擊接單時：更新狀態為已接單，並上傳雲端
+        function quickAcceptOrder(originalIndex) {
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            if (history[originalIndex]) {
+                history[originalIndex].status = "已接單";
+                localStorage.setItem('pos_order_history', JSON.stringify(history));
+                updatePendingCountHeader();
+                renderQuickAcceptList();
+                syncOrderToCloud(history[originalIndex], "append");
+                playSound('accept');
+            }
+        }
+
         function clickFinishOrder(originalIndex) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             let ord = history[originalIndex];
@@ -1852,7 +1869,6 @@
                 }, 100);
             } else {
                 quickUpdateStatus(originalIndex, '待顧客取餐');
-                playSound('done');
             }
         }
 
@@ -1892,17 +1908,34 @@
 
             activeCashOrderIndex = null;
             quickUpdateStatus(originalIndex, '待顧客取餐');
-            playSound('done');
         }
 
+        // 🔵 點擊已取餐：必須結帳後才可點，狀態改為已完成
         function clickPickupDone(originalIndex) {
             quickUpdateStatus(originalIndex, '已完成');
             playSound('done');
         }
 
         function confirmRejectOrder(originalIndex) {
-            if (confirm("確定要拒絕/取消這筆訂單嗎？")) {
-                quickUpdateStatus(originalIndex, '已被店家拒絕');
+            if (confirm("確定要拒絕/取消這筆訂單嗎？取消後資料將完全刪除！")) {
+                let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+                let targetOrd = history[originalIndex];
+                if (targetOrd) {
+                    let bizDate = targetOrd.date;
+                    // 從本地完全刪除
+                    history.splice(originalIndex, 1);
+                    localStorage.setItem('pos_order_history', JSON.stringify(history));
+                    
+                    // 重新排序流水號
+                    reindexOrderNumbers(bizDate);
+                    
+                    updatePendingCountHeader();
+                    renderQuickAcceptList();
+
+                    // 通知雲端刪除
+                    syncOrderToCloud(targetOrd, "delete");
+                    playSound('reject');
+                }
             }
         }
 
@@ -1932,33 +1965,7 @@
         function quickUpdateStatus(originalIndex, newStatus) {
             let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
             if (history[originalIndex]) {
-                if (newStatus === "已被店家拒絕") {
-                    let rejectedOrder = history[originalIndex];
-                    history.splice(originalIndex, 1);
-                    localStorage.setItem('pos_order_history', JSON.stringify(history));
-                    updatePendingCountHeader();
-                    renderQuickAcceptList();
-                    syncOrderToCloud(rejectedOrder, "delete");
-                    playSound('reject');
-                    return;
-                }
-
                 history[originalIndex].status = newStatus;
-
-                if (newStatus === "已接單") {
-                    localStorage.setItem('pos_order_history', JSON.stringify(history));
-                    updatePendingCountHeader();
-                    renderQuickAcceptList();
-                    playSound('accept');
-                    return;
-                }
-
-                if (newStatus === "待顧客取餐") {
-                    localStorage.setItem('pos_order_history', JSON.stringify(history));
-                    updatePendingCountHeader();
-                    renderQuickAcceptList();
-                    return;
-                }
 
                 if (newStatus === "已完成") {
                     syncOrderToCloud(history[originalIndex], "append");
@@ -2045,7 +2052,6 @@
             let finalCustNotes = allNotesParts.join(' / ');
 
             const orderStatus = isBackdate ? "已完成" : "等待接單";
-            const orderNo = generateDailyOrderNo(dateStr);
 
             let finalPrefs = {};
             if (orderPrefs.flavor) finalPrefs.flavor = orderPrefs.flavor;
@@ -2055,7 +2061,7 @@
 
             const orderPayload = {
                 id: Date.now(),
-                orderNo: orderNo,
+                orderNo: "", // 稍後由 reindexOrderNumbers 自動填入
                 status: orderStatus,
                 date: dateStr,
                 weekDay: weekDayStr,
@@ -2081,28 +2087,32 @@
             };
 
             saveOrderToHistory(orderPayload);
+            // 重新取得帶有正確流水號的訂單物件
+            let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let savedOrder = history.find(o => o.id === orderPayload.id);
 
             if (isBackdate) {
-                syncOrderToCloud(orderPayload, "append");
+                if (savedOrder) syncOrderToCloud(savedOrder, "append");
                 playSound('done');
-                alert(`[${orderNo}] 已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
+                alert(`[${savedOrder ? savedOrder.orderNo : ''}] 已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
                 clearCart();
                 return;
             }
 
             const modal = document.getElementById('receiptModal');
             const content = document.getElementById('receiptContent');
+            const displayNo = savedOrder ? savedOrder.orderNo : '#000';
             
             let receiptHtml = `
                 <button class="modal-close-x" onclick="closeReceipt()">✕</button>
 
                 <div class="receipt-header">
                     <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
-                    <p style="font-size:13px; color:#a89269;">點單明細收據 (流水號: <strong style="color:var(--primary-gold);">${orderNo}</strong>)</p>
+                    <p style="font-size:13px; color:#a89269;">點單明細收據 (流水號: <strong style="color:var(--primary-gold);">${displayNo}</strong>)</p>
                 </div>
                 
                 <div style="background:#fff3cd; color:#856404; padding:8px; font-size:13px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
-                    💡 流水號：${orderNo} | 電話查詢：${custPhone}
+                    💡 流水號：${displayNo} | 電話查詢：${custPhone}
                 </div>
                 <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custName}</span></div>
                 <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custPhone}</span></div>
@@ -2324,6 +2334,7 @@
                     let dt = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
                     if (!isNaN(dt.getTime())) {
                         localOrderHistory[index].weekDay = weekDaysArr[dt.getDay()];
+                        reindexOrderNumbers(val);
                     }
                 }
             }
@@ -2455,7 +2466,9 @@
         function deleteHistoryOrder(index) {
             if (confirm("確定要刪除這筆訂單嗎？")) {
                 let deletedOrd = localOrderHistory[index];
+                let bizDate = deletedOrd ? deletedOrd.date : "";
                 localOrderHistory.splice(index, 1);
+                if (bizDate) reindexOrderNumbers(bizDate);
                 localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
                 updatePendingCountHeader();
                 if (deletedOrd) {
