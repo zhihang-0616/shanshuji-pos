@@ -229,7 +229,8 @@
            </div>
            <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
-                <input type="datetime-local" id="pickupTime" class="input-field" onchange="updateWeekdayBadge()">
+                <!-- 強制啟用 24 小時制輸入屬性 -->
+                <input type="datetime-local" id="pickupTime" class="input-field" step="60" onchange="updateWeekdayBadge()">
                 <span id="weekdayBadge" class="weekday-badge">星期--</span>
            </div>
            <div class="input-row">
@@ -622,7 +623,7 @@
                    return;
                }
                localStorage.setItem('pos_store_resume_time', resumeTimestamp);
-               let resumeDateStr = new Date(parseInt(resumeTimestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+               let resumeDateStr = new Date(parseInt(resumeTimestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                executeChangeStoreStatus(pendingTargetStatus);
            }
            closeStatusTimeModal();
@@ -1365,7 +1366,7 @@
            setInterval(() => {
                fetchStoreStatusFromCloud();
                updateHeaderLayout();
-           }, 5000); // 縮短為每 5 秒同步一次狀態，讓客人端能更快自動抓到
+           }, 5000);
        }
 
        function refreshMenuTabs() {
@@ -1441,7 +1442,6 @@
                    renderGrid(category);
                } else {
                    const currentStatus = getStoreStatus();
-                   // 🔥 嚴格防呆：只要不是「營業中」，且網址沒有帶 ?mode=admin，就強制跳出提醒並阻擋！
                    if (currentStatus !== "營業中" && !isUserAdminMode()) {
                        alert(`現在店家${currentStatus}`);
                        return;
@@ -2229,7 +2229,14 @@
 
            const pickupDateObj = new Date(pickupTimeRaw);
            const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
-           const formattedPickupTime = pickupTimeRaw.replace('T', ' ') + ` (${pickupWeekDayStr})`;
+           
+           // 將取餐時間字串格式化為 24 小時制 (例如 2026-09-10 23:30)
+           const pYear = pickupDateObj.getFullYear();
+           const pMonth = String(pickupDateObj.getMonth() + 1).padStart(2, '0');
+           const pDay = String(pickupDateObj.getDate()).padStart(2, '0');
+           const pHour = String(pickupDateObj.getHours()).padStart(2, '0');
+           const pMin = String(pickupDateObj.getMinutes()).padStart(2, '0');
+           const formattedPickupTime = `${pYear}-${pMonth}-${pDay} ${pHour}:${pMin} (${pickupWeekDayStr})`;
 
            let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
            if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
@@ -2237,7 +2244,7 @@
            }
            
            let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
-           let timeStr = `${pickupDateObj.getHours().toString().padStart(2,'0')}:${pickupDateObj.getMinutes().toString().padStart(2,'0')}`;
+           let timeStr = `${pHour}:${pMin}`;
            let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
            let subtotal = 0;
