@@ -292,6 +292,25 @@
        <div class="modal-content" id="optModalContent"></div>
    </div>
 
+   <!-- 狀態自動恢復設定 Modal -->
+   <div class="modal" id="statusTimeModal">
+       <div class="modal-content" style="width:360px; text-align:center;">
+           <button class="modal-close-x" onclick="closeStatusTimeModal()">✕</button>
+           <h3 style="color:var(--primary-gold); margin-bottom:14px;" id="statusTimeModalTitle">設定關閉時間</h3>
+           <div style="font-size:13px; color:#d6c29a; margin-bottom:14px;">請選擇關閉模式：</div>
+           
+           <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+               <button class="btn btn-submit" style="padding:10px; font-size:15px;" onclick="applyStoreStatusWithMode('direct')">直接關閉 (無限期)</button>
+               
+               <div style="background:#150d07; border:1px solid var(--border-gold); padding:10px; border-radius:6px; text-align:left;">
+                   <div style="font-size:13px; font-weight:bold; color:var(--primary-gold); margin-bottom:6px;">指定時間自動恢復營業：</div>
+                   <select id="autoResumeTimeSelect" class="input-field" style="width:100%; margin-bottom:8px;"></select>
+                   <button class="btn" style="width:100%; background:#3d2b1a; color:#fff; border:1px solid var(--border-gold); padding:8px; font-size:14px;" onclick="applyStoreStatusWithMode('timed')">確認定時關閉</button>
+               </div>
+           </div>
+       </div>
+   </div>
+
    <div class="modal" id="receiptModal">
        <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
    </div>
@@ -521,14 +540,99 @@
        }
 
        function getStoreStatus() {
+           // 檢查定時自動恢復
+           let resumeTime = localStorage.getItem('pos_store_resume_time');
+           if (resumeTime) {
+               let now = new Date().getTime();
+               if (now >= parseInt(resumeTime)) {
+                   localStorage.removeItem('pos_store_resume_time');
+                   localStorage.setItem('pos_store_status', '營業中');
+                   return '營業中';
+               }
+           }
            return localStorage.getItem('pos_store_status') || '營業中';
        }
 
        function setStoreStatus(status) {
            localStorage.setItem('pos_store_status', status);
+           if (status === '營業中') {
+               localStorage.removeItem('pos_store_resume_time');
+           }
        }
 
-       async function changeStoreStatus(val) {
+       let pendingTargetStatus = '';
+
+       function handleStoreStatusChange(val) {
+           if (val === '營業中') {
+               executeChangeStoreStatus('營業中');
+           } else {
+               pendingTargetStatus = val;
+               openStatusTimeModal(val);
+           }
+       }
+
+       function openStatusTimeModal(statusName) {
+           document.getElementById('statusTimeModalTitle').innerText = `設定【${statusName}】關閉模式`;
+           const selectElem = document.getElementById('autoResumeTimeSelect');
+           selectElem.innerHTML = '';
+
+           // 產生以 30 分鐘為單位的時間選項 (從現在起算至當天結束)
+           let now = new Date();
+           let currentHour = now.getHours();
+           let currentMin = now.getMinutes();
+
+           // 對齊下一個 30 分鐘
+           let startMin = currentMin < 30 ? 30 : 0;
+           let startHour = currentMin < 30 ? currentHour : currentHour + 1;
+
+           for (let h = startHour; h < 26; h++) {
+               let actualH = h % 24;
+               for (let m of [0, 30]) {
+                   if (h === startHour && m < startMin && h === currentHour) continue;
+                   if (h >= 24 && m > 0) break; // 限制到隔日凌晨
+
+                   let hStr = String(actualH).padStart(2, '0');
+                   let mStr = String(m).padStart(2, '0');
+                   let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
+                   
+                   let option = document.createElement('option');
+                   let targetDate = new Date();
+                   if (h >= 24) targetDate.setDate(targetDate.getDate() + 1);
+                   targetDate.setHours(actualH, m, 0, 0);
+
+                   option.value = targetDate.getTime();
+                   option.text = timeLabel;
+                   selectElem.appendChild(option);
+               }
+           }
+
+           document.getElementById('statusTimeModal').style.display = 'flex';
+       }
+
+       function closeStatusTimeModal() {
+           document.getElementById('statusTimeModal').style.display = 'none';
+           // 恢復下拉選單為目前實際狀態
+           updateHeaderLayout();
+       }
+
+       function applyStoreStatusWithMode(mode) {
+           if (mode === 'direct') {
+               executeChangeStoreStatus(pendingTargetStatus);
+           } else {
+               const selectElem = document.getElementById('autoResumeTimeSelect');
+               let resumeTimestamp = selectElem.value;
+               if (!resumeTimestamp) {
+                   alert("請選擇自動恢復時間！");
+                   return;
+               }
+               localStorage.setItem('pos_store_resume_time', resumeTimestamp);
+               let resumeDateStr = new Date(parseInt(resumeTimestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+               executeChangeStoreStatus(pendingTargetStatus, `（設定於 ${resumeDateStr} 自動恢復營業）`);
+           }
+           closeStatusTimeModal();
+       }
+
+       async function executeChangeStoreStatus(val, extraMsg = '') {
            setStoreStatus(val);
            updateHeaderLayout();
            
@@ -543,14 +647,6 @@
                } catch(e) {
                    console.error("狀態同步雲端失敗", e);
                }
-           }
-
-           if (val === "營業中") {
-               alert("已切換為【營業中】！");
-           } else if (val === "備料中") {
-               alert("已切換為【備料中】！");
-           } else {
-               alert("已切換為【休息中】，顧客端將無法進行點餐！");
            }
        }
 
@@ -598,7 +694,7 @@
            } else {
                const loggedIn = isAdminLoggedIn();
                headerTopRow.innerHTML = `
-                   <select id="storeStatusSelect" class="store-status-select" onchange="changeStoreStatus(this.value)">
+                   <select id="storeStatusSelect" class="store-status-select" onchange="handleStoreStatusChange(this.value)">
                        <option value="營業中" ${currentStatus === '營業中' ? 'selected' : ''}>🟢 營業中</option>
                        <option value="備料中" ${currentStatus === '備料中' ? 'selected' : ''}>🟡 備料中</option>
                        <option value="休息中" ${currentStatus === '休息中' ? 'selected' : ''}>🔴 休息中</option>
@@ -1272,6 +1368,8 @@
 
            setInterval(() => {
                fetchStoreStatusFromCloud();
+               // 定期刷新頁面狀態檢查是否自動恢復營業
+               updateHeaderLayout();
            }, 10000);
        }
 
@@ -1349,7 +1447,7 @@
                } else {
                    const currentStatus = getStoreStatus();
                    if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
-                       alert(`目前店家【${currentStatus}】，暫停點餐！`);
+                       alert(`現在店家${currentStatus}`);
                        return;
                    }
                    if (!item.soldOut) handleItemClick(item, category);
@@ -1381,7 +1479,7 @@
                } else {
                    const currentStatus = getStoreStatus();
                    if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
-                       alert(`目前店家【${currentStatus}】，暫停點餐！`);
+                       alert(`現在店家${currentStatus}`);
                        return;
                    }
                    if (!item.soldOut) handleItemClick(item, category);
@@ -1408,6 +1506,12 @@
        }
 
        function handleItemClick(item, category) {
+           const currentStatus = getStoreStatus();
+           if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+               alert(`現在店家${currentStatus}`);
+               return;
+           }
+
            if (item.soldOut) {
                alert(`【${item.name}】目前已售完，無法點購！`);
                return;
@@ -1493,6 +1597,12 @@
        let tempSalt = "";
 
        function showHotFoodCustomModal(item) {
+           const currentStatus = getStoreStatus();
+           if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+               alert(`現在店家${currentStatus}`);
+               return;
+           }
+
            if (item.soldOut && !isAdminLoggedIn()) {
                alert(`【${item.name}】目前已售完，無法點購！`);
                return;
@@ -1619,6 +1729,12 @@
        }
 
        function addToCart(itemObj) {
+           const currentStatus = getStoreStatus();
+           if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+               alert(`現在店家${currentStatus}`);
+               return;
+           }
+
            let existing = currentCart.find(c => c.id === itemObj.id);
            if (existing) {
                existing.qty++;
@@ -2074,7 +2190,7 @@
        function submitOrder(isBackdate = false) {
            const currentStatus = getStoreStatus();
            if (currentStatus !== "營業中" && !isAdminLoggedIn() && !isBackdate) {
-               alert(`目前店家【${currentStatus}】，無法進行結帳！`);
+               alert(`現在店家${currentStatus}`);
                return;
            }
 
