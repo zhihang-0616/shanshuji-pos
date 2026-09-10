@@ -297,15 +297,24 @@
     </div>
 
     <div class="modal" id="adminMenuModal">
-        <div class="modal-content" style="width:340px; text-align:center;">
+        <div class="modal-content" style="width:360px; text-align:center;">
             <button class="modal-close-x" onclick="closeAdminMenu()">✕</button>
             <h3 style="color:var(--text-gold); margin-bottom:20px;">⚙️ 管理員控制台</h3>
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
+                <button class="btn btn-submit" onclick="openShiftReportModal()">📊 當日結算 (現金點交)</button>
                 <button class="btn btn-submit" onclick="exportDailyReportFromAdmin()">📊 匯出日報</button>
                 <button class="btn btn-submit" onclick="exportMonthlyReportFromAdmin()">📅 匯出月報</button>
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
             </div>
+        </div>
+    </div>
+
+    <div class="modal" id="shiftReportModal">
+        <div class="modal-content" style="width:480px; max-width:95vw;">
+            <button class="modal-close-x" onclick="closeShiftReportModal()">✕</button>
+            <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 當日/當班現金點交結算</h3>
+            <div id="shiftReportContent" style="font-size:14px; line-height:1.8;"></div>
         </div>
     </div>
 
@@ -727,6 +736,7 @@
         let localOrderHistory = [];
         let currentEditingOrderIndex = null;
         let activeCashOrderIndex = null;
+        let shiftModalData = { principal: 0, reserve: 0 };
 
         function setDefaultPickupTime() {
             const now = new Date();
@@ -746,6 +756,22 @@
                 }
             }
             badge.innerText = "星期--";
+        }
+
+        // ================= ☁️ 雲端初始化同步 =================
+        async function initCloudSync() {
+            if (!GAS_WEB_APP_URL) return;
+            try {
+                let res = await fetch(`${GAS_WEB_APP_URL}?action=getOrders`);
+                let cloudOrders = await res.json();
+                if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+                    localStorage.setItem('pos_order_history', JSON.stringify(cloudOrders));
+                    updatePendingCountHeader();
+                    console.log("雲端資料同步成功，已更新本地快取");
+                }
+            } catch (e) {
+                console.log("網路離線或同步失敗，使用本地端快取資料");
+            }
         }
 
         function openAdminMenu() {
@@ -786,6 +812,91 @@
         function exportMonthlyReportFromAdmin() {
             closeAdminMenu();
             exportMonthlyReport();
+        }
+
+        // ================= 📊 當班現金點交結算 (Z-Report) =================
+        function openShiftReportModal() {
+            closeAdminMenu();
+            renderShiftReportModalContent();
+            document.getElementById('shiftReportModal').style.display = 'flex';
+        }
+
+        function closeShiftReportModal() {
+            document.getElementById('shiftReportModal').style.display = 'none';
+        }
+
+        function renderShiftReportModalContent() {
+            const content = document.getElementById('shiftReportContent');
+            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+
+            // 計算系統數據
+            let cashTotal = history.filter(o => o.payment === '現金').reduce((sum, o) => sum + o.total, 0);
+            let mobileTotal = history.filter(o => o.payment === '轉帳' || o.payment === 'Linepay' || o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
+            let allTotal = cashTotal + mobileTotal;
+
+            let diff = shiftModalData.actualCash ? (shiftModalData.actualCash - (shiftModalData.principal + shiftModalData.reserve + cashTotal)) : 0;
+
+            content.innerHTML = `
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    <div class="input-row">
+                        <span class="input-label" style="min-width:130px;">初始本金:</span>
+                        <input type="number" id="shiftPrincipal" class="input-field" value="${shiftModalData.principal}" oninput="updateShiftCalc()">
+                    </div>
+                    <div class="input-row">
+                        <span class="input-label" style="min-width:130px;">備用金:</span>
+                        <input type="number" id="shiftReserve" class="input-field" value="${shiftModalData.reserve}" oninput="updateShiftCalc()">
+                    </div>
+                    <div class="input-row">
+                        <span class="input-label" style="min-width:130px;">實收現金總額:</span>
+                        <div style="flex:1; display:flex; gap:8px; align-items:center;">
+                            <input type="number" id="shiftActualCash" class="input-field" placeholder="請輸入實點抽屜現額" value="${shiftModalData.actualCash !== undefined ? shiftModalData.actualCash : ''}" oninput="updateShiftCalc()">
+                            <span style="font-size:13px; color:var(--primary-gold); white-space:nowrap;">(系統計算: $${cashTotal})</span>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <span class="input-label" style="min-width:130px;">行動支付總額:</span>
+                        <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:#f5e4b3; font-weight:bold;">
+                            $${mobileTotal} <span style="font-size:12px; color:#a89269; font-weight:normal;">(Linepay+轉帳+全支付)</span>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <span class="input-label" style="min-width:130px;">總營業額:</span>
+                        <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:var(--primary-gold); font-weight:bold; font-size:16px;">
+                            $${allTotal}
+                        </div>
+                    </div>
+                    <div style="background:#140f0a; border:1px solid var(--border-gold); padding:12px; border-radius:6px; text-align:center; margin-top:5px;">
+                        <div style="font-size:14px; margin-bottom:4px; color:#a89269;">現金抽屜點交盈虧</div>
+                        <div style="font-size:22px; font-weight:bold; color:${(shiftModalData.diff || 0) >= 0 ? '#81c784' : '#ff9999'};" id="shiftDiffDisplay">
+                            $${shiftModalData.diff !== undefined ? shiftModalData.diff : 0}
+                        </div>
+                    </div>
+                    <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="closeShiftReportModal()">確認結算</button>
+                </div>
+            `;
+        }
+
+        function updateShiftCalc() {
+            shiftModalData.principal = parseFloat(document.getElementById('shiftPrincipal').value) || 0;
+            shiftModalData.reserve = parseFloat(document.getElementById('shiftReserve').value) || 0;
+            let actualCash = parseFloat(document.getElementById('shiftActualCash').value);
+            shiftModalData.actualCash = isNaN(actualCash) ? undefined : actualCash;
+
+            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            let cashTotal = history.filter(o => o.payment === '現金').reduce((sum, o) => sum + o.total, 0);
+
+            if (shiftModalData.actualCash !== undefined) {
+                // 盈虧 = 實點現額 - (初始本金 + 備用金 + 系統現金總額)
+                shiftModalData.diff = shiftModalData.actualCash - (shiftModalData.principal + shiftModalData.reserve + cashTotal);
+            } else {
+                shiftModalData.diff = 0;
+            }
+
+            const diffElem = document.getElementById('shiftDiffDisplay');
+            if (diffElem) {
+                diffElem.innerText = `$${shiftModalData.diff}`;
+                diffElem.style.color = shiftModalData.diff >= 0 ? '#81c784' : '#ff9999';
+            }
         }
 
         function toggleMealMgmtMode() {
@@ -1023,14 +1134,14 @@
             openSoldoutListModal();
         }
 
-        function initPOS() {
+        async function initPOS() {
             updateHeaderLayout();
             updateCheckoutButtons();
-            updatePendingCountHeader();
             initFlatMenuOptions();
             refreshMenuTabs();
             setDefaultPickupTime();
             updateCartUI();
+            await initCloudSync(); // 開機自動從雲端同步
         }
 
         function refreshMenuTabs() {
@@ -1554,6 +1665,34 @@
             activeCashOrderIndex = null;
         }
 
+        // ================= 👤 會員標籤與熟客消費累積計算 =================
+        function getCustomerCRMInfo(phone, currentOrderId) {
+            if (!phone || phone === "0900000000") return null;
+            const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+            // 找出該電話過往的所有訂單 (排除當前訂單)
+            const pastOrders = history.filter(o => o.phone === phone && o.id !== currentOrderId);
+            const visitCount = pastOrders.length + 1; // 加上當次就是第幾次
+
+            if (pastOrders.length === 0) {
+                return { visitCount: 1, lastPref: "首次消費新客" };
+            }
+
+            // 抓取最近一次的消費喜好
+            let lastOrd = pastOrders[pastOrders.length - 1];
+            let flavorStr = "";
+            if (lastOrd.prefs) {
+                let parts = [];
+                if (lastOrd.prefs.flavor) parts.push(lastOrd.prefs.flavor);
+                if (lastOrd.prefs.spice) parts.push(lastOrd.prefs.spice);
+                if (lastOrd.prefs.salt) parts.push(lastOrd.prefs.salt);
+                flavorStr = parts.join("/");
+            }
+            let lastItems = lastOrd.items.map(i => i.name).join('、');
+            let prefSummary = flavorStr ? `${flavorStr} | 品項: ${lastItems}` : lastItems;
+
+            return { visitCount: visitCount, lastPref: prefSummary };
+        }
+
         function renderQuickAcceptList() {
             const container = document.getElementById('quickAcceptContainer');
             container.innerHTML = '';
@@ -1570,6 +1709,17 @@
                 const card = document.createElement('div');
                 card.className = 'quick-accept-card';
                 
+                // 計算CRM熟客資訊
+                const crmInfo = getCustomerCRMInfo(ord.phone, ord.id);
+                let crmBadgeHtml = '';
+                if (crmInfo) {
+                    crmBadgeHtml = `
+                        <div style="background:#1a110a; border:1px solid var(--border-gold); padding:6px 10px; border-radius:4px; margin-bottom:8px; font-size:13px; color:#f3e5ab;">
+                            🔥 <strong>【熟客標籤】</strong> 第 <strong style="color:var(--primary-gold);">${crmInfo.visitCount}</strong> 次消費 | 上次喜好：${crmInfo.lastPref}
+                        </div>
+                    `;
+                }
+
                 let itemsHtml = '';
                 ord.items.forEach((item, itemIdx) => {
                     let subNames = item.subItems ? ` <span style="font-size:12px; color:#a38c62;">(${item.subItems.map(s=>s.name).join(', ')})</span>` : '';
@@ -1636,6 +1786,7 @@
                         <span><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong> ${ord.customer} (${ord.phone})</span>
                         <span style="color:var(--primary-gold);">$${ord.total} (${ord.payment})</span>
                     </div>
+                    ${crmBadgeHtml}
                     <div style="font-size:14px; line-height:1.5; margin-bottom:8px;">
                         <div>📅 訂單日期：<strong style="color:#f3e5ab;">${ord.date}</strong></div>
                         <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
@@ -2125,7 +2276,6 @@
             });
         }
 
-        // 即時自動儲存相關函式
         function commitAndSync(index) {
             localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
             updatePendingCountHeader();
