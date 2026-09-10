@@ -532,7 +532,6 @@
            setStoreStatus(val);
            updateHeaderLayout();
            
-           // 同步至雲端
            if (GAS_WEB_APP_URL) {
                try {
                    await fetch(GAS_WEB_APP_URL, {
@@ -1271,7 +1270,6 @@
            await fetchStoreStatusFromCloud();
            await initCloudSync();
 
-           // 每 10 秒自動向雲端同步一次店家狀態
            setInterval(() => {
                fetchStoreStatusFromCloud();
            }, 10000);
@@ -1350,8 +1348,8 @@
                    renderGrid(category);
                } else {
                    const currentStatus = getStoreStatus();
-                   if (currentStatus === "休息中" && !isAdminLoggedIn()) {
-                       alert("目前店家【休息中】，暫停點餐！");
+                   if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+                       alert(`目前店家【${currentStatus}】，暫停點餐！`);
                        return;
                    }
                    if (!item.soldOut) handleItemClick(item, category);
@@ -1382,8 +1380,8 @@
                    renderGrid(category);
                } else {
                    const currentStatus = getStoreStatus();
-                   if (currentStatus === "休息中" && !isAdminLoggedIn()) {
-                       alert("目前店家【休息中】，暫停點餐！");
+                   if (currentStatus !== "營業中" && !isAdminLoggedIn()) {
+                       alert(`目前店家【${currentStatus}】，暫停點餐！`);
                        return;
                    }
                    if (!item.soldOut) handleItemClick(item, category);
@@ -2075,8 +2073,8 @@
 
        function submitOrder(isBackdate = false) {
            const currentStatus = getStoreStatus();
-           if (currentStatus === "休息中" && !isAdminLoggedIn() && !isBackdate) {
-               alert("目前店家【休息中】，無法進行結帳！");
+           if (currentStatus !== "營業中" && !isAdminLoggedIn() && !isBackdate) {
+               alert(`目前店家【${currentStatus}】，無法進行結帳！`);
                return;
            }
 
