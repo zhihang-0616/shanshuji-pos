@@ -229,20 +229,12 @@
            </div>
            <div class="input-row">
                 <span class="input-label">取餐時間*:</span>
-                <input type="datetime-local" id="pickupTime" class="input-field" step="60" onchange="updateWeekdayBadge()">
+                <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
                 <span id="weekdayBadge" class="weekday-badge">星期--</span>
            </div>
            <div class="input-row">
                 <span class="input-label">顧客備註:</span>
                 <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如：多蒜、少蔥)">
-           </div>
-           <!-- 新增的通知授權勾選欄位 -->
-           <div class="input-row">
-                <span class="input-label">通知授權:</span>
-                <div style="display:flex; gap:15px; align-items:center; color:#f5e4b3; font-size:14px;">
-                     <label><input type="checkbox" id="pushWebNotif" checked> 網頁即時通知</label>
-                     <label><input type="checkbox" id="pushLineNotif" checked> LINE 狀態通知</label>
-                </div>
            </div>
        </div>
 
@@ -292,6 +284,27 @@
                 <button class="btn btn-clear" onclick="clearCart()">清除</button>
                 <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
            </div>
+       </div>
+   </div>
+
+   <!-- 取餐時間選擇 Modal (強制 24 小時制) -->
+   <div class="modal" id="pickupTimeModal">
+       <div class="modal-content" style="width:340px; text-align:center;">
+           <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
+           <h3 style="color:var(--primary-gold); margin-bottom:14px;">選擇 24 小時制取餐時間</h3>
+           
+           <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:15px; text-align:left;">
+               <div>
+                   <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇日期：</label>
+                   <input type="date" id="modalPickupDate" class="input-field" style="width:100%;">
+               </div>
+               <div>
+                   <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制)：</label>
+                   <select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select>
+               </div>
+           </div>
+
+           <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmPickupTimeModal()">確定選擇</button>
        </div>
    </div>
 
@@ -598,7 +611,7 @@
 
                    let hStr = String(actualH).padStart(2, '0');
                    let mStr = String(m).padStart(2, '0');
-                   let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
+                   let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`; // 24小時制格式
                    
                    let option = document.createElement('option');
                    let targetDate = new Date();
@@ -630,7 +643,6 @@
                    return;
                }
                localStorage.setItem('pos_store_resume_time', resumeTimestamp);
-               let resumeDateStr = new Date(parseInt(resumeTimestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                executeChangeStoreStatus(pendingTargetStatus);
            }
            closeStatusTimeModal();
@@ -875,16 +887,76 @@
 
        function setDefaultPickupTime() {
            const now = new Date();
-           now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-           document.getElementById('pickupTime').value = now.toISOString().slice(0,16);
+           let yyyy = now.getFullYear();
+           let mm = String(now.getMonth() + 1).padStart(2, '0');
+           let dd = String(now.getDate()).padStart(2, '0');
+           let hh = String(now.getHours()).padStart(2, '0');
+           let min = String(now.getMinutes()).padStart(2, '0');
+           
+           // 強制 24 小時制格式：YYYY/MM/DD HH:MM
+           document.getElementById('pickupTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
            updateWeekdayBadge();
+       }
+
+       function openPickupTimeModal() {
+           const now = new Date();
+           let yyyy = now.getFullYear();
+           let mm = String(now.getMonth() + 1).padStart(2, '0');
+           let dd = String(now.getDate()).padStart(2, '0');
+           
+           document.getElementById('modalPickupDate').value = `${yyyy}-${mm}-${dd}`;
+           
+           const selectElem = document.getElementById('modalPickupTimeSelect');
+           selectElem.innerHTML = '';
+
+           for (let h = 0; h < 27; h++) {
+               let actualH = h % 24;
+               for (let m of [0, 30]) {
+                   if (h >= 24 && m > 0) break;
+                   let hStr = String(actualH).padStart(2, '0');
+                   let mStr = String(m).padStart(2, '0');
+                   let timeStr = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
+                   
+                   let opt = document.createElement('option');
+                   opt.value = `${hStr}:${mStr}`;
+                   if (h >= 24) opt.dataset.nextDay = "true";
+                   opt.text = timeStr;
+                   
+                   if (actualH === now.getHours() && Math.abs(m - now.getMinutes()) < 30) {
+                       opt.selected = true;
+                   }
+                   selectElem.appendChild(opt);
+               }
+           }
+
+           document.getElementById('pickupTimeModal').style.display = 'flex';
+       }
+
+       function closePickupTimeModal() {
+           document.getElementById('pickupTimeModal').style.display = 'none';
+       }
+
+       function confirmPickupTimeModal() {
+           const dateVal = document.getElementById('modalPickupDate').value;
+           const timeVal = document.getElementById('modalPickupTimeSelect').value;
+           
+           if (!dateVal || !timeVal) {
+               alert("請完整選擇日期與時間！");
+               return;
+           }
+
+           let formattedDate = dateVal.replace(/-/g, '/');
+           document.getElementById('pickupTime').value = `${formattedDate} ${timeVal}`;
+           updateWeekdayBadge();
+           closePickupTimeModal();
        }
 
        function updateWeekdayBadge() {
            const val = document.getElementById('pickupTime').value;
            const badge = document.getElementById('weekdayBadge');
            if (val) {
-               const dt = new Date(val);
+               let datePart = val.split(' ')[0].replace(/\//g, '-');
+               const dt = new Date(datePart);
                if (!isNaN(dt.getTime())) {
                    badge.innerText = weekDaysArr[dt.getDay()];
                    return;
@@ -1099,8 +1171,8 @@
                status: "已結算",
                date: todayStr,
                weekDay: weekDaysArr[todayObj.getDay()],
-               time: "23:59",
-               fullTime: `${todayStr} 23:59`,
+               time: "23:59", // 24小時制
+               fullTime: `${todayStr} 23:59`, // 24小時制
                customer: "【當日總結報表】",
                phone: "-",
                pickupTime: "-",
@@ -2206,10 +2278,6 @@
            let custPhone = document.getElementById('custPhone').value.trim();
            const pickupTimeRaw = document.getElementById('pickupTime').value;
            const custNotes = document.getElementById('custNotes').value.trim();
-           
-           // 讀取通知授權勾選狀態
-           const pushWebNotif = document.getElementById('pushWebNotif').checked;
-           const pushLineNotif = document.getElementById('pushLineNotif').checked;
 
            if (!custName) {
                if (isUserAdminMode() && isBackdate) {
@@ -2234,19 +2302,17 @@
 
            if (!pickupTimeRaw) {
                alert("請選擇【取餐時間】才可完成下單！");
-               document.getElementById('pickupTime').focus();
                return;
            }
 
-           const pickupDateObj = new Date(pickupTimeRaw);
+           let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
+           const pickupDateObj = new Date(datePart);
            const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
            
-           const pYear = pickupDateObj.getFullYear();
-           const pMonth = String(pickupDateObj.getMonth() + 1).padStart(2, '0');
-           const pDay = String(pickupDateObj.getDate()).padStart(2, '0');
-           const pHour = String(pickupDateObj.getHours()).padStart(2, '0');
-           const pMin = String(pickupDateObj.getMinutes()).padStart(2, '0');
-           const formattedPickupTime = `${pYear}-${pMonth}-${pDay} ${pHour}:${pMin} (${pickupWeekDayStr})`;
+           let formattedPickupTime = `${pickupTimeRaw}`;
+           if (pickupWeekDayStr && !formattedPickupTime.includes('星期')) {
+               formattedPickupTime += ` (${pickupWeekDayStr})`;
+           }
 
            let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
            if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
@@ -2254,7 +2320,9 @@
            }
            
            let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
-           let timeStr = `${pHour}:${pMin}`;
+           
+           // 強制 24 小時制時間字串 (HH:MM)
+           let timeStr = pickupTimeRaw.split(' ')[1] || "00:00";
            let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
            let subtotal = 0;
@@ -2288,11 +2356,11 @@
                status: orderStatus,
                date: dateStr,
                weekDay: weekDayStr,
-               time: timeStr,
+               time: timeStr, // 24小時制時間
                fullTime: `${dateStr} ${timeStr}`,
                customer: custName,
                phone: custPhone,
-               pickupTime: formattedPickupTime,
+               pickupTime: formattedPickupTime, // 24小時制取餐時間
                custNotes: finalCustNotes,
                originalTotal: subtotal,
                total: subtotal,
@@ -2301,11 +2369,6 @@
                discountNote: "",
                payment: currentPayment,
                prefs: finalPrefs,
-               // 將通知授權設定一併記錄到訂單物件中，供後續後端判斷
-               notifications: {
-                   web: pushWebNotif,
-                   line: pushLineNotif
-               },
                items: currentCart.map(item => ({
                    name: item.name,
                    qty: item.qty,
@@ -2517,9 +2580,11 @@
                    flavorFullStr = fParts.join(" ");
                }
 
+               let displayTime = ord.time || "";
+
                const tr = document.createElement('tr');
                tr.innerHTML = `
-                   <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="autoSaveHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> ${ord.time}</td>
+                   <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="autoSaveHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> <input type="text" class="edit-input" style="max-width:60px; display:inline-block;" value="${displayTime}" onchange="autoSaveHistoryItem(${realIndex}, 'time', this.value)"></td>
                    <td><input type="text" class="edit-input" value="${ord.customer}" onchange="autoSaveHistoryItem(${realIndex}, 'customer', this.value)"></td>
                    <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="autoSaveHistoryItem(${realIndex}, 'phone', this.value)"></td>
                    <td>
