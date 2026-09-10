@@ -817,6 +817,16 @@
            exportMonthlyReport();
        }
 
+       function exportDailyExcelFromShift() {
+           let todayObj = new Date();
+           if (todayObj.getHours() >= 0 && todayObj.getHours() < 2) {
+               todayObj.setDate(todayObj.getDate() - 1);
+           }
+           let todayStr = `${todayObj.getFullYear()}/${(todayObj.getMonth()+1).toString().padStart(2,'0')}/${todayObj.getDate().toString().padStart(2,'0')}`;
+           let targetUrl = `${GAS_WEB_APP_URL}?action=exportDailyEXL&date=${todayStr}`;
+           window.open(targetUrl, '_blank');
+       }
+
        function openShiftReportModal() {
            closeAdminMenu();
            renderShiftReportModalContent();
@@ -923,7 +933,8 @@
                        </div>
                    </div>
 
-                   <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="confirmAndSyncShiftReport()">確認結算 (寫入雲端總結)</button>
+                   <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="confirmAndSyncShiftReport()">確認結算</button>
+                   <button class="btn btn-backdate" style="width:100%; margin-top:5px;" onclick="exportDailyExcelFromShift()">📥 匯出 EXL (Excel)</button>
                </div>
            `;
        }
@@ -2333,7 +2344,6 @@
            const tbody = document.getElementById('mgmtTableBody');
            tbody.innerHTML = '';
            
-           // 修復篩選筆數顯示：若有篩選，顯示「符合筆數 / 總歷史筆數」；若無篩選（顯示全部），則兩者相同
            const totalCount = localOrderHistory.length;
            const displayCount = isFiltered ? ordersToRender.length : totalCount;
            document.getElementById('mgmtOrderCount').innerText = `篩選結果：${displayCount} / ${totalCount} 筆`;
