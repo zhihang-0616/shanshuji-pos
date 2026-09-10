@@ -528,14 +528,47 @@
            localStorage.setItem('pos_store_status', status);
        }
 
-       function changeStoreStatus(val) {
+       async function changeStoreStatus(val) {
            setStoreStatus(val);
+           updateHeaderLayout();
+           
+           // 同步至雲端
+           if (GAS_WEB_APP_URL) {
+               try {
+                   await fetch(GAS_WEB_APP_URL, {
+                       method: "POST",
+                       mode: "no-cors",
+                       headers: { "Content-Type": "application/json" },
+                       body: JSON.stringify({ action: "setStoreStatus", status: val })
+                   });
+               } catch(e) {
+                   console.error("狀態同步雲端失敗", e);
+               }
+           }
+
            if (val === "營業中") {
                alert("已切換為【營業中】！");
            } else if (val === "備料中") {
                alert("已切換為【備料中】！");
            } else {
                alert("已切換為【休息中】，顧客端將無法進行點餐！");
+           }
+       }
+
+       async function fetchStoreStatusFromCloud() {
+           if (!GAS_WEB_APP_URL) return;
+           try {
+               let res = await fetch(`${GAS_WEB_APP_URL}?action=getStoreStatus`);
+               let data = await res.json();
+               if (data && data.storeStatus) {
+                   let currentLocal = getStoreStatus();
+                   if (data.storeStatus !== currentLocal) {
+                       setStoreStatus(data.storeStatus);
+                       updateHeaderLayout();
+                   }
+               }
+           } catch(e) {
+               console.log("雲端狀態同步失敗");
            }
        }
 
@@ -547,7 +580,7 @@
 
            if (!isUserAdminMode()) {
                headerTopRow.innerHTML = `
-                   <div class="store-status-static">🟢 ${currentStatus}</div>
+                   <div class="store-status-static">${currentStatus === '營業中' ? '🟢 營業中' : (currentStatus === '備料中' ? '🟡 備料中' : '🔴 休息中')}</div>
                    <div></div>
                `;
                storeInfoContainer.innerHTML = `
@@ -1235,7 +1268,13 @@
            refreshMenuTabs();
            setDefaultPickupTime();
            updateCartUI();
+           await fetchStoreStatusFromCloud();
            await initCloudSync();
+
+           // 每 10 秒自動向雲端同步一次店家狀態
+           setInterval(() => {
+               fetchStoreStatusFromCloud();
+           }, 10000);
        }
 
        function refreshMenuTabs() {
