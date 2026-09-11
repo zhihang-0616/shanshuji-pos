@@ -151,7 +151,6 @@
       .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
       .receipt-line { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
 
-      /* 表格捲動條樣式 */
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: #140f0a; }
       ::-webkit-scrollbar-thumb { background: #5c4524; border-radius: 4px; }
@@ -214,15 +213,15 @@
       
       <div class="order-list" id="orderList"></div>
 
-      <!-- 主畫面底部按鈕：直接前往填寫取餐資訊(含結帳) -->
+      <!-- 主畫面底部按鈕 -->
       <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
           <button class="btn btn-submit" style="width:100%; padding:14px; font-size:16px;" onclick="openStep1Modal()">下一步 (填寫取餐資訊)</button>
       </div>
   </div>
 
-  <!-- 合併後的 Modal：填寫取餐資訊 (包含口味、折扣與付款) -->
+  <!-- 填寫取餐資訊 Modal (含清除購物車、上一步與下一步) -->
   <div class="modal" id="step1Modal">
-      <div class="modal-content" style="width:420px;">
+      <div class="modal-content" style="width:420px; resize:none;">
           <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">填寫取餐資訊</h3>
 
@@ -304,14 +303,16 @@
               </div>
           </div>
 
-          <div class="action-buttons" style="display:flex; gap:10px;">
-                <button class="btn btn-clear" onclick="clearCartAndClose()">清除購物車</button>
-                <button class="btn btn-submit" onclick="goToReceiptPreview()">下一步 (預覽收據)</button>
+          <!-- 按鈕區：清除購物車、上一步、下一步 -->
+          <div class="action-buttons" style="display:flex; gap:8px;">
+                <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
+                <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="closeStep1Modal()">上一步</button>
+                <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
           </div>
       </div>
   </div>
 
-  <!-- 收據與確認下單視窗 -->
+  <!-- 收據與確認下單視窗 (附帶上一步) -->
   <div class="modal" id="receiptModal">
       <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px; resize:none;"></div>
   </div>
@@ -325,7 +326,7 @@
       </div>
   </div>
 
-  <!-- 現金收銀 Modal -->
+  <!-- 現金收銀 Modal (金額不足阻擋與提示) -->
   <div class="modal" id="cashRegisterModal">
       <div class="modal-content" style="width:340px; text-align:center; resize:none;">
           <button class="modal-close-x" onclick="closeCashRegisterModal()">✕</button>
@@ -340,15 +341,17 @@
               <input type="number" id="cashReceived" class="input-field" style="width:100%; font-size:18px; font-weight:bold; padding:8px;" oninput="calcCashChange()">
           </div>
 
-          <div style="font-size:18px; font-weight:bold; color:#fcedcb; margin-bottom:20px;">
+          <div style="font-size:18px; font-weight:bold; color:#fcedcb; margin-bottom:15px;">
               找零：<span id="crChange" style="color:#ff9999;">$0</span>
           </div>
 
-          <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmCashRegister()">結帳完成 (移至歷史)</button>
+          <div id="cashErrorMsg" style="color:#ff6666; font-size:13px; font-weight:bold; margin-bottom:10px; display:none;"></div>
+
+          <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmCashRegister()">結帳完成</button>
       </div>
   </div>
 
-  <!-- 歷史訂單查詢 Modal (完全依照圖1格式) -->
+  <!-- 歷史訂單查詢 Modal -->
   <div class="modal" id="historyModal">
       <div class="modal-content" id="historyModalContent" style="width:1100px; max-width:98vw; height:75vh; display:flex; flex-direction:column;">
           <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
@@ -442,7 +445,7 @@
       </div>
   </div>
 
-  <!-- 編輯訂單品項 Modal (支援接單與歷史) -->
+  <!-- 編輯訂單品項 Modal -->
   <div class="modal" id="editOrderItemsModal">
       <div class="modal-content" style="width:450px; resize:none;">
           <button class="modal-close-x" onclick="closeEditOrderItemsModal()">✕</button>
@@ -489,7 +492,6 @@
       </div>
   </div>
 
-  <!-- 彈跳視窗 -->
   <div class="modal" id="optModal">
       <div class="modal-content" id="optModalContent" style="resize:none;"></div>
   </div>
@@ -505,7 +507,6 @@
   <script>
       const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
-      // ================= 🔊 音效系統 =================
       function playSound(type) {
           try {
               const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -672,7 +673,6 @@
           ]
       };
 
-      // 取得/同步菜單資料
       function getMenuData() {
           let saved = localStorage.getItem('pos_menu_data');
           if (saved) {
@@ -692,7 +692,7 @@
       let isEditMode = false;
       let pendingOrderPayloadForConfirm = null;
       let currentEditingOrderId = null; 
-      let currentEditingTarget = 'live'; // 'live' 或 'history'
+      let currentEditingTarget = 'live'; 
       let isHistorySelectMode = false;
       let pendingCashOrderId = null;
 
@@ -796,7 +796,7 @@
           } else {
               setPref(type, val, btnEl);
           }
-          updateStep1Total(); // 重新計算（因可能影響泰式+5元）
+          updateStep1Total();
       }
 
       function handleAddonClick(val, btnEl) {
@@ -953,7 +953,6 @@
           updateCartUI();
           updateOrderBadge();
           
-          // 載入記錄的 Modal 大小
           let savedSize = localStorage.getItem('pos_history_modal_size');
           if (savedSize) {
               try {
@@ -964,7 +963,6 @@
               } catch(e) {}
           }
 
-          // 監聽跨裝置/多頁籤同步事件
           window.addEventListener('storage', handleStorageSync);
           window.addEventListener('storage_synced', handleStorageSync);
       }
@@ -1449,11 +1447,6 @@
           refreshActiveGrid();
       }
 
-      function clearCartAndClose() {
-          clearCart();
-          closeStep1Modal();
-      }
-
       function openStep1Modal() {
           if (currentCart.length === 0) {
               alert("購物車是空的，請先選擇餐點！");
@@ -1504,7 +1497,6 @@
 
           let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
           const pickupDateObj = new Date(datePart);
-          const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
           
           let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
           if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
@@ -1522,7 +1514,6 @@
           let finalTotal = Math.round(subtotal * (percent / 100)) - minus;
           if (finalTotal < 0) finalTotal = 0;
 
-          // 整合備註
           let allNotesParts = [];
           if (orderPrefs.extras.length > 0) {
               allNotesParts.push(orderPrefs.extras.join(', '));
@@ -1532,7 +1523,6 @@
           }
           let finalCustNotes = allNotesParts.join(' / ');
 
-          // 整合口味
           let flavorArr = [];
           if (orderPrefs.flavor) flavorArr.push(orderPrefs.flavor);
           if (orderPrefs.spice) flavorArr.push(orderPrefs.spice);
@@ -1549,7 +1539,7 @@
               phone: custPhone,
               pickupTime: pickupTimeRaw,
               custNotes: finalCustNotes,
-              flavorStr: flavorString, // 直接儲存字串方便歷史顯示/修改
+              flavorStr: flavorString,
               total: finalTotal,
               payment: currentPayment,
               items: currentCart.map(item => ({
@@ -1574,7 +1564,12 @@
                   <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
                   <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
               </div>
-              <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px; margin-bottom:14px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
+              
+              <!-- 按鈕區：上一步與確認下單 -->
+              <div style="display:flex; gap:8px; margin-bottom:14px;">
+                  <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:10px;" onclick="closeReceiptModalAndBack()">上一步</button>
+                  <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
+              </div>
               
               <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
               <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.phone}</span></div>
@@ -1627,7 +1622,7 @@
       function confirmFinalOrderSubmit() {
           if (!pendingOrderPayloadForConfirm) return;
 
-          let bizDateStr = pendingOrderPayloadForConfirm.date; // YYYY/MM/DD
+          let bizDateStr = pendingOrderPayloadForConfirm.date;
           let seqObj = JSON.parse(localStorage.getItem('pos_daily_seq') || '{}');
           if (!seqObj[bizDateStr]) seqObj[bizDateStr] = 0;
           seqObj[bizDateStr]++;
@@ -1649,7 +1644,6 @@
           updateOrderBadge();
       }
 
-      // ================= 📋 接單系統邏輯 =================
       function updateOrderBadge() {
           let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
           const badge = document.getElementById('orderBadgeCount');
@@ -1681,10 +1675,7 @@
               return;
           }
 
-          liveOrders.forEach((ord, index) => {
-              const div = document.createElement('div');
-              div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px;";
-              
+          liveOrders.forEach((ord) => {
               let itemsHtml = ord.items.map((i, idx) => `
                   <div style="display:flex; justify-content:space-between; font-size:13px; color:#eddab2;">
                       <span>${i.name} x ${i.qty}</span>
@@ -1702,6 +1693,8 @@
                   btnBg = "linear-gradient(135deg, #b26a00, #663800)";
               }
 
+              div = document.createElement('div');
+              div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px;";
               div.innerHTML = `
                   <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #5c4524; padding-bottom:6px;">
                       <span style="font-weight:bold; color:var(--primary-gold);">${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
@@ -1751,6 +1744,7 @@
                   document.getElementById('crTotal').innerText = `$${ord.total}`;
                   document.getElementById('cashReceived').value = '';
                   document.getElementById('crChange').innerText = `$0`;
+                  document.getElementById('cashErrorMsg').style.display = 'none';
                   document.getElementById('cashRegisterModal').style.display = 'flex';
               } else {
                   completeOrderToHistory(orderId);
@@ -1765,7 +1759,16 @@
 
           let received = parseInt(document.getElementById('cashReceived').value) || 0;
           let change = received - ord.total;
-          document.getElementById('crChange').innerText = `$${change >= 0 ? change : 0}`;
+          const errBox = document.getElementById('cashErrorMsg');
+
+          if (received < ord.total) {
+              document.getElementById('crChange').innerText = `$0`;
+              errBox.innerText = `⚠️ 金額不足！尚差 $${ord.total - received} 元`;
+              errBox.style.display = 'block';
+          } else {
+              document.getElementById('crChange').innerText = `$${change}`;
+              errBox.style.display = 'none';
+          }
       }
 
       function closeCashRegisterModal() {
@@ -1774,10 +1777,18 @@
       }
 
       function confirmCashRegister() {
-          if (pendingCashOrderId) {
-              completeOrderToHistory(pendingCashOrderId);
-              closeCashRegisterModal();
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === pendingCashOrderId);
+          if (!ord) return;
+
+          let received = parseInt(document.getElementById('cashReceived').value) || 0;
+          if (received < ord.total) {
+              alert(`實收金額不足 (應收 $${ord.total} 元)，無法結帳！`);
+              return;
           }
+
+          completeOrderToHistory(pendingCashOrderId);
+          closeCashRegisterModal();
       }
 
       function completeOrderToHistory(orderId) {
@@ -1812,14 +1823,13 @@
           ord.items.splice(itemIndex, 1);
           let newTotal = 0;
           ord.items.forEach(i => newTotal += i.price * i.qty);
-          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5; // 簡易判定
+          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
           ord.total = newTotal;
 
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           window.dispatchEvent(new Event('storage_synced'));
       }
 
-      // ================= 📊 歷史訂單查詢管理 =================
       function openHistoryModal() {
           const today = new Date();
           let yyyy = today.getFullYear();
@@ -1874,7 +1884,7 @@
           tbody.innerHTML = '';
 
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          const filterDateVal = document.getElementById('historyDateFilter').value; // yyyy-mm-dd
+          const filterDateVal = document.getElementById('historyDateFilter').value;
           let formattedFilterDate = filterDateVal ? filterDateVal.replace(/-/g, '/') : '';
 
           let filtered = history.filter(ord => {
@@ -1894,7 +1904,6 @@
               
               let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
               
-              // 依據圖1欄位順序：流水號, 訂單ID, 狀態, 日期, 星期, 時間, 訂購人, 電話, 取餐時間, 付款方式, 總金額, 品項內容, 口味, 備註, 操作
               tr.innerHTML = `
                   <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}"></td>
                   <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
@@ -1920,7 +1929,6 @@
               tbody.appendChild(tr);
           });
 
-          // 同步顯示選取標題
           document.querySelectorAll('.history-select-th').forEach(el => el.style.display = isHistorySelectMode ? 'table-cell' : 'none');
       }
 
@@ -1947,7 +1955,6 @@
           window.dispatchEvent(new Event('storage_synced'));
       }
 
-      // ================= 📝 訂單資訊修改 (日期, 姓名, 電話, 備註等) =================
       function openEditOrderInfoModal(orderId, targetType) {
           currentEditingOrderId = orderId;
           currentEditingTarget = targetType;
@@ -1994,7 +2001,6 @@
           closeEditOrderInfoModal();
       }
 
-      // ================= 🍔 訂單品項修改/新增邏輯 (支援接單與歷史) =================
       function openEditOrderItemsModal(orderId, targetType) {
           currentEditingOrderId = orderId;
           currentEditingTarget = targetType; 
