@@ -23,25 +23,25 @@
       
       .menu-container { flex: 7; display: flex; flex-direction: column; background: var(--panel-bg); border-right: 2px solid var(--border-gold); height: 100%; overflow: hidden; }
       
-      .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 18px 22px; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 14px; position: relative; }
+      .menu-header { background: var(--header-bg); color: #fdf3d8; padding: 14px 22px; border-bottom: 2px solid var(--primary-gold-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 10px; position: relative; }
 
-      .header-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 40px; }
+      .header-top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 30px; }
 
       .menu-header-title { text-shadow: 0 2px 6px rgba(0,0,0,0.9); background: var(--gold-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; font-size: 28px; font-weight: bold; position: absolute; left: 50%; transform: translateX(-50%); }
 
-      .store-info-box { width: 100%; background: #1a110a; border: 1px solid var(--border-gold); border-radius: 6px; padding: 10px 16px; font-size: 13px; color: #eddab2; display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+      .store-info-box { width: 100%; background: #1a110a; border: 1px solid var(--border-gold); border-radius: 6px; padding: 8px 14px; font-size: 13px; color: #eddab2; display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
       .store-info-row { display: flex; justify-content: space-between; width: 100%; gap: 15px; }
       .store-info-left { text-align: left; flex: 1; display: flex; }
       .store-info-right { text-align: left; flex: 1; display: flex; }
       .store-info-label { min-width: 60px; font-weight: bold; color: var(--primary-gold); }
       .store-info-val { flex: 1; }
 
-      .admin-action-group { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%; margin-top: 5px; }
+      .admin-action-group { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%; margin-top: 2px; }
 
-      .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 8px 14px; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+      .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
       .header-btn:hover { filter: brightness(1.15); }
       
-      .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 2; }
+      .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; z-index: 2; }
       .login-btn.logged-in { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border-color: #81c784; }
 
       .quick-accept-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); border: 1px solid #81c784; }
@@ -52,7 +52,7 @@
       .admin-entry-btn { background: linear-gradient(135deg, #424242, #212121); color: #ffffff; border: 1px solid #757575; }
 
       .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
-      .tab-btn { flex: 1; padding: 18px 6px 14px 6px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+      .tab-btn { flex: 1; padding: 14px 6px 10px 6px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
       .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
       
       body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
@@ -62,81 +62,84 @@
       .cat-close-btn:hover { background: #8b1e0f; color: #fff; border-color: #ff9999; }
       body.edit-mode .cat-close-btn { display: flex; }
 
-      .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 3px; display: block; text-align: center; width: 100%; }
+      .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 2px; display: block; text-align: center; width: 100%; }
 
-      .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 12px 18px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
+      .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 16px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
       
-      .grid-container { flex: 1; padding: 18px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 14px; align-content: start; -webkit-overflow-scrolling: touch; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
+      .grid-container { flex: 1; padding: 14px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 12px; align-content: start; -webkit-overflow-scrolling: touch; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
       
-      .chicken-bawi-container { flex: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
-      .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: center; font-weight: bold; font-size: 18px; color: var(--primary-gold); border-bottom: 2px solid var(--border-gold); padding-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
-      .bawi-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      .chicken-bawi-container { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
+      .bawi-header-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; text-align: center; font-weight: bold; font-size: 17px; color: var(--primary-gold); border-bottom: 2px solid var(--border-gold); padding-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+      .bawi-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-      .combo-vertical-container { flex: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
-      .combo-card { background: linear-gradient(135deg, #38291a 0%, #24190e 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 14px 18px; cursor: pointer; display: flex; flex-direction: column; position: relative; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+      .combo-vertical-container { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
+      .combo-card { background: linear-gradient(135deg, #38291a 0%, #24190e 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 10px 14px; cursor: pointer; display: flex; flex-direction: column; position: relative; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
       .combo-card:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(212, 175, 55, 0.3); border-color: var(--primary-gold); }
-      .combo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-gold); padding-bottom: 8px; margin-bottom: 10px; }
-      .combo-name { font-size: 17px; font-weight: bold; color: #fff1cd; }
-      .combo-price { color: var(--primary-gold); font-weight: bold; font-size: 19px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-      .combo-details { font-size: 14px; color: #d6c29a; line-height: 1.6; }
+      .combo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-gold); padding-bottom: 6px; margin-bottom: 6px; }
+      .combo-name { font-size: 16px; font-weight: bold; color: #fff1cd; }
+      .combo-price { color: var(--primary-gold); font-weight: bold; font-size: 18px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+      .combo-details { font-size: 13px; color: #d6c29a; line-height: 1.5; }
 
-      .item-card { background: linear-gradient(135deg, #362719 0%, #20160d 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 3px 6px rgba(0,0,0,0.4); min-height: 95px; }
+      .item-card { background: linear-gradient(135deg, #362719 0%, #20160d 100%); border: 1px solid var(--border-gold); border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; transition: all 0.2s; box-shadow: 0 3px 6px rgba(0,0,0,0.4); min-height: 85px; }
       .item-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(212, 175, 55, 0.3); border-color: var(--primary-gold); }
-      .item-name { font-size: 16px; font-weight: bold; margin-bottom: 8px; word-break: break-all; text-align: center; color: #fcedcb; }
-      .item-price { color: var(--primary-gold); font-weight: bold; font-size: 17px; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
-      .badge { position: absolute; top: -7px; right: -7px; background: var(--gold-gradient); color: #1a0c00; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.6); }
+      .item-name { font-size: 15px; font-weight: bold; margin-bottom: 6px; word-break: break-all; text-align: center; color: #fcedcb; }
+      .item-price { color: var(--primary-gold); font-weight: bold; font-size: 16px; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+      .badge { position: absolute; top: -6px; right: -6px; background: var(--gold-gradient); color: #1a0c00; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.6); }
       
       .item-card.sold-out, .combo-card.sold-out { background: #1f1813; border-color: #4a3821; opacity: 0.5; cursor: not-allowed; }
       .item-card.sold-out .item-name, .combo-card.sold-out .combo-name { text-decoration: line-through; color: #8a7356; }
       .item-card.sold-out .item-price, .combo-card.sold-out .combo-price { color: #8a7356; }
-      .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(139, 0, 0, 0.85); color: #fff; padding: 4px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; pointer-events: none; border: 1px solid #ff9999; }
+      .sold-out-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(139, 0, 0, 0.85); color: #fff; padding: 4px 10px; font-size: 12px; font-weight: bold; border-radius: 4px; pointer-events: none; border: 1px solid #ff9999; }
       
       body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #ff4444; }
       body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #888; }
 
       .checkout-container { flex: 3.2; display: flex; flex-direction: column; background: #1a120b; height: 100%; box-shadow: -4px 0 15px rgba(0,0,0,0.7); }
-      .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 16px; font-size: 18px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+      .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 12px 16px; font-size: 17px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
       .order-title:hover { background: #4a331f; }
-      .order-list { flex: 1; overflow-y: auto; padding: 12px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
+      
+      /* 訂單明細改為具備高彈性、可滾動的區域，品項多時可完整顯示 */
+      .order-list { flex: 2; min-height: 120px; max-height: 42vh; overflow-y: auto; padding: 8px 12px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
       .order-list.collapsed { display: none; }
       
-      .order-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 6px; border-bottom: 1px solid #2d2014; font-size: 15px; gap: 6px; color: #eddab2; }
-      .order-item.sub-item { padding-left: 22px; font-size: 13px; color: #a38c62; background: #110a05; }
+      .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 6px; border-bottom: 1px solid #2d2014; font-size: 14px; gap: 6px; color: #eddab2; }
+      .order-item.sub-item { padding-left: 20px; font-size: 12px; color: #a38c62; background: #110a05; }
       .order-item-info { flex: 2; }
-      .order-item-qty { display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; }
-      .qty-btn { width: 30px; height: 30px; background: #3d2c1c; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 15px; }
+      .order-item-qty { display: flex; align-items: center; gap: 5px; flex: 1; justify-content: center; }
+      .qty-btn { width: 26px; height: 26px; background: #3d2c1c; color: #fff; border: 1px solid var(--border-gold); border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; }
       .qty-btn:hover { background: var(--primary-gold); color: #000; }
-      .order-item-price { flex: 1; text-align: right; font-weight: bold; color: var(--primary-gold); font-size: 16px; }
-      .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 26px; height: 26px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 6px; }
+      .order-item-price { flex: 1; text-align: right; font-weight: bold; color: var(--primary-gold); font-size: 15px; }
+      .delete-item-btn { background: #7a1c1c; color: white; border: none; border-radius: 4px; width: 24px; height: 24px; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 4px; }
       .delete-item-btn:hover { background: #b32424; }
       
-      .customer-info-box { padding: 14px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 14px; }
-      .input-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+      /* 圖一區塊壓縮微調 (更緊湊) */
+      .customer-info-box { padding: 8px 12px; background: #2b1f13; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
+      .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
       .input-row:last-child { margin-bottom: 0; }
-      .input-label { font-weight: bold; color: var(--primary-gold); min-width: 80px; font-size: 14px; }
-      .input-field { flex: 1; padding: 8px 12px; background: #150d07; border: 1px solid var(--border-gold); border-radius: 4px; color: #f5e4b3; font-size: 14px; outline: none; }
+      .input-label { font-weight: bold; color: var(--primary-gold); min-width: 75px; font-size: 13px; }
+      .input-field { flex: 1; padding: 6px 10px; background: #150d07; border: 1px solid var(--border-gold); border-radius: 4px; color: #f5e4b3; font-size: 13px; outline: none; }
       .input-field:focus { border-color: #f3e5ab; box-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
-      .weekday-badge { font-size: 13px; font-weight: bold; color: #f3e5ab; background: #3d2b1a; padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-gold); white-space: nowrap; }
+      .weekday-badge { font-size: 12px; font-weight: bold; color: #f3e5ab; background: #3d2b1a; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border-gold); white-space: nowrap; }
 
-      .status-check-box { padding: 10px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; }
+      .status-check-box { padding: 6px 10px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; }
 
-      .preferences-box { padding: 14px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 15px; }
-      .pref-header { text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 16px; color: var(--primary-gold); letter-spacing: 1px; }
-      .pref-group { margin-bottom: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-      .pref-label { font-weight: bold; min-width: 50px; color: #c4ae85; font-size: 14px; }
-      .pref-btn { padding: 7px 12px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 14px; cursor: pointer; position: relative; }
+      .preferences-box { padding: 8px 12px; background: #24190f; border-bottom: 1px solid var(--border-gold); font-size: 13px; }
+      .pref-header { text-align: center; font-weight: bold; margin-bottom: 6px; font-size: 14px; color: var(--primary-gold); letter-spacing: 1px; }
+      .pref-group { margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+      .pref-label { font-weight: bold; min-width: 45px; color: #c4ae85; font-size: 13px; }
+      .pref-btn { padding: 4px 10px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; position: relative; }
       .pref-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
       .pref-btn.disabled { background: #222; color: #555; text-decoration: line-through; cursor: not-allowed; border-color: #333; }
-      .eco-notice { font-size: 12px; color: #9c8458; margin-top: 6px; width: 100%; text-align: center; font-weight: bold; }
+      .eco-notice { font-size: 11px; color: #9c8458; margin-top: 3px; width: 100%; text-align: center; font-weight: bold; }
 
-      .summary-box { padding: 16px; background: #1a110a; }
-      .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: var(--primary-gold); margin-bottom: 14px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-      .payment-methods { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-      .pay-btn { flex: 1; padding: 11px 8px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; cursor: pointer; text-align: center; font-size: 14px; font-weight: bold; }
+      .summary-box { padding: 10px 14px; background: #1a110a; }
+      .total-row { display: flex; justify-content: space-between; font-size: 17px; font-weight: bold; color: var(--primary-gold); margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+      .payment-methods { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+      .pay-btn { flex: 1; padding: 8px 6px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; cursor: pointer; text-align: center; font-size: 13px; font-weight: bold; }
       .pay-btn.active { background: linear-gradient(135deg, #2e7d32, #1b5e20); color: white; border-color: #81c784; }
       
-      .action-buttons { display: flex; gap: 12px; }
-      .btn { flex: 1; padding: 14px; border: none; border-radius: 6px; font-size: 17px; font-weight: bold; cursor: pointer; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
+      .action-buttons { display: flex; gap: 8px; }
+      .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; text-align: center; box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
       .btn-clear { background: linear-gradient(135deg, #8b1e0f, #4a0d05); color: #ffe6e6; border: 1px solid #b33927; }
       .btn-clear:hover { background: #a32412; }
       .btn-submit { background: var(--gold-gradient); color: #1a0c00; border: 1px solid #fff3cb; }
@@ -212,7 +215,7 @@
       <div class="order-list" id="orderList"></div>
 
       <div class="status-check-box">
-          <button class="header-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold);" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
+          <button class="header-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold); padding:4px 10px; font-size:12px;" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
       </div>
 
       <div class="customer-info-box">
@@ -256,7 +259,7 @@
                 <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
                 <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
           </div>
-          <div class="pref-group" style="margin-top:5px; border-top:1px dashed #543f24; padding-top:5px;">
+          <div class="pref-group" style="margin-top:3px; border-top:1px dashed #543f24; padding-top:3px;">
                 <span class="pref-label">配備:</span>
                 <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
                 <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
@@ -1616,7 +1619,7 @@
               div.innerHTML = `
                   <div class="order-item-info">
                       <div><strong>${item.name}</strong></div>
-                      <div style="font-size:13px; color:#a38c62;">$${item.price} × ${item.qty}</div>
+                      <div style="font-size:12px; color:#a38c62;">$${item.price} × ${item.qty}</div>
                   </div>
                   <div class="order-item-qty">
                       <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
