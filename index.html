@@ -415,12 +415,13 @@
           <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
           
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-              <h3 style="color:var(--primary-gold); margin:0;">📊 歷史訂單查詢 (已完成)</h3>
+              <h3 style="color:var(--primary-gold); margin:0;">📊 歷史訂單查詢</h3>
               
               <div style="display:flex; gap:6px; align-items:center;">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(-1)">◀ 前一日</button>
                   <input type="date" id="historyDateFilter" class="input-field" style="padding:4px 8px; width:130px;" onchange="renderHistoryOrders()">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(1)">後一日 ▶</button>
+                  <button class="header-btn" style="background:#8b5a00;" onclick="showAllHistoryOrders()">全部訂單</button>
                   <button class="header-btn" id="toggleSelectModeBtn" style="background:#5c2c16;" onclick="toggleHistorySelectMode()">選取</button>
                   <button class="header-btn" id="batchDeleteBtn" style="background:#8b1e0f; display:none;" onclick="batchDeleteHistoryOrders()">刪除選取</button>
               </div>
@@ -520,7 +521,7 @@
           </div>
 
           <div style="display:flex; gap:10px;">
-              <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新進此品項</button>
+              <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
           </div>
 
           <div style="margin-top:15px; border-top:1px dashed var(--border-gold); padding-top:10px;">
@@ -907,7 +908,6 @@
       }
 
       function fetchFromServer() {
-          // 透過 GET 取得雲端最新資料
           fetch(GAS_URL + "?action=get_state")
           .then(res => res.json())
           .then(data => {
@@ -934,7 +934,6 @@
               }
           })
           .catch(err => {
-              // 網路不穩或無回應時退回讀取本地
               let savedMenu = localStorage.getItem('pos_menu_data');
               if (savedMenu) cachedMenuData = JSON.parse(savedMenu);
               cachedStoreStatus = localStorage.getItem('pos_store_status') || '營業中';
@@ -1216,7 +1215,6 @@
               } catch(e) {}
           }
 
-          // 每 3 秒自動向雲端抓取一次最新狀態達成即時多裝置同步
           setInterval(fetchFromServer, 3000);
       }
 
@@ -2146,6 +2144,11 @@
           renderHistoryOrders();
       }
 
+      function showAllHistoryOrders() {
+          document.getElementById('historyDateFilter').value = '';
+          renderHistoryOrders();
+      }
+
       function toggleHistorySelectMode() {
           isHistorySelectMode = !isHistorySelectMode;
           const batchBtn = document.getElementById('batchDeleteBtn');
@@ -2175,7 +2178,7 @@
           });
 
           if (filtered.length === 0) {
-              tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:30px; color:#8a7356;">此日期無歷史訂單紀錄 📊</td></tr>`;
+              tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:30px; color:#8a7356;">無符合條件的歷史訂單紀錄 📊</td></tr>`;
               return;
           }
 
