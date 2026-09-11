@@ -52,17 +52,17 @@
       .history-list-btn { background: linear-gradient(135deg, #006064, #00363a); color: #e0f7fa; border: 1px solid #4dd0e1; }
 
       .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
-      .tab-btn { flex: 1; padding: 8px 4px; border: none; background: transparent; font-size: 14px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; gap: 4px; }
+      .tab-btn { flex: 1; padding: 8px 4px; border: none; background: transparent; font-size: 14px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; gap: 2px; }
       .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
       
       body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
       .tab-btn.category-sold-out { background: #1f1813 !important; opacity: 0.6; color: #8a7356 !important; text-decoration: line-through; border-color: #888 !important; }
 
-      .cat-close-btn { width: 20px; height: 20px; background: #3d2b1a; color: var(--primary-gold); border: 1px solid var(--border-gold); border-radius: 50%; font-size: 11px; font-weight: bold; display: none; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; flex-shrink: 0; }
+      .cat-close-btn { width: 20px; height: 20px; background: #3d2b1a; color: var(--primary-gold); border: 1px solid var(--border-gold); border-radius: 50%; font-size: 11px; font-weight: bold; display: none; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; flex-shrink: 0; margin-bottom: 2px; }
       .cat-close-btn:hover { background: #8b1e0f; color: #fff; border-color: #ff9999; }
       body.edit-mode .cat-close-btn { display: flex; }
 
-      .sub-text { font-size: 12px; font-weight: normal; opacity: 0.85; margin-top: 2px; display: block; text-align: center; width: 100%; }
+      .sub-text { font-size: 11px; font-weight: normal; opacity: 0.85; display: block; text-align: center; width: 100%; }
 
       .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 16px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
       
@@ -152,12 +152,13 @@
       .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
       .receipt-line { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
 
-      .modal-option-group { margin-bottom: 12px; }
-      .modal-option-label { font-weight: bold; color: var(--primary-gold); margin-bottom: 6px; display: block; font-size: 14px; }
+      /* 自定義彈跳視窗樣式 */
+      .modal-option-group { margin-bottom: 14px; }
+      .modal-option-label { font-size: 13px; color: var(--primary-gold); font-weight: bold; display: block; margin-bottom: 6px; }
       .modal-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-      .modal-opt-btn { flex: 1; padding: 8px 12px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; text-align: center; }
+      .modal-opt-btn { flex: 1; padding: 8px 12px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; text-align: center; transition: 0.2s; }
       .modal-opt-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
-      .modal-opt-btn.disabled { opacity: 0.4; cursor: not-allowed; background: #111; }
+      .modal-opt-btn.disabled { opacity: 0.4; cursor: not-allowed; background: #111; color: #555; }
 
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: #140f0a; }
@@ -254,7 +255,7 @@
       </div>
   </div>
 
-  <!-- 修改密碼 Modal -->
+  <!-- 修改密碼 Modal (需輸入舊密碼與新密碼) -->
   <div class="modal" id="changePasswordModal">
       <div class="modal-content" style="width:380px; resize:none;">
           <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
@@ -290,7 +291,7 @@
                     <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
               </div>
               <div class="input-row">
-                    <span class="input-label" id="phoneLabel">電話*:</span>
+                    <span class="input-label" id="phoneLable">電話*:</span>
                     <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
               </div>
               <div class="input-row">
@@ -304,23 +305,23 @@
               </div>
           </div>
 
-          <div class="preferences-box" id="preferencesBoxContainer" style="margin-bottom:12px; border-radius:6px; border:1px solid var(--border-gold);">
+          <div class="preferences-box" id="preferencesBoxSection" style="margin-bottom:12px; border-radius:6px; border:1px solid var(--border-gold);">
               <div class="pref-header">倉位調整(選取口味)</div>
               <div class="pref-group">
-                    <span class="pref-label">口味:</span>
+                    <span class="pref-label">口味*:</span>
                     <button class="pref-btn" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
                     <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
                     <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
               </div>
               <div class="pref-group">
-                    <span class="pref-label">辣度:</span>
+                    <span class="pref-label">辣度*:</span>
                     <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
                     <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
                     <button class="pref-btn" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
                     <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
               </div>
               <div class="pref-group">
-                    <span class="pref-label">鹹度:</span>
+                    <span class="pref-label">鹹度*:</span>
                     <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
                     <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
                     <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
@@ -575,13 +576,11 @@
           const adminActionGroup = document.getElementById('adminActionGroup');
           const authBtnWrapper = document.getElementById('authBtnWrapper');
           const storeStatusSelect = document.getElementById('storeStatusSelect');
-          const phoneLabel = document.getElementById('phoneLabel');
 
           if (isAdminMode) {
               storeInfoContainer.style.display = 'none';
               adminActionGroup.style.display = 'flex';
               authBtnWrapper.style.display = 'block';
-              if (phoneLabel) phoneLabel.innerText = "電話:";
 
               let logged = localStorage.getItem('pos_mgr_logged') === 'true';
               if (logged) {
@@ -598,7 +597,6 @@
               storeInfoContainer.style.display = 'block';
               adminActionGroup.style.display = 'none';
               authBtnWrapper.style.display = 'none';
-              if (phoneLabel) phoneLabel.innerText = "電話*:";
               storeStatusSelect.disabled = true;
           }
           syncStoreStatusUI();
@@ -1421,12 +1419,12 @@
 
           let spiceBtnsHtml = '';
           ["不辣", "小辣", "中辣", "大辣"].forEach(sp => {
-              spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`;
+              spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn" data-val="${sp}" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`;
           });
 
           let saltBtnsHtml = '';
           ["清淡", "正常", "重鹹"].forEach(sa => {
-              saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`;
+              saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn" data-val="${sa}" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`;
           });
 
           content.innerHTML = `
@@ -1434,12 +1432,12 @@
               <h4 style="margin-bottom:16px; text-align:center; color:var(--text-gold); font-size:17px;">【${item.name}】</h4>
               
               <div class="modal-option-group">
-                  <span class="modal-option-label">選擇辣度：</span>
+                  <span class="modal-option-label">選擇辣度 (必選)：</span>
                   <div class="modal-btn-row">${spiceBtnsHtml}</div>
               </div>
               
               <div class="modal-option-group" style="margin-bottom:18px;">
-                  <span class="modal-option-label">選擇鹹度：</span>
+                  <span class="modal-option-label">選擇鹹度 (必選)：</span>
                   <div class="modal-btn-row">${saltBtnsHtml}</div>
               </div>
 
@@ -1455,8 +1453,13 @@
                   btn.classList.remove('active');
               } else {
                   tempSpice = val;
-                  document.querySelectorAll('.hot-spice-btn').forEach(b => b.classList.remove('active'));
-                  btn.classList.add('active');
+                  document.querySelectorAll('.hot-spice-btn').forEach(b => {
+                      if (b.getAttribute('data-val') === val) {
+                          b.classList.add('active');
+                      } else {
+                          b.classList.remove('active');
+                      }
+                  });
               }
           } else {
               if (tempSalt === val) {
@@ -1464,18 +1467,25 @@
                   btn.classList.remove('active');
               } else {
                   tempSalt = val;
-                  document.querySelectorAll('.hot-salt-btn').forEach(b => b.classList.remove('active'));
-                  btn.classList.add('active');
+                  document.querySelectorAll('.hot-salt-btn').forEach(b => {
+                      if (b.getAttribute('data-val') === val) {
+                          b.classList.add('active');
+                      } else {
+                          b.classList.remove('active');
+                      }
+                  });
               }
           }
       }
 
       function confirmHotFoodCustom(id, name, price) {
-          let prefsArr = [];
-          if (tempSpice) prefsArr.push(tempSpice);
-          if (tempSalt) prefsArr.push(tempSalt);
+          if (!tempSpice || !tempSalt) {
+              alert("厝邊溫食的商品【辣度】與【鹹度】為必選！");
+              return;
+          }
 
-          let fullName = prefsArr.length > 0 ? `${name} [${prefsArr.join('/')}]` : name;
+          let prefsArr = [tempSpice, tempSalt];
+          let fullName = `${name} [${prefsArr.join('/')}]`;
           let uniqueId = id + '_' + prefsArr.join('_');
           addToCart({ id: uniqueId, name: fullName, price: price, category: "厝邊溫食(炒麵/燴飯)", qty: 1 });
           closeOptModal();
@@ -1606,6 +1616,14 @@
               }
           });
           
+          const prefBoxSection = document.getElementById('preferencesBoxSection');
+          const isOnlyCuoBian = currentCart.length > 0 && currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
+          if (isOnlyCuoBian) {
+              prefBoxSection.style.display = 'none';
+          } else {
+              prefBoxSection.style.display = 'block';
+          }
+
           if (document.getElementById('step1Modal').style.display === 'flex') {
               updateStep1Total();
           }
@@ -1661,16 +1679,6 @@
               alert("購物車是空的，請先選擇餐點！");
               return;
           }
-
-          // 判斷是否全為「厝邊溫食(炒麵/燴飯)」商品
-          let allOnlyHotFood = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
-          const prefBox = document.getElementById('preferencesBoxContainer');
-          if (allOnlyHotFood) {
-              prefBox.style.display = 'none';
-          } else {
-              prefBox.style.display = 'block';
-          }
-
           updateStep1Total();
           document.getElementById('step1Modal').style.display = 'flex';
       }
@@ -1704,8 +1712,20 @@
               return;
           }
 
-          // 若非管理者模式，才強制驗證電話格式
-          if (!isAdminMode) {
+          const isOnlyCuoBian = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
+
+          // 如果不是只有點厝邊溫食的商品，才檢查倉位調整的必填項目
+          if (!isOnlyCuoBian) {
+              if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
+                  alert("請完整填寫【倉位調整】的口味、辣度與鹹度！");
+                  return;
+              }
+          }
+
+          // 如果是在管理者模式下，不需要強制驗證電話號碼格式
+          if (isAdminMode) {
+              // 允許電話欄位為空或任意格式
+          } else {
               const phoneRegex = /^09\d{8}$/;
               if (!phoneRegex.test(custPhone)) {
                   alert("手機號碼格式錯誤！請輸入正確的手機號碼 (共10碼數字)");
@@ -1717,15 +1737,6 @@
           if (!pickupTimeRaw) {
               alert("請選擇【取餐時間】！");
               return;
-          }
-
-          // 檢查是否需要驗證倉位調整必填 (若購物車不全為厝邊溫食)
-          let allOnlyHotFood = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
-          if (!allOnlyHotFood) {
-              if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
-                  alert("請完整選取口味、辣度與鹹度後方可繼續！");
-                  return;
-              }
           }
 
           let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
@@ -1757,9 +1768,11 @@
           let finalCustNotes = allNotesParts.join(' / ');
 
           let flavorArr = [];
-          if (orderPrefs.flavor) flavorArr.push(orderPrefs.flavor);
-          if (orderPrefs.spice) flavorArr.push(orderPrefs.spice);
-          if (orderPrefs.salt) flavorArr.push(orderPrefs.salt);
+          if (!isOnlyCuoBian) {
+              if (orderPrefs.flavor) flavorArr.push(orderPrefs.flavor);
+              if (orderPrefs.spice) flavorArr.push(orderPrefs.spice);
+              if (orderPrefs.salt) flavorArr.push(orderPrefs.salt);
+          }
           let flavorString = flavorArr.join('、');
 
           pendingOrderPayloadForConfirm = {
@@ -1769,7 +1782,7 @@
               weekDay: weekDayStr,
               time: timeStr,
               customer: custName,
-              phone: custPhone || '無',
+              phone: custPhone || "未填寫",
               pickupTime: pickupTimeRaw,
               custNotes: finalCustNotes,
               flavorStr: flavorString,
