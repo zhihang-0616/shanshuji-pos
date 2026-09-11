@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>去中心鹹水雞 X 厝邊溫食 POS 系統</title>
-   <style>                                                                                                                      
+   <style>                                                                                                       
       :root {
           --primary-gold: #d4af37;
           --primary-gold-dark: #aa7c11;
@@ -247,7 +247,7 @@
       </div>
   </div>
 
-  <!-- 修改密碼 Modal (需輸入舊密碼與新密碼) -->
+  <!-- 修改密碼 Modal -->
   <div class="modal" id="changePasswordModal">
       <div class="modal-content" style="width:380px; resize:none;">
           <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
@@ -556,6 +556,23 @@
   </div>
 
   <script>
+      // 已自動對接您的 Google Apps Script 網址
+      const GAS_URL = "https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec";
+
+      async function syncToCloud(payload) {
+          if (!GAS_URL) return;
+          try {
+              await fetch(GAS_URL, {
+                  method: "POST",
+                  mode: "no-cors",
+                  headers: { "Content-Type": "text/plain;charset=utf-8" },
+                  body: JSON.stringify(payload)
+              });
+          } catch(e) {
+              console.error("雲端同步失敗:", e);
+          }
+      }
+
       const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
       let isAdminMode = false;
       let isLoggedMgr = false;
@@ -1728,6 +1745,15 @@
           if (orderPrefs.salt) flavorArr.push(orderPrefs.salt);
           let flavorString = flavorArr.join('、');
 
+          let itemsStrArr = currentCart.map(item => {
+              let txt = `${item.name}x${item.qty}`;
+              if (item.subItems) {
+                  let subNames = item.subItems.map(s => s.name).join(',');
+                  txt += `(${subNames})`;
+              }
+              return txt;
+          });
+
           pendingOrderPayloadForConfirm = {
               id: Date.now(),
               status: "等待接單",
@@ -1741,6 +1767,7 @@
               flavorStr: flavorString,
               total: finalTotal,
               payment: currentPayment,
+              itemsStr: itemsStrArr.join('、'),
               items: currentCart.map(item => ({
                   name: item.name,
                   qty: item.qty,
@@ -1834,6 +1861,24 @@
           liveOrders.push(pendingOrderPayloadForConfirm);
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           
+          // ☁️ 串接雲端：新增訂單
+          syncToCloud({
+              action: "add",
+              orderID: pendingOrderPayloadForConfirm.orderID,
+              status: pendingOrderPayloadForConfirm.status,
+              date: pendingOrderPayloadForConfirm.date,
+              weekDay: pendingOrderPayloadForConfirm.weekDay,
+              time: pendingOrderPayloadForConfirm.time,
+              customer: pendingOrderPayloadForConfirm.customer,
+              phone: pendingOrderPayloadForConfirm.phone,
+              pickupTime: pendingOrderPayloadForConfirm.pickupTime,
+              payment: pendingOrderPayloadForConfirm.payment,
+              total: pendingOrderPayloadForConfirm.total,
+              itemsStr: pendingOrderPayloadForConfirm.itemsStr,
+              flavorStr: pendingOrderPayloadForConfirm.flavorStr,
+              custNotes: pendingOrderPayloadForConfirm.custNotes
+          });
+
           window.dispatchEvent(new Event('storage_synced'));
           playSound('new_order');
           document.getElementById('receiptModal').style.display = 'none';
@@ -1930,10 +1975,12 @@
 
           if (ord.status === "等待接單") {
               ord.status = "製作中";
+              syncToCloud({ action: "updateStatus", orderID: ord.orderID, status: ord.status });
               localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
               window.dispatchEvent(new Event('storage_synced'));
           } else if (ord.status === "製作中") {
               ord.status = "待取餐";
+              syncToCloud({ action: "updateStatus", orderID: ord.orderID, status: ord.status });
               localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
               window.dispatchEvent(new Event('storage_synced'));
           } else if (ord.status === "待取餐") {
@@ -1997,6 +2044,9 @@
           liveOrders = liveOrders.filter(o => o.id !== orderId);
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           ord.status = "已完成";
+          
+          syncToCloud({ action: "updateStatus", orderID: ord.orderID, status: ord.status });
+
           history.push(ord);
           
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
@@ -2008,6 +2058,10 @@
       function rejectOrder(orderId) {
           if (!confirm("確定要拒絕這筆訂單嗎？(拒單後將徹底刪除)")) return;
           let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === orderId);
+          if (ord) {
+              syncToCloud({ action: "delete", orderID: ord.orderID });
+          }
           liveOrders = liveOrders.filter(o => o.id !== orderId);
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           window.dispatchEvent(new Event('storage_synced'));
@@ -2023,6 +2077,32 @@
           ord.items.forEach(i => newTotal += i.price * i.qty);
           if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
           ord.total = newTotal;
+
+          let itemsStrArr = ord.items.map(i => {
+              let txt = `${i.name}x${i.qty}`;
+              if (i.subItems) {
+                  let subNames = i.subItems.map(s => s.name).join(',');
+                  txt += `(${subNames})`;
+              }
+              return txt;
+          });
+          ord.itemsStr = itemsStrArr.join('、');
+
+          syncToCloud({
+              action: "updateFull",
+              orderID: ord.orderID,
+              status: ord.status,
+              date: ord.date,
+              time: ord.time,
+              customer: ord.customer,
+              phone: ord.phone,
+              pickupTime: ord.pickupTime,
+              payment: ord.payment,
+              total: ord.total,
+              itemsStr: ord.itemsStr,
+              flavorStr: ord.flavorStr,
+              custNotes: ord.custNotes
+          });
 
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           window.dispatchEvent(new Event('storage_synced'));
@@ -2096,7 +2176,7 @@
           }
 
           filtered.forEach((ord) => {
-              let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+              let itemsStr = ord.itemsStr || ord.items.map(i => `${i.name}x${i.qty}`).join('、');
               const tr = document.createElement('tr');
               tr.style.cssText = "border-bottom:1px solid #3d2b1a; color:#eddab2;";
               
@@ -2133,6 +2213,10 @@
       function deleteSingleHistoryOrder(orderId) {
           if (!confirm("確定要刪除這筆歷史訂單嗎？")) return;
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = history.find(o => o.id === orderId);
+          if (ord) {
+              syncToCloud({ action: "delete", orderID: ord.orderID });
+          }
           history = history.filter(o => o.id !== orderId);
           localStorage.setItem('pos_order_history', JSON.stringify(history));
           window.dispatchEvent(new Event('storage_synced'));
@@ -2148,6 +2232,14 @@
 
           let idsToDelete = Array.from(chks).map(c => Number(c.value));
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          
+          idsToDelete.forEach(id => {
+              let ord = history.find(o => o.id === id);
+              if (ord) {
+                  syncToCloud({ action: "delete", orderID: ord.orderID });
+              }
+          });
+
           history = history.filter(o => !idsToDelete.includes(o.id));
           localStorage.setItem('pos_order_history', JSON.stringify(history));
           window.dispatchEvent(new Event('storage_synced'));
@@ -2193,6 +2285,22 @@
           ord.pickupTime = document.getElementById('eiPickup').value;
           ord.flavorStr = document.getElementById('eiFlavorStr').value;
           ord.custNotes = document.getElementById('eiNotes').value;
+
+          syncToCloud({
+              action: "updateFull",
+              orderID: ord.orderID,
+              status: ord.status,
+              date: ord.date,
+              time: ord.time,
+              customer: ord.customer,
+              phone: ord.phone,
+              pickupTime: ord.pickupTime,
+              payment: ord.payment,
+              total: ord.total,
+              itemsStr: ord.itemsStr || ord.items.map(i => `${i.name}x${i.qty}`).join('、'),
+              flavorStr: ord.flavorStr,
+              custNotes: ord.custNotes
+          });
 
           localStorage.setItem(storageKey, JSON.stringify(ordersArr));
           window.dispatchEvent(new Event('storage_synced'));
@@ -2283,6 +2391,32 @@
           if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
           ord.total = newTotal;
 
+          let itemsStrArr = ord.items.map(i => {
+              let txt = `${i.name}x${i.qty}`;
+              if (i.subItems) {
+                  let subNames = i.subItems.map(s => s.name).join(',');
+                  txt += `(${subNames})`;
+              }
+              return txt;
+          });
+          ord.itemsStr = itemsStrArr.join('、');
+
+          syncToCloud({
+              action: "updateFull",
+              orderID: ord.orderID,
+              status: ord.status,
+              date: ord.date,
+              time: ord.time,
+              customer: ord.customer,
+              phone: ord.phone,
+              pickupTime: ord.pickupTime,
+              payment: ord.payment,
+              total: ord.total,
+              itemsStr: ord.itemsStr,
+              flavorStr: ord.flavorStr,
+              custNotes: ord.custNotes
+          });
+
           localStorage.setItem(storageKey, JSON.stringify(ordersArr));
           window.dispatchEvent(new Event('storage_synced'));
           renderEditingItemsList();
@@ -2300,6 +2434,32 @@
           ord.items.forEach(i => newTotal += i.price * i.qty);
           if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
           ord.total = newTotal;
+
+          let itemsStrArr = ord.items.map(i => {
+              let txt = `${i.name}x${i.qty}`;
+              if (i.subItems) {
+                  let subNames = i.subItems.map(s => s.name).join(',');
+                  txt += `(${subNames})`;
+              }
+              return txt;
+          });
+          ord.itemsStr = itemsStrArr.join('、');
+
+          syncToCloud({
+              action: "updateFull",
+              orderID: ord.orderID,
+              status: ord.status,
+              date: ord.date,
+              time: ord.time,
+              customer: ord.customer,
+              phone: ord.phone,
+              pickupTime: ord.pickupTime,
+              payment: ord.payment,
+              total: ord.total,
+              itemsStr: ord.itemsStr,
+              flavorStr: ord.flavorStr,
+              custNotes: ord.custNotes
+          });
 
           localStorage.setItem(storageKey, JSON.stringify(ordersArr));
           window.dispatchEvent(new Event('storage_synced'));
