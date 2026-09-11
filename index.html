@@ -290,9 +290,14 @@
 
           <div class="action-buttons" style="display:flex; gap:10px;">
                 <button class="btn btn-clear" onclick="clearCartAndClose()">清除</button>
-                <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
+                <button class="btn btn-submit" onclick="goToReceiptPreview()">下一步 (預覽收據)</button>
           </div>
       </div>
+  </div>
+
+  <!-- 收據與確認下單視窗 (確認下單已移至最上方且無二次視窗) -->
+  <div class="modal" id="receiptModal">
+      <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px;"></div>
   </div>
 
   <!-- 取餐時間選擇 Modal -->
@@ -319,11 +324,6 @@
   <!-- 彈跳視窗 -->
   <div class="modal" id="optModal">
       <div class="modal-content" id="optModalContent"></div>
-  </div>
-
-  <!-- 收據與最終確認視窗 -->
-  <div class="modal" id="receiptModal">
-      <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px;"></div>
   </div>
 
   <div class="modal" id="soldoutListModal">
@@ -1251,7 +1251,6 @@
               return;
           }
 
-          // 計算總金額並帶入圖 1 畫面
           let subtotal = 0;
           currentCart.forEach(item => {
               subtotal += item.price * item.qty;
@@ -1270,25 +1269,7 @@
           document.getElementById('step2Modal').style.display = 'none';
       }
 
-      function checkOrderStatusByPhone() {
-          let phoneQuery = prompt("請輸入下單時填寫的手機號碼 (09xxxxxxx):");
-          if (!phoneQuery) return;
-          phoneQuery = phoneQuery.trim();
-
-          const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          const matches = history.filter(o => o.phone && o.phone.trim() === phoneQuery);
-
-          if (matches.length === 0) {
-              alert(`查無手機號碼【${phoneQuery}】的訂單紀錄。`);
-              return;
-          }
-
-          let lastOrder = matches[matches.length - 1];
-          let currentItemsStr = lastOrder.items.map(i => `${i.name}x${i.qty}`).join('、');
-          alert(`訂單編號: ${lastOrder.orderNo}\n訂購人: ${lastOrder.customer}\n預計取餐: ${lastOrder.pickupTime}\n總額: $${lastOrder.total}\n品項: ${currentItemsStr}\n狀態：${lastOrder.status}`);
-      }
-
-      function submitOrder() {
+      function goToReceiptPreview() {
           let custName = document.getElementById('custName').value.trim();
           let custPhone = document.getElementById('custPhone').value.trim();
           const pickupTimeRaw = document.getElementById('pickupTime').value;
@@ -1361,6 +1342,24 @@
           showReceiptPreviewModal(pendingOrderPayloadForConfirm);
       }
 
+      function checkOrderStatusByPhone() {
+          let phoneQuery = prompt("請輸入下單時填寫的手機號碼 (09xxxxxxx):");
+          if (!phoneQuery) return;
+          phoneQuery = phoneQuery.trim();
+
+          const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          const matches = history.filter(o => o.phone && o.phone.trim() === phoneQuery);
+
+          if (matches.length === 0) {
+              alert(`查無手機號碼【${phoneQuery}】的訂單紀錄。`);
+              return;
+          }
+
+          let lastOrder = matches[matches.length - 1];
+          let currentItemsStr = lastOrder.items.map(i => `${i.name}x${i.qty}`).join('、');
+          alert(`訂單編號: ${lastOrder.orderNo}\n訂購人: ${lastOrder.customer}\n預計取餐: ${lastOrder.pickupTime}\n總額: $${lastOrder.total}\n品項: ${currentItemsStr}\n狀態：${lastOrder.status}`);
+      }
+
       function showReceiptPreviewModal(orderPayload) {
           const modal = document.getElementById('receiptModal');
           const content = document.getElementById('receiptContent');
@@ -1372,6 +1371,9 @@
                   <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
                   <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
               </div>
+
+              <!-- 確認下單按鈕已置於收據預覽視窗的最上方，且點擊後直接出單不跳二次視窗 -->
+              <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px; margin-bottom:14px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
               
               <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
               <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.phone}</span></div>
@@ -1412,11 +1414,10 @@
           }
 
           receiptHtml += `
-              <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:17px; color:var(--primary-gold); margin-bottom: 15px;" class="receipt-line">
+              <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:17px; color:var(--primary-gold);" class="receipt-line">
                   <span>總計金額:</span>
                   <span>$${orderPayload.total}</span>
               </div>
-              <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
           `;
 
           content.innerHTML = receiptHtml;
@@ -1425,7 +1426,7 @@
 
       function closeReceiptModalAndBack() {
           document.getElementById('receiptModal').style.display = 'none';
-          document.getElementById('step2Modal').style.display = 'flex'; // 點擊 X 可返回圖 1 重新選擇結帳方式
+          document.getElementById('step2Modal').style.display = 'flex';
       }
 
       function confirmFinalOrderSubmit() {
