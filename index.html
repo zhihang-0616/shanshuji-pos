@@ -51,8 +51,8 @@
       .mgmt-mode-btn { background: linear-gradient(135deg, #4a148c, #280659); color: #e1bee7; border: 1px solid #ba68c8; }
       .history-list-btn { background: linear-gradient(135deg, #006064, #00363a); color: #e0f7fa; border: 1px solid #4dd0e1; }
 
-      .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; flex-shrink: 0; }
-      .tab-btn { flex: 0 0 auto; min-width: 110px; padding: 10px 8px; border: none; background: transparent; font-size: 14px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; gap: 2px; }
+      .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
+      .tab-btn { flex: 1; padding: 8px 4px; border: none; background: transparent; font-size: 14px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; gap: 2px; }
       .tab-btn.active { background: linear-gradient(180deg, #3d2b1a 0%, #221910 100%); color: #fff3cb; border-top: 4px solid var(--primary-gold); text-shadow: 0 0 6px rgba(212, 175, 55, 0.5); }
       
       body.edit-mode .tab-btn { border: 1px dashed #ff4444; margin: 2px; border-radius: 4px; }
@@ -64,7 +64,7 @@
 
       .sub-text { font-size: 11px; font-weight: normal; opacity: 0.85; display: block; text-align: center; width: 100%; }
 
-      .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 16px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; flex-shrink: 0; }
+      .category-notice { display: none; background-color: #2e2213; color: #f0d59e; padding: 10px 16px; font-size: 14px; border-bottom: 1px solid var(--border-gold); line-height: 1.5; text-align: center; }
       
       .grid-container { flex: 1; padding: 14px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 12px; align-content: start; -webkit-overflow-scrolling: touch; background: radial-gradient(circle, #2b1f13 0%, #17100a 100%); }
       
@@ -94,14 +94,14 @@
       body.edit-mode .item-card, body.edit-mode .combo-card { border: 2px dashed #ff4444; }
       body.edit-mode .item-card.sold-out, body.edit-mode .combo-card.sold-out { border: 2px dashed #888; }
 
-      .checkout-container { flex: 3.2; display: flex; flex-direction: column; background: #1a120b; height: 100%; box-shadow: -4px 0 15px rgba(0,0,0,0.7); overflow-y: auto; }
+      .checkout-container { flex: 3.2; display: flex; flex-direction: column; background: #1a120b; height: 100%; box-shadow: -4px 0 15px rgba(0,0,0,0.7); }
       
-      .status-check-box { padding: 8px 12px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; flex-shrink: 0; }
+      .status-check-box { padding: 8px 12px; background: #1f160d; border-bottom: 1px solid var(--border-gold); display: flex; gap: 6px; align-items: center; justify-content: center; }
 
-      .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 12px 16px; font-size: 17px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); flex-shrink: 0; }
+      .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 12px 16px; font-size: 17px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
       .order-title:hover { background: #4a331f; }
       
-      .order-list { flex: 1; min-height: 120px; max-height: 300px; overflow-y: auto; padding: 8px 12px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
+      .order-list { flex: 1; min-height: 150px; overflow-y: auto; padding: 8px 12px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
       .order-list.collapsed { display: none; }
       
       .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 6px; border-bottom: 1px solid #2d2014; font-size: 14px; gap: 6px; color: #eddab2; }
@@ -167,8 +167,11 @@
       @media (max-width: 768px) {
           body { flex-direction: column; height: auto; overflow-y: auto; }
           .menu-container { height: auto; border-right: none; border-bottom: 2px solid var(--border-gold); }
-          .checkout-container { height: auto; overflow: visible; }
-          .grid-container { max-height: none; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+          .menu-tabs { overflow-x: auto; justify-content: start; }
+          .tab-btn { flex: initial; min-width: 110px; }
+          .grid-container { max-height: 55vh; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+          .checkout-container { height: auto; }
+          .order-list { max-height: 220px; }
           .menu-header-title { position: static; transform: none; text-align: center; margin: 4px 0; }
           .header-top-row { flex-direction: column; gap: 8px; align-items: center; }
           .store-info-row { flex-direction: column; gap: 4px; }
@@ -517,7 +520,7 @@
           </div>
 
           <div style="display:flex; gap:10px;">
-              <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新 S增此品項</button>
+              <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
           </div>
 
           <div style="margin-top:15px; border-top:1px dashed var(--border-gold); padding-top:10px;">
@@ -676,27 +679,24 @@
 
       function changeStoreStatus(val) {
           localStorage.setItem('pos_store_status', val);
-          window.dispatchEvent(new StorageEvent('storage', { key: 'pos_store_status', newValue: val }));
           window.dispatchEvent(new Event('storage_synced'));
       }
 
       function syncStoreStatusUI() {
           let status = localStorage.getItem('pos_store_status') || '營業中';
           const select = document.getElementById('storeStatusSelect');
-          if (select) select.value = status;
+          select.value = status;
           
           const submitBtn = document.getElementById('submitOrderMainBtn');
-          if (submitBtn) {
-              if (status === '休息中') {
-                  submitBtn.innerText = "目前休息中 (暫停接單)";
-                  submitBtn.style.opacity = '0.6';
-              } else if (status === '備料中') {
-                  submitBtn.innerText = "目前備料中 (可預訂)";
-                  submitBtn.style.opacity = '1';
-              } else {
-                  submitBtn.innerText = "下一步 (填寫取餐資訊)";
-                  submitBtn.style.opacity = '1';
-              }
+          if (status === '休息中') {
+              submitBtn.innerText = "目前休息中 (暫停接單)";
+              submitBtn.style.opacity = '0.6';
+          } else if (status === '備料中') {
+              submitBtn.innerText = "目前備料中 (可預訂)";
+              submitBtn.style.opacity = '1';
+          } else {
+              submitBtn.innerText = "下一步 (填寫取餐資訊)";
+              submitBtn.style.opacity = '1';
           }
       }
 
@@ -1161,10 +1161,8 @@
           window.addEventListener('storage_synced', handleStorageSync);
       }
 
-      function handleStorageSync(e) {
-          if (!e || e.key === 'pos_store_status' || e.type === 'storage_synced') {
-              syncStoreStatusUI();
-          }
+      function handleStorageSync() {
+          syncStoreStatusUI();
           refreshMenuTabs();
           refreshActiveGrid();
           updateOrderBadge();
@@ -1977,23 +1975,12 @@
               ord.status = "製作中";
               localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
               
-              // 一按接單立刻發送包含完整資訊的 LINE 通知
-              let lineMessage = `🚨 【新進訂單通知 (已接單)】\n` +
-                                `--------------------\n` +
-                                `訂單編號：${ord.orderNo}\n` +
-                                `訂購人：${ord.customer} (${ord.phone})\n` +
-                                `預計取餐：${ord.pickupTime}\n` +
-                                `付款方式：${ord.payment}\n` +
-                                `應收總額：$${ord.total}\n` +
-                                `口味：${ord.flavorStr || '無'}\n` +
-                                `備註：${ord.custNotes || '無'}\n` +
-                                `--------------------`;
-
+              // 一按接單立刻發送 LINE 通知（包含完整品項與詳細資訊）
               fetch('https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec', {
                   method: 'POST',
                   mode: 'no-cors',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ ...ord, customMessageText: lineMessage })
+                  body: JSON.stringify(ord)
               }).catch(err => console.error('LINE 通知發送異常:', err));
 
               window.dispatchEvent(new Event('storage_synced'));
@@ -2399,7 +2386,7 @@
           ord.items.splice(index, 1);
           let newTotal = 0;
           ord.items.forEach(i => newTotal += i.price * i.qty);
-          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
+          if (ord.flavorStr && ord.flavorStr.includes("泰Scale+5元")) newTotal += 5;
           ord.total = newTotal;
 
           if (currentEditingTarget === 'live') {
