@@ -49,7 +49,6 @@
 
       .soldout-list-btn { background: linear-gradient(135deg, #5c2c16, #33160a); color: #ffebcc; border: 1px solid var(--border-gold); }
       .mgmt-mode-btn { background: linear-gradient(135deg, #4a148c, #280659); color: #e1bee7; border: 1px solid #ba68c8; }
-      .history-list-btn { background: linear-gradient(135deg, #006064, #00363a); color: #e0f7fa; border: 1px solid #4dd0e1; }
 
       .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
       .tab-btn { flex: 1; padding: 14px 6px 10px 6px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
@@ -234,28 +233,32 @@
       </div>
   </div>
 
-  <!-- 管理模式 Modal (內含歷史訂單查詢與舊密碼驗證修改) -->
+  <!-- 管理模式 Modal -->
   <div class="modal" id="managementModal">
-      <div class="modal-content" style="width:420px; resize:none;">
+      <div class="modal-content" style="width:380px; resize:none;">
           <button class="modal-close-x" onclick="closeManagementModal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center;">⚙️ 管理模式</h3>
           
           <div style="display:flex; flex-direction:column; gap:12px;">
               <button class="btn btn-submit" style="padding:14px; font-size:15px;" onclick="openHistoryModalFromMgmt()">📊 歷史訂單查詢</button>
-              
-              <div style="background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; margin-top:6px;">
-                  <div style="font-weight:bold; color:var(--primary-gold); margin-bottom:8px; font-size:14px;">修改管理密碼</div>
-                  <div class="input-row" style="margin-bottom:6px;">
-                      <span class="input-label" style="min-width:70px;">舊密碼:</span>
-                      <input type="password" id="oldAdminPwd" class="input-field" placeholder="請輸入舊密碼">
-                  </div>
-                  <div class="input-row" style="margin-bottom:8px;">
-                      <span class="input-label" style="min-width:70px;">新密碼:</span>
-                      <input type="password" id="newAdminPwd" class="input-field" placeholder="請輸入新密碼">
-                  </div>
-                  <button class="btn btn-submit" style="width:100%; padding:8px;" onclick="saveNewAdminPassword()">更新密碼</button>
+              <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:12px; font-size:15px;" onclick="openChangePasswordModal()">🔑 修改管理密碼</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- 修改密碼 Modal -->
+  <div class="modal" id="changePasswordModal">
+      <div class="modal-content" style="width:360px; resize:none;">
+          <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">🔑 修改管理密碼</h3>
+          
+          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
+              <div class="input-row">
+                  <span class="input-label" style="min-width:75px;">新密碼:</span>
+                  <input type="password" id="newAdminPwd" class="input-field" placeholder="請輸入新密碼">
               </div>
           </div>
+          <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="saveNewAdminPassword()">確認更新密碼</button>
       </div>
   </div>
 
@@ -584,12 +587,10 @@
 
       function handleLoginLogout() {
           if (isLoggedMgr) {
-              // 登出 (無二次視窗)
               localStorage.setItem('pos_mgr_logged', 'false');
               isLoggedMgr = false;
               checkModeAndAuth();
           } else {
-              // 登入
               let pwd = prompt("請輸入管理密碼：");
               if (pwd === null) return;
               
@@ -609,8 +610,6 @@
               alert("尚未登入，請先於右上角點擊登入後方可進入管理模式！");
               return;
           }
-          document.getElementById('oldAdminPwd').value = '';
-          document.getElementById('newAdminPwd').value = '';
           document.getElementById('managementModal').style.display = 'flex';
       }
 
@@ -623,29 +622,25 @@
           openHistoryModal();
       }
 
-      function saveNewAdminPassword() {
-          let oldPwdInput = document.getElementById('oldAdminPwd').value;
-          let newPwdInput = document.getElementById('newAdminPwd').value.trim();
-          let currentPwd = localStorage.getItem('pos_admin_pwd') || '8888';
-
-          if (!oldPwdInput) {
-              alert("請輸入舊密碼進行驗證！");
-              return;
-          }
-          if (oldPwdInput !== currentPwd) {
-              alert("舊密碼輸入錯誤！");
-              return;
-          }
-          if (!newPwdInput) {
-              alert("新密碼不能為空！");
-              return;
-          }
-
-          localStorage.setItem('pos_admin_pwd', newPwdInput);
-          alert("管理密碼修改成功！");
-          document.getElementById('oldAdminPwd').value = '';
-          document.getElementById('newAdminPwd').value = '';
+      function openChangePasswordModal() {
           closeManagementModal();
+          document.getElementById('newAdminPwd').value = '';
+          document.getElementById('changePasswordModal').style.display = 'flex';
+      }
+
+      function closeChangePasswordModal() {
+          document.getElementById('changePasswordModal').style.display = 'none';
+      }
+
+      function saveNewAdminPassword() {
+          let newPwd = document.getElementById('newAdminPwd').value.trim();
+          if (!newPwd) {
+              alert("密碼不能為空！");
+              return;
+          }
+          localStorage.setItem('pos_admin_pwd', newPwd);
+          alert("管理密碼修改成功！");
+          closeChangePasswordModal();
       }
 
       function changeStoreStatus(val) {
