@@ -152,7 +152,6 @@
       .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
       .receipt-line { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
 
-      /* 自定義彈跳視窗樣式 */
       .modal-option-group { margin-bottom: 14px; }
       .modal-option-label { font-size: 13px; color: var(--primary-gold); font-weight: bold; display: block; margin-bottom: 6px; }
       .modal-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -179,7 +178,7 @@
       }
    </style>
 </head>
-<body>
+<body onload="initPOS()">
 
   <div class="menu-container">
       <div class="menu-header">
@@ -255,7 +254,7 @@
       </div>
   </div>
 
-  <!-- 修改密碼 Modal (需輸入舊密碼與新密碼) -->
+  <!-- 修改密碼 Modal -->
   <div class="modal" id="changePasswordModal">
       <div class="modal-content" style="width:380px; resize:none;">
           <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
@@ -1714,7 +1713,6 @@
 
           const isOnlyCuoBian = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
 
-          // 如果不是只有點厝邊溫食的商品，才檢查倉位調整的必填項目
           if (!isOnlyCuoBian) {
               if (!orderPrefs.flavor || !orderPrefs.spice || !orderPrefs.salt) {
                   alert("請完整填寫【倉位調整】的口味、辣度與鹹度！");
@@ -1722,9 +1720,7 @@
               }
           }
 
-          // 如果是在管理者模式下，不需要強制驗證電話號碼格式
           if (isAdminMode) {
-              // 允許電話欄位為空或任意格式
           } else {
               const phoneRegex = /^09\d{8}$/;
               if (!phoneRegex.test(custPhone)) {
@@ -1881,14 +1877,6 @@
           liveOrders.push(pendingOrderPayloadForConfirm);
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           
-          // 發送 LINE 通知到指定的 GAS 網址
-          fetch('https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec', {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(pendingOrderPayloadForConfirm)
-          }).catch(err => console.error('LINE 通知發送異常:', err));
-
           window.dispatchEvent(new Event('storage_synced'));
           playSound('new_order');
           document.getElementById('receiptModal').style.display = 'none';
@@ -1986,6 +1974,15 @@
           if (ord.status === "等待接單") {
               ord.status = "製作中";
               localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+              
+              // 一按接單立刻發送 LINE 通知
+              fetch('https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec', {
+                  method: 'POST',
+                  mode: 'no-cors',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(ord)
+              }).catch(err => console.error('LINE 通知發送異常:', err));
+
               window.dispatchEvent(new Event('storage_synced'));
           } else if (ord.status === "製作中") {
               ord.status = "待取餐";
@@ -2053,7 +2050,7 @@
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           ord.status = "已完成";
           history.push(ord);
-           
+          
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           localStorage.setItem('pos_order_history', JSON.stringify(history));
           window.dispatchEvent(new Event('storage_synced'));
@@ -2089,7 +2086,7 @@
           let mm = String(today.getMonth() + 1).padStart(2, '0');
           let dd = String(today.getDate()).padStart(2, '0');
           document.getElementById('historyDateFilter').value = `${yyyy}-${mm}-${dd}`;
-           
+          
           isHistorySelectMode = false;
           document.getElementById('batchDeleteBtn').style.display = 'none';
           document.getElementById('toggleSelectModeBtn').innerText = "選取";
@@ -2154,9 +2151,9 @@
               let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
               const tr = document.createElement('tr');
               tr.style.cssText = "border-bottom:1px solid #3d2b1a; color:#eddab2;";
-               
+              
               let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
-               
+              
               tr.innerHTML = `
                   <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}"></td>
                   <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
@@ -2174,6 +2171,253 @@
                   <td style="padding:8px;">${ord.flavorStr || ''}</td>
                   <td style="padding:8px;">${ord.custNotes || ''}</td>
                   <td style="padding:8px; text-align:center; white-space:nowrap;">
-                    <button class="header-btn" style="background:#4a148c; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderInfoModal(${ord.id}, 'history')">📝 資訊</button>
-                    <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
-                我无法提供这方面的帮助，因为我只是一个语言模型。
+                      <button class="header-btn" style="background:#4a148c; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderInfoModal(${ord.id}, 'history')">📝 資訊</button>
+                      <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
+                      <button class="header-btn" style="background:#8b1e0f; padding:3px 6px; font-size:11px;" onclick="deleteHistoryOrder(${ord.id})">✕ 刪除</button>
+                  </td>
+              `;
+              tbody.appendChild(tr);
+          });
+      }
+
+      function deleteHistoryOrder(orderId) {
+          if (!confirm("確定要刪除這筆歷史訂單嗎？")) return;
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          history = history.filter(o => o.id !== orderId);
+          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          renderHistoryOrders();
+      }
+
+      function batchDeleteHistoryOrders() {
+          let checkboxes = document.querySelectorAll('.history-chk:checked');
+          if (checkboxes.length === 0) {
+              alert("請至少選取一筆歷史訂單！");
+              return;
+          }
+          if (!confirm(`確定要刪除選取的 ${checkboxes.length} 筆歷史訂單嗎？`)) return;
+
+          let idsToDelete = Array.from(checkboxes).map(chk => Number(chk.value));
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          history = history.filter(o => !idsToDelete.includes(o.id));
+          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          renderHistoryOrders();
+      }
+
+      function openEditOrderInfoModal(orderId, target) {
+          currentEditingOrderId = orderId;
+          currentEditingTarget = target;
+          
+          let list = (target === 'live') ? JSON.parse(localStorage.getItem('pos_live_orders') || '[]') : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = list.find(o => o.id === orderId);
+          if (!ord) return;
+
+          document.getElementById('eiStatus').value = ord.status;
+          document.getElementById('eiDate').value = ord.date;
+          document.getElementById('eiTime').value = ord.time;
+          document.getElementById('eiCustomer').value = ord.customer;
+          document.getElementById('eiPhone').value = ord.phone;
+          document.getElementById('eiPickup').value = ord.pickupTime;
+          document.getElementById('eiFlavorStr').value = ord.flavorStr || '';
+          document.getElementById('eiNotes').value = ord.custNotes || '';
+
+          document.getElementById('editOrderInfoModal').style.display = 'flex';
+      }
+
+      function closeEditOrderInfoModal() {
+          document.getElementById('editOrderInfoModal').style.display = 'none';
+          currentEditingOrderId = null;
+      }
+
+      function saveOrderInfoEdit() {
+          if (!currentEditingOrderId) return;
+          let list = (currentEditingTarget === 'live') ? JSON.parse(localStorage.getItem('pos_live_orders') || '[]') : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = list.find(o => o.id === currentEditingOrderId);
+          if (!ord) return;
+
+          ord.status = document.getElementById('eiStatus').value;
+          ord.date = document.getElementById('eiDate').value.trim();
+          ord.time = document.getElementById('eiTime').value.trim();
+          ord.customer = document.getElementById('eiCustomer').value.trim();
+          ord.phone = document.getElementById('eiPhone').value.trim();
+          ord.pickupTime = document.getElementById('eiPickup').value.trim();
+          ord.flavorStr = document.getElementById('eiFlavorStr').value.trim();
+          ord.custNotes = document.getElementById('eiNotes').value.trim();
+
+          if (currentEditingTarget === 'live') {
+              localStorage.setItem('pos_live_orders', JSON.stringify(list));
+          } else {
+              localStorage.setItem('pos_order_history', JSON.stringify(list));
+          }
+
+          window.dispatchEvent(new Event('storage_synced'));
+          closeEditOrderInfoModal();
+          alert("訂單資訊修改成功！");
+      }
+
+      function openEditOrderItemsModal(orderId, target) {
+          currentEditingOrderId = orderId;
+          currentEditingTarget = target;
+          
+          const catSelect = document.getElementById('editCatSelect');
+          catSelect.innerHTML = '';
+          const menuData = getMenuData();
+          for (let cat in menuData) {
+              let opt = document.createElement('option');
+              opt.value = cat;
+              opt.text = cat;
+              catSelect.appendChild(opt);
+          }
+
+          onEditCategoryChange();
+          renderEditingItemsList();
+          document.getElementById('editOrderItemsModal').style.display = 'flex';
+      }
+
+      function closeEditOrderItemsModal() {
+          document.getElementById('editOrderItemsModal').style.display = 'none';
+          currentEditingOrderId = null;
+      }
+
+      function onEditCategoryChange() {
+          const catSelect = document.getElementById('editCatSelect');
+          const itemSelect = document.getElementById('editItemSelect');
+          itemSelect.innerHTML = '';
+          
+          let selectedCat = catSelect.value;
+          let menuData = getMenuData();
+          if (menuData[selectedCat]) {
+              menuData[selectedCat].forEach(item => {
+                  let opt = document.createElement('option');
+                  opt.value = JSON.stringify({ id: item.id, name: item.name, price: item.price });
+                  opt.text = `${item.name} ($${item.price})`;
+                  itemSelect.appendChild(opt);
+              });
+          }
+      }
+
+      function renderEditingItemsList() {
+          if (!currentEditingOrderId) return;
+          let list = (currentEditingTarget === 'live') ? JSON.parse(localStorage.getItem('pos_live_orders') || '[]') : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = list.find(o => o.id === currentEditingOrderId);
+          if (!ord) return;
+
+          const container = document.getElementById('editingItemsContainer');
+          container.innerHTML = '';
+
+          ord.items.forEach((item, idx) => {
+              let div = document.createElement('div');
+              div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#150d07; padding:6px 10px; border-radius:4px; border:1px solid var(--border-gold); font-size:13px;";
+              div.innerHTML = `
+                  <div><strong>${item.name}</strong> x ${item.qty} ($${item.price * item.qty})</div>
+                  <div style="display:flex; gap:4px;">
+                      <button class="header-btn" style="padding:2px 6px; font-size:11px;" onclick="changeEditingItemQty(${idx}, 1)">＋</button>
+                      <button class="header-btn" style="padding:2px 6px; font-size:11px;" onclick="changeEditingItemQty(${idx}, -1)">－</button>
+                      <button class="header-btn" style="background:#8b1e0f; padding:2px 6px; font-size:11px;" onclick="removeEditingItem(${idx})">✕</button>
+                  </div>
+              `;
+              container.appendChild(div);
+          });
+      }
+
+      function addSelectedItemToEditingOrder() {
+          if (!currentEditingOrderId) return;
+          const itemSelect = document.getElementById('editItemSelect');
+          if (!itemSelect.value) return;
+
+          let itemObj = JSON.parse(itemSelect.value);
+          let list = (currentEditingTarget === 'live') ? JSON.parse(localStorage.getItem('pos_live_orders') || '[]') : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = list.find(o => o.id === currentEditingOrderId);
+          if (!ord) return;
+
+          let existing = ord.items.find(i => i.name === itemObj.name);
+          if (existing) {
+              existing.qty++;
+          } else {
+              ord.items.push({ name: itemObj.name, qty: 1, price: itemObj.price, subItems: null });
+          }
+
+          let newTotal = 0;
+          ord.items.forEach(i => newTotal += i.price * i.qty);
+          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
+          ord.total = newTotal;
+
+          if (currentEditingTarget === 'live') {
+              localStorage.setItem('pos_live_orders', JSON.stringify(list));
+          } else {
+              localStorage.setItem('pos_order_history', JSON.stringify(list));
+          }
+
+          renderEditingItemsList();
+          window.dispatchEvent(new Event('storage_synced'));
+      }
+
+      function changeEditingItemQty(index, delta) {
+          if (!currentEditingOrderId) return;
+          let list = (currentEditingTarget === 'live') ? JSON.parse(localStorage.getItem('pos_live_orders') || '[]') : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = list.find(o => o.id === currentEditingOrderId);
+          if (!ord || !ord.items[index]) return;
+
+          ord.items[index].qty += delta;
+          if (ord.items[index].qty <= 0) {
+              ord.items.splice(index, 1);
+          }
+
+          let newTotal = 0;
+          ord.items.forEach(i => newTotal += i.price * i.qty);
+          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
+          ord.total = newTotal;
+
+          if (currentEditingTarget === 'live') {
+              localStorage.setItem('pos_live_orders', JSON.stringify(list));
+          } else {
+              localStorage.setItem('pos_order_history', JSON.stringify(list));
+          }
+
+          renderEditingItemsList();
+          window.dispatchEvent(new Event('storage_synced'));
+      }
+
+      function removeEditingItem(index) {
+          if (!currentEditingOrderId) return;
+          let list = (currentEditingTarget === 'live') ? JSON.parse(localStorage.getItem('pos_live_orders') || '[]') : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let ord = list.find(o => o.id === currentEditingOrderId);
+          if (!ord || !ord.items[index]) return;
+
+          ord.items.splice(index, 1);
+          let newTotal = 0;
+          ord.items.forEach(i => newTotal += i.price * i.qty);
+          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
+          ord.total = newTotal;
+
+          if (currentEditingTarget === 'live') {
+              localStorage.setItem('pos_live_orders', JSON.stringify(list));
+          } else {
+              localStorage.setItem('pos_order_history', JSON.stringify(list));
+          }
+
+          renderEditingItemsList();
+          window.dispatchEvent(new Event('storage_synced'));
+      }
+
+      function checkOrderStatusByPhone() {
+          let phoneInput = prompt("請輸入您的手機號碼查詢訂單進度：");
+          if (!phoneInput) return;
+          phoneInput = phoneInput.trim();
+
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let matched = liveOrders.filter(o => o.phone.includes(phoneInput));
+
+          if (matched.length === 0) {
+              alert("查無此手機號碼對應的進行中訂單！");
+              return;
+          }
+
+          let msg = "🔍 【您的訂單查詢結果】\n--------------------\n";
+          matched.forEach(o => {
+              msg += `訂單編號: ${o.orderNo}\n訂購人: ${o.customer}\n目前狀態: ${o.status}\n取餐時間: ${o.pickupTime}\n應付金額: $${o.total}\n--------------------\n`;
+          });
+          alert(msg);
+      }
+  </script>
+</body>
+</html>
