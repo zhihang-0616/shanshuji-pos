@@ -44,7 +44,11 @@
       .meal-mgmt-btn { background: linear-gradient(135deg, #8b5a00, #4a3000); color: #fff3cb; border: 1px solid var(--border-gold); }
       body.edit-mode .meal-mgmt-btn { background: linear-gradient(135deg, #8b0000, #4a0000); color: #ffe6e6; border: 1px solid #ff9999; }
       
+      .order-sys-btn { background: linear-gradient(135deg, #004080, #002040); color: #cce6ff; border: 1px solid #66b2ff; position: relative; }
+      .order-badge-count { position: absolute; top: -6px; right: -6px; background: #ff4444; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
       .soldout-list-btn { background: linear-gradient(135deg, #5c2c16, #33160a); color: #ffebcc; border: 1px solid var(--border-gold); }
+      .history-list-btn { background: linear-gradient(135deg, #4a148c, #280659); color: #e1bee7; border: 1px solid #ba68c8; }
 
       .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
       .tab-btn { flex: 1; padding: 14px 6px 10px 6px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
@@ -181,7 +185,9 @@
           </div>
           <div class="admin-action-group" id="adminActionGroup">
               <button class="header-btn meal-mgmt-btn" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
+              <button class="header-btn order-sys-btn" onclick="openOrderSystemModal()">📋 接單系統 <span id="orderBadgeCount" class="order-badge-count" style="display:none;">0</span></button>
               <button class="header-btn soldout-list-btn" onclick="openSoldoutListModal()">📋 售完品項</button>
+              <button class="header-btn history-list-btn" onclick="openHistoryModal()">📊 歷史訂單查詢</button>
           </div>
       </div>
 
@@ -269,7 +275,7 @@
       </div>
   </div>
 
-  <!-- 第二步 Modal：結帳資訊 (圖 1 畫面) -->
+  <!-- 第二步 Modal：結帳資訊 -->
   <div class="modal" id="step2Modal">
       <div class="modal-content" style="width:380px;">
           <button class="modal-close-x" onclick="closeStep2Modal()">✕</button>
@@ -298,6 +304,51 @@
   <!-- 收據與確認下單視窗 -->
   <div class="modal" id="receiptModal">
       <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px;"></div>
+  </div>
+
+  <!-- 接單系統管理 Modal -->
+  <div class="modal" id="orderSystemModal">
+      <div class="modal-content" style="width:550px; max-width:95vw;">
+          <button class="modal-close-x" onclick="closeOrderSystemModal()">✕</button>
+          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📋 接單系統 (即時訂單管理)</h3>
+          <div id="liveOrderListContainer" style="max-height:65vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+  </div>
+
+  <!-- 歷史訂單查詢 Modal -->
+  <div class="modal" id="historyModal">
+      <div class="modal-content" style="width:550px; max-width:95vw;">
+          <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
+          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 歷史訂單查詢 (已完成)</h3>
+          <div id="historyOrderListContainer" style="max-height:65vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+  </div>
+
+  <!-- 編輯訂單品項 Modal (先選大選項，再選品項) -->
+  <div class="modal" id="editOrderItemsModal">
+      <div class="modal-content" style="width:450px;">
+          <button class="modal-close-x" onclick="closeEditOrderItemsModal()">✕</button>
+          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:12px;" id="editingOrderTitle">修改訂單品項</h3>
+          
+          <div style="margin-bottom:10px;">
+              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">1. 選擇大選項分類：</label>
+              <select id="editCatSelect" class="input-field" style="width:100%;" onchange="onEditCategoryChange()"></select>
+          </div>
+          
+          <div style="margin-bottom:14px;">
+              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">2. 選擇品項：</label>
+              <select id="editItemSelect" class="input-field" style="width:100%;"></select>
+          </div>
+
+          <div style="display:flex; gap:10px;">
+              <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
+          </div>
+
+          <div style="margin-top:15px; border-top:1px dashed var(--border-gold); padding-top:10px;">
+              <div style="font-weight:bold; margin-bottom:6px; color:var(--text-gold);">目前訂單品項清單：</div>
+              <div id="editingItemsContainer" style="max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
+      </div>
   </div>
 
   <!-- 取餐時間選擇 Modal -->
@@ -509,6 +560,7 @@
       let currentPayment = "現金";
       let isEditMode = false;
       let pendingOrderPayloadForConfirm = null;
+      let currentEditingOrderId = null; // 用於接單系統內編輯訂單
 
       function setDefaultPickupTime() {
           const now = new Date();
@@ -759,6 +811,7 @@
           refreshMenuTabs();
           setDefaultPickupTime();
           updateCartUI();
+          updateOrderBadge();
       }
 
       function refreshMenuTabs() {
@@ -1215,7 +1268,6 @@
           closeStep2Modal();
       }
 
-      // 步驟控制邏輯
       function openStep1Modal() {
           if (currentCart.length === 0) {
               alert("購物車是空的，請先選擇餐點！");
@@ -1319,7 +1371,7 @@
           pendingOrderPayloadForConfirm = {
               id: Date.now(),
               orderNo: "#001",
-              status: "等待接單",
+              status: "等待接單", // 等待接單 -> 接單/完成 -> 已取餐
               date: dateStr,
               weekDay: weekDayStr,
               time: timeStr,
@@ -1347,8 +1399,10 @@
           if (!phoneQuery) return;
           phoneQuery = phoneQuery.trim();
 
-          const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          const matches = history.filter(o => o.phone && o.phone.trim() === phoneQuery);
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let allOrders = liveOrders.concat(history);
+          const matches = allOrders.filter(o => o.phone && o.phone.trim() === phoneQuery);
 
           if (matches.length === 0) {
               alert(`查無手機號碼【${phoneQuery}】的訂單紀錄。`);
@@ -1372,7 +1426,6 @@
                   <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
               </div>
 
-              <!-- 確認下單按鈕置於頂部，點擊直接出單不跳提示框 -->
               <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px; margin-bottom:14px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
               
               <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
@@ -1432,22 +1485,287 @@
       function confirmFinalOrderSubmit() {
           if (!pendingOrderPayloadForConfirm) return;
 
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          history.push(pendingOrderPayloadForConfirm);
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          liveOrders.push(pendingOrderPayloadForConfirm);
           
           let counter = 1;
-          history.forEach(ord => {
-              if (ord.date === pendingOrderPayloadForConfirm.date) {
-                  ord.orderNo = `#${String(counter).padStart(3, '0')}`;
-                  counter++;
-              }
+          liveOrders.forEach(ord => {
+              ord.orderNo = `#${String(counter).padStart(3, '0')}`;
+              counter++;
           });
-          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
 
-          playSound('done');
+          playSound('new_order');
           document.getElementById('receiptModal').style.display = 'none';
           clearCart();
           pendingOrderPayloadForConfirm = null;
+          updateOrderBadge();
+      }
+
+      // ================= 📋 接單系統與歷史訂單邏輯 =================
+      function updateOrderBadge() {
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          const badge = document.getElementById('orderBadgeCount');
+          if (liveOrders.length > 0) {
+              badge.innerText = liveOrders.length;
+              badge.style.display = 'flex';
+          } else {
+              badge.style.display = 'none';
+          }
+      }
+
+      function openOrderSystemModal() {
+          renderLiveOrders();
+          document.getElementById('orderSystemModal').style.display = 'flex';
+      }
+
+      function closeOrderSystemModal() {
+          document.getElementById('orderSystemModal').style.display = 'none';
+      }
+
+      function renderLiveOrders() {
+          const container = document.getElementById('liveOrderListContainer');
+          container.innerHTML = '';
+
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+
+          if (liveOrders.length === 0) {
+              container.innerHTML = '<div style="text-align:center; padding:30px; color:#8a7356;">目前沒有待處理的訂單 📭</div>';
+              return;
+          }
+
+          liveOrders.forEach((ord, index) => {
+              const div = document.createElement('div');
+              div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px;";
+              
+              let itemsHtml = ord.items.map((i, idx) => `
+                  <div style="display:flex; justify-content:space-between; font-size:13px; color:#eddab2;">
+                      <span>${i.name} x ${i.qty}</span>
+                      <span>$${i.price * i.qty} <button style="background:#7a1c1c; color:#fff; border:none; padding:1px 5px; border-radius:3px; cursor:pointer; font-size:11px; margin-left:6px;" onclick="removeOrderItem(${ord.id}, ${idx})">刪</button></span>
+                  </div>
+              `).join('');
+
+              let btnText = "接單";
+              let btnBg = "linear-gradient(135deg, #2e7d32, #1b5e20)";
+              if (ord.status === "製作中") {
+                  btnText = "完成";
+                  btnBg = "linear-gradient(135deg, #004080, #002040)";
+              } else if (ord.status === "待取餐") {
+                  btnText = "已取餐";
+                  btnBg = "linear-gradient(135deg, #b26a00, #663800)";
+              }
+
+              div.innerHTML = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #5c4524; padding-bottom:6px;">
+                      <span style="font-weight:bold; color:var(--primary-gold);">${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
+                      <span style="font-size:12px; background:#3d2b1a; padding:2px 8px; border-radius:4px; color:#f3e5ab;">狀態: ${ord.status}</span>
+                  </div>
+                  <div style="font-size:12px; color:#c4ae85;">取餐時間：${ord.pickupTime} | 付款：${ord.payment}</div>
+                  <div style="font-size:12px; color:#c4ae85;">備註：${ord.custNotes || '無'}</div>
+                  
+                  <div style="background:#1f160d; padding:8px; border-radius:4px; margin-top:4px;">
+                      <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px; font-weight:bold; color:var(--primary-gold);">
+                          <span>訂單品項明細：</span>
+                          <button class="header-btn" style="padding:2px 8px; font-size:11px;" onclick="openEditOrderItemsModal(${ord.id})">＋ 修改/新增品項</button>
+                      </div>
+                      ${itemsHtml}
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:15px; color:var(--primary-gold); padding:0 4px;">
+                      <span>總金額：$${ord.total}</span>
+                  </div>
+
+                  <div style="display:flex; gap:8px; margin-top:4px;">
+                      <button class="btn" style="background:${btnBg}; color:white; padding:8px; font-size:14px;" onclick="advanceOrderStatus(${ord.id})">${btnText}</button>
+                      <button class="btn" style="background:linear-gradient(135deg, #8b1e0f, #4a0d05); color:white; padding:8px; font-size:14px;" onclick="rejectOrder(${ord.id})">拒單</button>
+                  </div>
+              `;
+              container.appendChild(div);
+          });
+      }
+
+      function advanceOrderStatus(orderId) {
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === orderId);
+          if (!ord) return;
+
+          if (ord.status === "等待接單") {
+              ord.status = "製作中";
+          } else if (ord.status === "製作中") {
+              ord.status = "待取餐";
+          } else if (ord.status === "待取餐") {
+              // 已取餐 -> 完整完成，移至歷史紀錄
+              liveOrders = liveOrders.filter(o => o.id !== orderId);
+              let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+              ord.status = "已完成";
+              history.push(ord);
+              localStorage.setItem('pos_order_history', JSON.stringify(history));
+              playSound('done');
+          }
+
+          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          renderLiveOrders();
+          updateOrderBadge();
+      }
+
+      function rejectOrder(orderId) {
+          if (!confirm("確定要拒絕這筆訂單嗎？")) return;
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          liveOrders = liveOrders.filter(o => o.id !== orderId);
+          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          renderLiveOrders();
+          updateOrderBadge();
+      }
+
+      function removeOrderItem(orderId, itemIndex) {
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === orderId);
+          if (!ord) return;
+
+          ord.items.splice(itemIndex, 1);
+          
+          // 重新計算總金額
+          let newTotal = 0;
+          ord.items.forEach(i => newTotal += i.price * i.qty);
+          if (ord.prefs && ord.prefs.flavor === "泰式+5元") newTotal += 5;
+          ord.total = newTotal;
+
+          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          renderLiveOrders();
+      }
+
+      // 訂單內修改/新增品項邏輯 (先選大選項，再選品項)
+      function openEditOrderItemsModal(orderId) {
+          currentEditingOrderId = orderId;
+          const catSelect = document.getElementById('editCatSelect');
+          catSelect.innerHTML = '';
+
+          for (let cat in menuData) {
+              let opt = document.createElement('option');
+              opt.value = cat;
+              opt.text = cat;
+              catSelect.appendChild(opt);
+          }
+
+          onEditCategoryChange();
+          renderEditingItemsList();
+          document.getElementById('editOrderItemsModal').style.display = 'flex';
+      }
+
+      function closeEditOrderItemsModal() {
+          document.getElementById('editOrderItemsModal').style.display = 'none';
+          currentEditingOrderId = null;
+          renderLiveOrders();
+      }
+
+      function onEditCategoryChange() {
+          const catSelect = document.getElementById('editCatSelect');
+          const itemSelect = document.getElementById('editItemSelect');
+          const selectedCat = catSelect.value;
+          itemSelect.innerHTML = '';
+
+          if (menuData[selectedCat]) {
+              menuData[selectedCat].forEach(item => {
+                  let opt = document.createElement('option');
+                  opt.value = JSON.stringify({ name: item.name, price: item.price });
+                  opt.text = `${item.name} ($${item.price})`;
+                  itemSelect.appendChild(opt);
+              });
+          }
+      }
+
+      function renderEditingItemsList() {
+          const container = document.getElementById('editingItemsContainer');
+          container.innerHTML = '';
+
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === currentEditingOrderId);
+          if (!ord) return;
+
+          ord.items.forEach((i, idx) => {
+              const div = document.createElement('div');
+              div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#140f0a; padding:6px 10px; border-radius:4px; font-size:13px; color:#eddab2;";
+              div.innerHTML = `
+                  <span>${i.name} x ${i.qty} ($${i.price * i.qty})</span>
+                  <button style="background:#7a1c1c; color:#fff; border:none; padding:2px 6px; border-radius:3px; cursor:pointer;" onclick="removeEditingItem(${idx})">刪除</button>
+              `;
+              container.appendChild(div);
+          });
+      }
+
+      function addSelectedItemToEditingOrder() {
+          const itemSelect = document.getElementById('editItemSelect');
+          if (!itemSelect.value) return;
+
+          let itemData = JSON.parse(itemSelect.value);
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === currentEditingOrderId);
+          if (!ord) return;
+
+          let existing = ord.items.find(i => i.name === itemData.name);
+          if (existing) {
+              existing.qty += 1;
+          } else {
+              ord.items.push({ name: itemData.name, qty: 1, price: itemData.price, subItems: null });
+          }
+
+          let newTotal = 0;
+          ord.items.forEach(i => newTotal += i.price * i.qty);
+          if (ord.prefs && ord.prefs.flavor === "泰式+5元") newTotal += 5;
+          ord.total = newTotal;
+
+          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          renderEditingItemsList();
+      }
+
+      function removeEditingItem(itemIdx) {
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let ord = liveOrders.find(o => o.id === currentEditingOrderId);
+          if (!ord) return;
+
+          ord.items.splice(itemIdx, 1);
+
+          let newTotal = 0;
+          ord.items.forEach(i => newTotal += i.price * i.qty);
+          if (ord.prefs && ord.prefs.flavor === "泰式+5元") newTotal += 5;
+          ord.total = newTotal;
+
+          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          renderEditingItemsList();
+      }
+
+      // 歷史訂單查詢
+      function openHistoryModal() {
+          const container = document.getElementById('historyOrderListContainer');
+          container.innerHTML = '';
+
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+
+          if (history.length === 0) {
+              container.innerHTML = '<div style="text-align:center; padding:30px; color:#8a7356;">目前沒有已完成的歷史訂單 📊</div>';
+          } else {
+              history.forEach(ord => {
+                  let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+                  const div = document.createElement('div');
+                  div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:10px 14px; border-radius:6px; font-size:13px; color:#eddab2; display:flex; flex-direction:column; gap:4px;";
+                  div.innerHTML = `
+                      <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary-gold);">
+                          <span>${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
+                          <span>$${ord.total}</span>
+                      </div>
+                      <div>日期：${ord.date} | 取餐：${ord.pickupTime}</div>
+                      <div>品項：${itemsStr}</div>
+                      <div>備註：${ord.custNotes || '無'}</div>
+                  `;
+                  container.appendChild(div);
+              });
+          }
+
+          document.getElementById('historyModal').style.display = 'flex';
+      }
+
+      function closeHistoryModal() {
+          document.getElementById('historyModal').style.display = 'none';
       }
 
       window.onload = initPOS;
