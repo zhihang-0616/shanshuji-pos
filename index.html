@@ -174,7 +174,10 @@
 
   <div class="menu-container">
       <div class="menu-header">
-          <div class="header-top-row" id="headerTopRow"></div>
+          <div class="header-top-row" id="headerTopRow">
+              <div id="storeStatusContainer" style="display:flex; align-items:center;"></div>
+              <div id="headerAuthContainer" style="display:flex; align-items:center;"></div>
+          </div>
           <span class="menu-header-title">去中心鹹水雞 X 厝邊溫食 POS 系統</span>
           <div id="storeInfoContainer">
               <div class="store-info-box">
@@ -184,16 +187,11 @@
                   </div>
                   <div class="store-info-row">
                       <div class="store-info-left"><span class="store-info-label">營業時間 :</span><span class="store-info-val">週二~週四 17:00 - 00:00 / 週五 & 週六 17:00-02:00</span></div>
-                      <div class="store-info-right"><span class="store-info-label">公休日 :</span><span class="store-info-val">週一公休 / 不定時休假</span></div>
+                      <div class="store-info-right"><span class="store-info-label">公休日 :</span><span class="store-info-val">週一公休 / 不定時休假(請來電詢問)</span></div>
                   </div>
               </div>
           </div>
-          <div class="admin-action-group" id="adminActionGroup">
-              <button class="header-btn meal-mgmt-btn" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
-              <button class="header-btn order-sys-btn" onclick="openOrderSystemModal()">📋 接單系統 <span id="orderBadgeCount" class="order-badge-count" style="display:none;">0</span></button>
-              <button class="header-btn soldout-list-btn" onclick="openSoldoutListModal()">📋 售完品項</button>
-              <button class="header-btn history-list-btn" onclick="openHistoryModal()">📊 歷史訂單查詢</button>
-          </div>
+          <div class="admin-action-group" id="adminActionGroup"></div>
       </div>
 
       <div class="menu-tabs" id="menuTabs"></div>
@@ -213,13 +211,12 @@
       
       <div class="order-list" id="orderList"></div>
 
-      <!-- 主畫面底部按鈕 -->
       <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
           <button class="btn btn-submit" style="width:100%; padding:14px; font-size:16px;" onclick="openStep1Modal()">下一步 (填寫取餐資訊)</button>
       </div>
   </div>
 
-  <!-- 填寫取餐資訊 Modal (含清除購物車、上一步與下一步) -->
+  <!-- 填寫取餐資訊 Modal -->
   <div class="modal" id="step1Modal">
       <div class="modal-content" style="width:420px; resize:none;">
           <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
@@ -303,7 +300,6 @@
               </div>
           </div>
 
-          <!-- 按鈕區：清除購物車、上一步、下一步 -->
           <div class="action-buttons" style="display:flex; gap:8px;">
                 <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
                 <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="closeStep1Modal()">上一步</button>
@@ -312,7 +308,7 @@
       </div>
   </div>
 
-  <!-- 收據與確認下單視窗 (附帶上一步) -->
+  <!-- 收據與確認下單視窗 -->
   <div class="modal" id="receiptModal">
       <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px; resize:none;"></div>
   </div>
@@ -326,7 +322,7 @@
       </div>
   </div>
 
-  <!-- 現金收銀 Modal (金額不足阻擋與提示) -->
+  <!-- 現金收銀 Modal -->
   <div class="modal" id="cashRegisterModal">
       <div class="modal-content" style="width:340px; text-align:center; resize:none;">
           <button class="modal-close-x" onclick="closeCashRegisterModal()">✕</button>
@@ -351,7 +347,7 @@
       </div>
   </div>
 
-  <!-- 歷史訂單查詢 Modal -->
+  <!-- 歷史訂單查詢 Modal (位於管理模式內) -->
   <div class="modal" id="historyModal">
       <div class="modal-content" id="historyModalContent" style="width:1100px; max-width:98vw; height:75vh; display:flex; flex-direction:column;">
           <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
@@ -396,75 +392,79 @@
       </div>
   </div>
 
-  <!-- 歷史訂單資訊全面修改 Modal -->
+  <!-- 登入與修改密碼 Modal -->
+  <div class="modal" id="loginModal">
+      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
+          <button class="modal-close-x" onclick="closeLoginModal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:14px;">🔐 管理員登入</h3>
+          
+          <div style="margin-bottom:15px; text-align:left;">
+              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">請輸入管理密碼：</label>
+              <input type="password" id="loginPasswordInput" class="input-field" style="width:100%; font-size:16px; padding:8px;" placeholder="預設密碼: 8888">
+          </div>
+          <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmLogin()">登入</button>
+      </div>
+  </div>
+
+  <div class="modal" id="changePasswordModal">
+      <div class="modal-content" style="width:360px; text-align:center; resize:none;">
+          <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:14px;">🔑 修改管理密碼</h3>
+          
+          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px; text-align:left;">
+              <div>
+                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">目前密碼：</label>
+                  <input type="password" id="cpOld" class="input-field" style="width:100%;">
+              </div>
+              <div>
+                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">新密碼：</label>
+                  <input type="password" id="cpNew" class="input-field" style="width:100%;">
+              </div>
+          </div>
+          <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmChangePassword()">確認修改</button>
+      </div>
+  </div>
+
+  <!-- 管理模式 Modal (內含歷史訂單查詢入口) -->
+  <div class="modal" id="mgmtModeModal">
+      <div class="modal-content" style="width:400px; text-align:center; resize:none;">
+          <button class="modal-close-x" onclick="closeMgmtModeModal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:16px;">⚙️ 管理模式</h3>
+          
+          <div style="display:flex; flex-direction:column; gap:12px;">
+              <button class="btn btn-submit" style="padding:12px; font-size:15px;" onclick="openHistoryModalFromMgmt()">📊 歷史訂單查詢</button>
+              <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:12px; font-size:15px;" onclick="openChangePasswordModal()">🔑 修改密碼</button>
+              <button class="btn" style="background:#7a1c1c; color:#fff; padding:12px; font-size:15px;" onclick="adminLogout()">🔒 登出管理模式</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- 其他修改 Modal -->
   <div class="modal" id="editOrderInfoModal">
       <div class="modal-content" style="width:420px; resize:none;">
           <button class="modal-close-x" onclick="closeEditOrderInfoModal()">✕</button>
           <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:12px;">📝 修改訂單資訊</h3>
-          
           <div style="display:flex; flex-direction:column; gap:8px;">
-              <div class="input-row">
-                  <span class="input-label">狀態:</span>
-                  <select id="eiStatus" class="input-field">
-                      <option value="等待接單">等待接單</option>
-                      <option value="製作中">製作中</option>
-                      <option value="待取餐">待取餐</option>
-                      <option value="已完成">已完成</option>
-                  </select>
-              </div>
-              <div class="input-row">
-                  <span class="input-label">日期:</span>
-                  <input type="text" id="eiDate" class="input-field" placeholder="YYYY/MM/DD">
-              </div>
-              <div class="input-row">
-                  <span class="input-label">時間:</span>
-                  <input type="text" id="eiTime" class="input-field" placeholder="HH:MM">
-              </div>
-              <div class="input-row">
-                  <span class="input-label">訂購人:</span>
-                  <input type="text" id="eiCustomer" class="input-field">
-              </div>
-              <div class="input-row">
-                  <span class="input-label">電話:</span>
-                  <input type="text" id="eiPhone" class="input-field">
-              </div>
-              <div class="input-row">
-                  <span class="input-label">取餐時間:</span>
-                  <input type="text" id="eiPickup" class="input-field">
-              </div>
-              <div class="input-row">
-                  <span class="input-label">口味綜合:</span>
-                  <input type="text" id="eiFlavorStr" class="input-field" placeholder="(例如:蒜味、不辣、正常)">
-              </div>
-              <div class="input-row">
-                  <span class="input-label">備註/配備:</span>
-                  <input type="text" id="eiNotes" class="input-field">
-              </div>
+              <div class="input-row"><span class="input-label">狀態:</span><select id="eiStatus" class="input-field"><option value="等待接單">等待接單</option><option value="製作中">製作中</option><option value="待取餐">待取餐</option><option value="已完成">已完成</option></select></div>
+              <div class="input-row"><span class="input-label">日期:</span><input type="text" id="eiDate" class="input-field"></div>
+              <div class="input-row"><span class="input-label">時間:</span><input type="text" id="eiTime" class="input-field"></div>
+              <div class="input-row"><span class="input-label">訂購人:</span><input type="text" id="eiCustomer" class="input-field"></div>
+              <div class="input-row"><span class="input-label">電話:</span><input type="text" id="eiPhone" class="input-field"></div>
+              <div class="input-row"><span class="input-label">取餐時間:</span><input type="text" id="eiPickup" class="input-field"></div>
+              <div class="input-row"><span class="input-label">口味綜合:</span><input type="text" id="eiFlavorStr" class="input-field"></div>
+              <div class="input-row"><span class="input-label">備註/配備:</span><input type="text" id="eiNotes" class="input-field"></div>
           </div>
           <button class="btn btn-submit" style="width:100%; margin-top:14px; padding:10px;" onclick="saveOrderInfoEdit()">💾 儲存修改</button>
       </div>
   </div>
 
-  <!-- 編輯訂單品項 Modal -->
   <div class="modal" id="editOrderItemsModal">
       <div class="modal-content" style="width:450px; resize:none;">
           <button class="modal-close-x" onclick="closeEditOrderItemsModal()">✕</button>
           <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:12px;">🍔 修改訂單品項</h3>
-          
-          <div style="margin-bottom:10px;">
-              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">1. 選擇大選項分類：</label>
-              <select id="editCatSelect" class="input-field" style="width:100%;" onchange="onEditCategoryChange()"></select>
-          </div>
-          
-          <div style="margin-bottom:14px;">
-              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">2. 選擇品項：</label>
-              <select id="editItemSelect" class="input-field" style="width:100%;"></select>
-          </div>
-
-          <div style="display:flex; gap:10px;">
-              <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
-          </div>
-
+          <div style="margin-bottom:10px;"><label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">1. 選擇大選項分類：</label><select id="editCatSelect" class="input-field" style="width:100%;" onchange="onEditCategoryChange()"></select></div>
+          <div style="margin-bottom:14px;"><label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">2. 選擇品項：</label><select id="editItemSelect" class="input-field" style="width:100%;"></select></div>
+          <button class="btn btn-submit" style="padding:10px;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
           <div style="margin-top:15px; border-top:1px dashed var(--border-gold); padding-top:10px;">
               <div style="font-weight:bold; margin-bottom:6px; color:var(--text-gold);">目前訂單品項清單：</div>
               <div id="editingItemsContainer" style="max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"></div>
@@ -472,21 +472,13 @@
       </div>
   </div>
 
-  <!-- 取餐時間選擇 Modal -->
   <div class="modal" id="pickupTimeModal">
       <div class="modal-content" style="width:340px; text-align:center; resize:none;">
           <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:14px;">選擇 24 小時制取餐時間</h3>
-          
           <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:15px; text-align:left;">
-             <div>
-                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇日期：</label>
-                  <input type="date" id="modalPickupDate" class="input-field" style="width:100%;">
-             </div>
-             <div>
-                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制)：</label>
-                  <select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select>
-             </div>
+             <div><label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇日期：</label><input type="date" id="modalPickupDate" class="input-field" style="width:100%;"></div>
+             <div><label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制)：</label><select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select></div>
           </div>
           <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmPickupTimeModal()">確定選擇</button>
       </div>
@@ -686,6 +678,25 @@
           window.dispatchEvent(new Event('storage_synced'));
       }
 
+      function getStoreStatus() {
+          return localStorage.getItem('pos_store_status') || '營業中';
+      }
+      function setStoreStatus(status) {
+          localStorage.setItem('pos_store_status', status);
+          window.dispatchEvent(new Event('storage_synced'));
+      }
+
+      function getAdminPassword() {
+          return localStorage.getItem('pos_admin_password') || '8888';
+      }
+      function setAdminPassword(pwd) {
+          localStorage.setItem('pos_admin_password', pwd);
+      }
+
+      function isAdminLoggedIn() {
+          return sessionStorage.getItem('pos_is_logged_in') === 'true';
+      }
+
       let currentCart = [];
       let orderPrefs = { flavor: "", spice: "", salt: "", extras: [] };
       let currentPayment = "現金";
@@ -695,6 +706,162 @@
       let currentEditingTarget = 'live'; 
       let isHistorySelectMode = false;
       let pendingCashOrderId = null;
+
+      function checkIsAdminMode() {
+          const urlParams = new URLSearchParams(window.location.search);
+          return urlParams.get('mode') === 'admin';
+      }
+
+      function initPOS() {
+          const isAdmin = checkIsAdminMode();
+          const storeInfoContainer = document.getElementById('storeInfoContainer');
+          const adminActionGroup = document.getElementById('adminActionGroup');
+          const headerAuthContainer = document.getElementById('headerAuthContainer');
+          const storeStatusContainer = document.getElementById('storeStatusContainer');
+
+          // 營業狀態按鈕 (左上角)
+          let currentStatus = getStoreStatus();
+          let statusBg = currentStatus === '營業中' ? '#2e7d32' : (currentStatus === '備料中' ? '#b26a00' : '#8b1e0f');
+          storeStatusContainer.innerHTML = `
+              <button class="header-btn" style="background:${statusBg};" onclick="toggleStoreStatus()">🟢 ${currentStatus}</button>
+          `;
+
+          if (isAdmin) {
+              // 管理模式頁面：隱藏餐廳基本資訊
+              storeInfoContainer.style.display = 'none';
+
+              // 右上角登入與密碼選項
+              if (isAdminLoggedIn()) {
+                  headerAuthContainer.innerHTML = `
+                      <button class="header-btn" style="background:#4a148c;" onclick="openMgmtModeModal()">⚙️ 管理模式</button>
+                  `;
+              } else {
+                  headerAuthContainer.innerHTML = `
+                      <button class="header-btn" style="background:#5c2c16;" onclick="openLoginModal()">🔑 登入</button>
+                  `;
+              }
+
+              // 按鈕順序：接單系統 在 餐點管理 左邊
+              adminActionGroup.innerHTML = `
+                  <button class="header-btn order-sys-btn" onclick="openOrderSystemModal()">📋 接單系統 <span id="orderBadgeCount" class="order-badge-count" style="display:none;">0</span></button>
+                  <button class="header-btn meal-mgmt-btn" id="mealMgmtBtn" onclick="toggleMealMgmtMode()">🍔 餐點管理</button>
+                  <button class="header-btn soldout-list-btn" onclick="openSoldoutListModal()">📋 售完品項</button>
+                  <button class="header-btn" style="background:linear-gradient(135deg, #4a148c, #280659);" onclick="checkMgmtAccess()">⚙️ 管理模式</button>
+              `;
+          } else {
+              // 顧客網址頁面：不顯示接單系統、餐點管理、售完品項、歷史訂單查詢
+              adminActionGroup.style.display = 'none';
+          }
+
+          refreshMenuTabs();
+          setDefaultPickupTime();
+          updateCartUI();
+          updateOrderBadge();
+          
+          let savedSize = localStorage.getItem('pos_history_modal_size');
+          if (savedSize) {
+              try {
+                  let sizeObj = JSON.parse(savedSize);
+                  const modalContent = document.getElementById('historyModalContent');
+                  modalContent.style.width = sizeObj.width;
+                  modalContent.style.height = sizeObj.height;
+              } catch(e) {}
+          }
+
+          window.addEventListener('storage', handleStorageSync);
+          window.addEventListener('storage_synced', handleStorageSync);
+      }
+
+      function toggleStoreStatus() {
+          if (!isAdminLoggedIn()) {
+              alert("請先登入管理員才能更改營業狀態！");
+              openLoginModal();
+              return;
+          }
+          let statuses = ['營業中', '備料中', '休息中'];
+          let current = getStoreStatus();
+          let nextIdx = (statuses.indexOf(current) + 1) % statuses.length;
+          setStoreStatus(statuses[nextIdx]);
+      }
+
+      function handleStorageSync() {
+          initPOS();
+          if (document.getElementById('orderSystemModal').style.display === 'flex') {
+              renderLiveOrders();
+          }
+          if (document.getElementById('historyModal').style.display === 'flex') {
+              renderHistoryOrders();
+          }
+          if (currentEditingOrderId && document.getElementById('editOrderItemsModal').style.display === 'flex') {
+              renderEditingItemsList();
+          }
+      }
+
+      // 登入相關邏輯
+      function openLoginModal() {
+          document.getElementById('loginPasswordInput').value = '';
+          document.getElementById('loginModal').style.display = 'flex';
+      }
+      function closeLoginModal() {
+          document.getElementById('loginModal').style.display = 'none';
+      }
+      function confirmLogin() {
+          let pwd = document.getElementById('loginPasswordInput').value;
+          if (pwd === getAdminPassword()) {
+              sessionStorage.setItem('pos_is_logged_in', 'true');
+              closeLoginModal();
+              initPOS();
+              alert("登入成功！");
+          } else {
+              alert("密碼錯誤！預設密碼為 8888");
+          }
+      }
+      function adminLogout() {
+          sessionStorage.removeItem('pos_is_logged_in');
+          closeMgmtModeModal();
+          initPOS();
+          alert("已登出管理模式！");
+      }
+
+      function openChangePasswordModal() {
+          document.getElementById('cpOld').value = '';
+          document.getElementById('cpNew').value = '';
+          document.getElementById('changePasswordModal').style.display = 'flex';
+      }
+      function closeChangePasswordModal() {
+          document.getElementById('changePasswordModal').style.display = 'none';
+      }
+      function confirmChangePassword() {
+          let oldPwd = document.getElementById('cpOld').value;
+          let newPwd = document.getElementById('cpNew').value;
+          if (oldPwd !== getAdminPassword()) {
+              alert("目前密碼輸入錯誤！");
+              return;
+          }
+          if (!newPwd) {
+              alert("新密碼不能為空！");
+              return;
+          }
+          setAdminPassword(newPwd);
+          alert("密碼修改成功！");
+          closeChangePasswordModal();
+      }
+
+      function checkMgmtAccess() {
+          if (!isAdminLoggedIn()) {
+              alert("尚未登入管理模式，請先登入！");
+              openLoginModal();
+          } else {
+              document.getElementById('mgmtModeModal').style.display = 'flex';
+          }
+      }
+      function closeMgmtModeModal() {
+          document.getElementById('mgmtModeModal').style.display = 'none';
+      }
+      function openHistoryModalFromMgmt() {
+          closeMgmtModeModal();
+          openHistoryModal();
+      }
 
       function setDefaultPickupTime() {
           const now = new Date();
@@ -945,41 +1112,6 @@
           refreshMenuTabs();
           refreshActiveGrid();
           openSoldoutListModal();
-      }
-
-      function initPOS() {
-          refreshMenuTabs();
-          setDefaultPickupTime();
-          updateCartUI();
-          updateOrderBadge();
-          
-          let savedSize = localStorage.getItem('pos_history_modal_size');
-          if (savedSize) {
-              try {
-                  let sizeObj = JSON.parse(savedSize);
-                  const modalContent = document.getElementById('historyModalContent');
-                  modalContent.style.width = sizeObj.width;
-                  modalContent.style.height = sizeObj.height;
-              } catch(e) {}
-          }
-
-          window.addEventListener('storage', handleStorageSync);
-          window.addEventListener('storage_synced', handleStorageSync);
-      }
-
-      function handleStorageSync() {
-          refreshMenuTabs();
-          refreshActiveGrid();
-          updateOrderBadge();
-          if (document.getElementById('orderSystemModal').style.display === 'flex') {
-              renderLiveOrders();
-          }
-          if (document.getElementById('historyModal').style.display === 'flex') {
-              renderHistoryOrders();
-          }
-          if (currentEditingOrderId && document.getElementById('editOrderItemsModal').style.display === 'flex') {
-              renderEditingItemsList();
-          }
       }
 
       function refreshMenuTabs() {
@@ -1448,6 +1580,10 @@
       }
 
       function openStep1Modal() {
+          if (getStoreStatus() === '休息中') {
+              alert("目前本店【休息中】，暫不接受點餐！");
+              return;
+          }
           if (currentCart.length === 0) {
               alert("購物車是空的，請先選擇餐點！");
               return;
@@ -1565,7 +1701,6 @@
                   <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
               </div>
               
-              <!-- 按鈕區：上一步與確認下單 -->
               <div style="display:flex; gap:8px; margin-bottom:14px;">
                   <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:10px;" onclick="closeReceiptModalAndBack()">上一步</button>
                   <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
@@ -1647,11 +1782,13 @@
       function updateOrderBadge() {
           let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
           const badge = document.getElementById('orderBadgeCount');
-          if (liveOrders.length > 0) {
-              badge.innerText = liveOrders.length;
-              badge.style.display = 'flex';
-          } else {
-              badge.style.display = 'none';
+          if (badge) {
+              if (liveOrders.length > 0) {
+                  badge.innerText = liveOrders.length;
+                  badge.style.display = 'flex';
+              } else {
+                  badge.style.display = 'none';
+              }
           }
       }
 
@@ -1693,7 +1830,7 @@
                   btnBg = "linear-gradient(135deg, #b26a00, #663800)";
               }
 
-              div = document.createElement('div');
+              let div = document.createElement('div');
               div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px;";
               div.innerHTML = `
                   <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #5c4524; padding-bottom:6px;">
@@ -1831,6 +1968,11 @@
       }
 
       function openHistoryModal() {
+          if (!isAdminLoggedIn()) {
+              alert("請先登入管理模式才能檢視歷史訂單！");
+              openLoginModal();
+              return;
+          }
           const today = new Date();
           let yyyy = today.getFullYear();
           let mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -2106,6 +2248,26 @@
           localStorage.setItem(storageKey, JSON.stringify(ordersArr));
           window.dispatchEvent(new Event('storage_synced'));
           renderEditingItemsList();
+      }
+
+      function checkOrderStatusByPhone() {
+          let phoneQuery = prompt("請輸入下單時填寫的手機號碼 (09xxxxxxx):");
+          if (!phoneQuery) return;
+          phoneQuery = phoneQuery.trim();
+
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          let allOrders = liveOrders.concat(history);
+          const matches = allOrders.filter(o => o.phone && o.phone.trim() === phoneQuery);
+
+          if (matches.length === 0) {
+              alert(`查無手機號碼【${phoneQuery}】的訂單紀錄。`);
+              return;
+          }
+
+          let lastOrder = matches[matches.length - 1];
+          let currentItemsStr = lastOrder.items.map(i => `${i.name}x${i.qty}`).join('、');
+          alert(`訂單編號: ${lastOrder.orderNo}\n訂購人: ${lastOrder.customer}\n預計取餐: ${lastOrder.pickupTime}\n總額: $${lastOrder.total}\n品項: ${currentItemsStr}\n狀態：${lastOrder.status}`);
       }
 
       window.onload = initPOS;
