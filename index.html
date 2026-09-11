@@ -41,9 +41,6 @@
       .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 8px 14px; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
       .header-btn:hover { filter: brightness(1.15); }
       
-      .store-status-static { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; z-index: 2; display: inline-block; }
-      .store-status-select { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; outline: none; z-index: 2; }
-      
       .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 2; }
       .login-btn.logged-in { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border-color: #81c784; }
 
@@ -287,7 +284,7 @@
       </div>
   </div>
 
-  <!-- 取餐時間選擇 Modal (強制 24 小時制) -->
+  <!-- 取餐時間選擇 Modal -->
   <div class="modal" id="pickupTimeModal">
       <div class="modal-content" style="width:340px; text-align:center;">
           <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
@@ -311,25 +308,6 @@
   <!-- 彈跳視窗 -->
   <div class="modal" id="optModal">
       <div class="modal-content" id="optModalContent"></div>
-  </div>
-
-  <!-- 狀態自動恢復設定 Modal -->
-  <div class="modal" id="statusTimeModal">
-      <div class="modal-content" style="width:360px; text-align:center;">
-          <button class="modal-close-x" onclick="closeStatusTimeModal()">✕</button>
-          <h3 style="color:var(--primary-gold); margin-bottom:14px;" id="statusTimeModalTitle">設定關閉時間</h3>
-          <div style="font-size:13px; color:#d6c29a; margin-bottom:14px;">請選擇關閉模式：</div>
-          
-          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
-              <button class="btn btn-submit" style="padding:10px; font-size:15px;" onclick="applyStoreStatusWithMode('direct')">直接關閉 (無限期)</button>
-             
-              <div style="background:#150d07; border:1px solid var(--border-gold); padding:10px; border-radius:6px; text-align:left;">
-                  <div style="font-size:13px; font-weight:bold; color:var(--primary-gold); margin-bottom:6px;">指定時間自動恢復營業：</div>
-                  <select id="autoResumeTimeSelect" class="input-field" style="width:100%; margin-bottom:8px;"></select>
-                  <button class="btn" style="width:100%; background:#3d2b1a; color:#fff; border:1px solid var(--border-gold); padding:8px; font-size:14px;" onclick="applyStoreStatusWithMode('timed')">確認定時關閉</button>
-              </div>
-          </div>
-      </div>
   </div>
 
   <div class="modal" id="receiptModal">
@@ -565,140 +543,13 @@
           }
       }
 
-      function getStoreStatus() {
-          let resumeTime = localStorage.getItem('pos_store_resume_time');
-          if (resumeTime) {
-              let now = new Date().getTime();
-              if (now >= parseInt(resumeTime)) {
-                  localStorage.removeItem('pos_store_resume_time');
-                  localStorage.setItem('pos_store_status', '營業中');
-                  return '營業中';
-              }
-          }
-          return localStorage.getItem('pos_store_status') || '營業中';
-      }
-
-      function setStoreStatus(status) {
-          localStorage.setItem('pos_store_status', status);
-          if (status === '營業中') {
-              localStorage.removeItem('pos_store_resume_time');
-          }
-      }
-
-      let pendingTargetStatus = '';
-
-      function handleStoreStatusChange(val) {
-          if (val === '營業中') {
-              executeChangeStoreStatus('營業中');
-          } else {
-              pendingTargetStatus = val;
-              openStatusTimeModal(val);
-          }
-      }
-
-      function openStatusTimeModal(statusName) {
-          document.getElementById('statusTimeModalTitle').innerText = `設定【${statusName}】關閉模式`;
-          const selectElem = document.getElementById('autoResumeTimeSelect');
-          selectElem.innerHTML = '';
-
-          let now = new Date();
-          let currentHour = now.getHours();
-          let currentMin = now.getMinutes();
-
-          let startMin = currentMin < 30 ? 30 : 0;
-          let startHour = currentMin < 30 ? currentHour : currentHour + 1;
-
-          for (let h = startHour; h < 26; h++) {
-              let actualH = h % 24;
-              for (let m of [0, 30]) {
-                  if (h === startHour && m < startMin && h === currentHour) continue;
-                  if (h >= 24 && m > 0) break;
-
-                  let hStr = String(actualH).padStart(2, '0');
-                  let mStr = String(m).padStart(2, '0');
-                  let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
-                  
-                  let option = document.createElement('option');
-                  let targetDate = new Date();
-                  if (h >= 24) targetDate.setDate(targetDate.getDate() + 1);
-                  targetDate.setHours(actualH, m, 0, 0);
-
-                  option.value = targetDate.getTime();
-                  option.text = timeLabel;
-                  selectElem.appendChild(option);
-              }
-          }
-
-          document.getElementById('statusTimeModal').style.display = 'flex';
-      }
-
-      function closeStatusTimeModal() {
-          document.getElementById('statusTimeModal').style.display = 'none';
-          updateHeaderLayout();
-      }
-
-      function applyStoreStatusWithMode(mode) {
-          if (mode === 'direct') {
-              executeChangeStoreStatus(pendingTargetStatus);
-          } else {
-              const selectElem = document.getElementById('autoResumeTimeSelect');
-              let resumeTimestamp = selectElem.value;
-              if (!resumeTimestamp) {
-                  alert("請選擇自動恢復時間！");
-                  return;
-              }
-              localStorage.setItem('pos_store_resume_time', resumeTimestamp);
-              executeChangeStoreStatus(pendingTargetStatus);
-          }
-          closeStatusTimeModal();
-      }
-
-      async function executeChangeStoreStatus(val) {
-          setStoreStatus(val);
-          updateHeaderLayout();
-          
-          if (GAS_WEB_APP_URL) {
-              try {
-                  await fetch(GAS_WEB_APP_URL, {
-                      method: "POST",
-                      mode: "no-cors",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ action: "setStoreStatus", status: val })
-                  });
-              } catch(e) {
-                  console.error("狀態同步雲端失敗", e);
-              }
-          }
-      }
-
-      async function fetchStoreStatusFromCloud() {
-          if (!GAS_WEB_APP_URL) return;
-          try {
-              let res = await fetch(`${GAS_WEB_APP_URL}?action=getStoreStatus`);
-              let data = await res.json();
-              if (data && data.storeStatus) {
-                  let currentLocal = localStorage.getItem('pos_store_status');
-                  if (data.storeStatus !== currentLocal) {
-                      localStorage.setItem('pos_store_status', data.storeStatus);
-                      updateHeaderLayout();
-                  }
-              }
-          } catch(e) {
-              console.log("雲端狀態同步失敗");
-          }
-      }
-
       function updateHeaderLayout() {
           const headerTopRow = document.getElementById('headerTopRow');
           const storeInfoContainer = document.getElementById('storeInfoContainer');
           const adminActionGroup = document.getElementById('adminActionGroup');
-          const currentStatus = getStoreStatus();
 
           if (!isUserAdminMode()) {
-              headerTopRow.innerHTML = `
-                  <div class="store-status-static">${currentStatus === '營業中' ? '🟢 營業中' : (currentStatus === '備料中' ? '🟡 備料中' : '🔴 休息中')}</div>
-                  <div></div>
-              `;
+              headerTopRow.innerHTML = `<div></div><div></div>`;
               storeInfoContainer.innerHTML = `
                   <div class="store-info-box">
                       <div class="store-info-row">
@@ -715,11 +566,7 @@
           } else {
               const loggedIn = isAdminLoggedIn();
               headerTopRow.innerHTML = `
-                  <select id="storeStatusSelect" class="store-status-select" onchange="handleStoreStatusChange(this.value)">
-                      <option value="營業中" ${currentStatus === '營業中' ? 'selected' : ''}>🟢 營業中</option>
-                      <option value="備料中" ${currentStatus === '備料中' ? 'selected' : ''}>🟡 備料中</option>
-                      <option value="休息中" ${currentStatus === '休息中' ? 'selected' : ''}>🔴 休息中</option>
-                  </select>
+                  <div></div>
                   <button id="loginStatusBtn" class="login-btn ${loggedIn ? 'logged-in' : ''}" onclick="toggleAdminLogin()">
                       ${loggedIn ? '🔓 已登入 (點擊登出)' : '🔒 管理員登入'}
                   </button>
@@ -969,7 +816,6 @@
           badge.innerText = "星期--";
       }
 
-      // 🔄 強制同步雲端訂單核心函數
       async function initCloudSync() {
           if (!GAS_WEB_APP_URL) return;
           try {
@@ -1467,17 +1313,8 @@
           setDefaultPickupTime();
           updateCartUI();
           
-          // 🚀 開機強制同步雲端訂單
           await initCloudSync();
           updatePendingCountHeader();
-
-          await fetchStoreStatusFromCloud();
-
-          setInterval(async () => {
-              await fetchStoreStatusFromCloud();
-              await initCloudSync();
-              updateHeaderLayout();
-          }, 8000);
       }
 
       function refreshMenuTabs() {
@@ -1552,11 +1389,6 @@
                   refreshMenuTabs();
                   renderGrid(category);
               } else {
-                  const currentStatus = getStoreStatus();
-                  if (currentStatus !== "營業中" && !isUserAdminMode()) {
-                      alert(`現在店家${currentStatus}`);
-                      return;
-                  }
                   if (!item.soldOut) handleItemClick(item, category);
               }
           };
@@ -1584,11 +1416,6 @@
                   refreshMenuTabs();
                   renderGrid(category);
               } else {
-                  const currentStatus = getStoreStatus();
-                  if (currentStatus !== "營業中" && !isUserAdminMode()) {
-                      alert(`現在店家${currentStatus}`);
-                      return;
-                  }
                   if (!item.soldOut) handleItemClick(item, category);
               }
           };
@@ -1613,12 +1440,6 @@
       }
 
       function handleItemClick(item, category) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode()) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
           if (item.soldOut) {
               alert(`【${item.name}】目前已售完，無法點購！`);
               return;
@@ -1704,12 +1525,6 @@
       let tempSalt = "";
 
       function showHotFoodCustomModal(item) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode()) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
           if (item.soldOut && !isUserAdminMode()) {
               alert(`【${item.name}】目前已售完，無法點購！`);
               return;
@@ -1836,12 +1651,6 @@
       }
 
       function addToCart(itemObj) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode()) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
           let existing = currentCart.find(c => c.id === itemObj.id);
           if (existing) {
               existing.qty++;
@@ -2296,12 +2105,6 @@
       }
 
       function submitOrder(isBackdate = false) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode() && !isBackdate) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
           if (currentCart.length === 0) {
               alert("購物車是空的，請先選擇餐點！");
               return;
