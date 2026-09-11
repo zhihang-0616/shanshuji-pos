@@ -143,7 +143,7 @@
       .btn-submit:hover { filter: brightness(1.15); }
 
       .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
-      .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 26px 22px 22px 22px; border-radius: 8px; width: 380px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
+      .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 26px 22px 22px 22px; border-radius: 8px; width: 380px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; resize: both; }
       
       .modal-close-x { position: absolute; top: 10px; right: 12px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; z-index: 10; transition: 0.2s; }
       .modal-close-x:hover { background: #8b1e0f; }
@@ -315,36 +315,47 @@
       </div>
   </div>
 
-  <!-- 歷史訂單查詢 Modal (加大尺寸與新增日期/批次選取功能) -->
+  <!-- 歷史訂單查詢 Modal (橫式表格、日期、多選刪除、記憶大小) -->
   <div class="modal" id="historyModal">
-      <div class="modal-content" style="width:750px; max-width:95vw; height:85vh; display:flex; flex-direction:column;">
+      <div class="modal-content" id="historyModalContent" style="width:850px; max-width:95vw; height:75vh; display:flex; flex-direction:column;">
           <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
           
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-gold); padding-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
               <h3 style="color:var(--primary-gold); margin:0;">📊 歷史訂單查詢 (已完成)</h3>
-              <div style="display:flex; gap:8px; align-items:center;">
-                  <button class="header-btn" id="historySelectToggleBtn" onclick="toggleHistorySelectionMode()" style="background:#3d2b1a; border-color:var(--border-gold);">選取</button>
-                  <button class="header-btn" id="historyBatchDeleteBtn" onclick="batchDeleteHistoryOrders()" style="background:#8b1e0f; display:none;">刪除已選取</button>
+              
+              <div style="display:flex; gap:6px; align-items:center;">
+                  <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(-1)">◀ 前一日</button>
+                  <input type="date" id="historyDateFilter" class="input-field" style="padding:4px 8px; width:130px;" onchange="renderHistoryOrders()">
+                  <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(1)">後一日 ▶</button>
+                  <button class="header-btn" id="toggleSelectModeBtn" style="background:#5c2c16;" onclick="toggleHistorySelectMode()">選取</button>
+                  <button class="header-btn" id="batchDeleteBtn" style="background:#8b1e0f; display:none;" onclick="batchDeleteHistoryOrders()">刪除選取</button>
               </div>
           </div>
 
-          <!-- 日期查詢與前一天/後一天控制列 -->
-          <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; background:#150d07; padding:8px; border-radius:6px; border:1px solid var(--border-gold);">
-              <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(-1)">⬅️ 前一天</button>
-              <input type="date" id="historyDateFilter" class="input-field" style="max-width:160px; text-align:center;" onchange="renderHistoryOrders()">
-              <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(1)">後一天 ➡️</button>
-              <button class="header-btn" style="background:#2e7d32; margin-left:auto;" onclick="setHistoryDateToday()">今日</button>
+          <div style="flex:1; overflow-y:auto; border:1px solid var(--border-gold); background:#150d07; border-radius:6px; padding:10px;">
+              <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+                  <thead>
+                      <tr style="border-bottom:2px solid var(--border-gold); color:var(--primary-gold);">
+                          <th style="padding:8px; display:none;" class="history-select-th">選取</th>
+                          <th style="padding:8px;">單號</th>
+                          <th style="padding:8px;">日期/時間</th>
+                          <th style="padding:8px;">顧客/電話</th>
+                          <th style="padding:8px;">點購品項與內容</th>
+                          <th style="padding:8px;">總金額</th>
+                          <th style="padding:8px; text-align:center;">操作</th>
+                      </tr>
+                  </thead>
+                  <tbody id="historyTableBody"></tbody>
+              </table>
           </div>
-
-          <div id="historyOrderListContainer" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px;"></div>
       </div>
   </div>
 
-  <!-- 編輯訂單品項 Modal (支援接單與歷史訂單修改/新增品項) -->
+  <!-- 編輯訂單品項 Modal (支援接單系統與歷史訂單修改) -->
   <div class="modal" id="editOrderItemsModal">
       <div class="modal-content" style="width:450px;">
           <button class="modal-close-x" onclick="closeEditOrderItemsModal()">✕</button>
-          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:12px;" id="editingOrderTitle">修改訂單品項</h3>
+          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:12px;">修改訂單品項</h3>
           
           <div style="margin-bottom:10px;">
               <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">1. 選擇大選項分類：</label>
@@ -463,7 +474,7 @@
           "智能合約 (套餐)": "套餐內容物如遇缺貨將自動更換等值商品恕無法指定變更"
       };
 
-      const menuData = {
+      const defaultMenuData = {
           "信仰雞本位主義 (主食)": [
               { id: "m2", name: "鹹水雞腿", price: 65, soldOut: false },
               { id: "m5", name: "煙燻雞腿", price: 75, soldOut: false },
@@ -571,13 +582,28 @@
           ]
       };
 
+      // 取得/同步菜單資料
+      function getMenuData() {
+          let saved = localStorage.getItem('pos_menu_data');
+          if (saved) {
+              try { return JSON.parse(saved); } catch(e) {}
+          }
+          localStorage.setItem('pos_menu_data', JSON.stringify(defaultMenuData));
+          return defaultMenuData;
+      }
+      function saveMenuData(data) {
+          localStorage.setItem('pos_menu_data', JSON.stringify(data));
+          window.dispatchEvent(new Event('storage_synced'));
+      }
+
       let currentCart = [];
       let orderPrefs = { flavor: "", spice: "", salt: "", extras: [] };
       let currentPayment = "現金";
       let isEditMode = false;
       let pendingOrderPayloadForConfirm = null;
       let currentEditingOrderId = null; 
-      let isHistorySelecting = false; // 歷史訂單批次選取狀態
+      let currentEditingTarget = 'live'; // 'live' 或 'history'
+      let isHistorySelectMode = false;
 
       function setDefaultPickupTime() {
           const now = new Date();
@@ -685,8 +711,8 @@
           toggleAddon(val, btnEl);
       }
 
-      function checkInventoryLogic(changedItemName, isSoldOut) {
-          const chickenList = menuData["信仰雞本位主義 (主食)"];
+      function checkInventoryLogic(menuDataObj, changedItemName, isSoldOut) {
+          const chickenList = menuDataObj["信仰雞本位主義 (主食)"];
           if (!chickenList) return;
 
           const m1 = chickenList.find(i => i.name === "鹹水雞胸"); 
@@ -756,6 +782,7 @@
       function openSoldoutListModal() {
           const container = document.getElementById('soldoutListContainer');
           container.innerHTML = '';
+          const menuData = getMenuData();
 
           let soldoutItems = [];
           for (let category in menuData) {
@@ -807,10 +834,12 @@
       }
 
       function restoreSoldoutItem(category, itemId) {
+          let menuData = getMenuData();
           const item = menuData[category].find(i => i.id === itemId);
           if (item) {
               item.soldOut = false;
-              checkInventoryLogic(item.name, false);
+              checkInventoryLogic(menuData, item.name, false);
+              saveMenuData(menuData);
               refreshMenuTabs();
               refreshActiveGrid();
               openSoldoutListModal();
@@ -818,7 +847,9 @@
       }
 
       function restoreCategory(category) {
+          let menuData = getMenuData();
           menuData[category].forEach(i => i.soldOut = false);
+          saveMenuData(menuData);
           refreshMenuTabs();
           refreshActiveGrid();
           openSoldoutListModal();
@@ -829,12 +860,48 @@
           setDefaultPickupTime();
           updateCartUI();
           updateOrderBadge();
+          
+          // 載入記錄的 Modal 大小
+          let savedSize = localStorage.getItem('pos_history_modal_size');
+          if (savedSize) {
+              try {
+                  let sizeObj = JSON.parse(savedSize);
+                  const modalContent = document.getElementById('historyModalContent');
+                  modalContent.style.width = sizeObj.width;
+                  modalContent.style.height = sizeObj.height;
+              } catch(e) {}
+          }
+
+          // 監聽跨裝置/多頁籤同步事件
+          window.addEventListener('storage', (e) => {
+              refreshMenuTabs();
+              refreshActiveGrid();
+              updateOrderBadge();
+              if (document.getElementById('orderSystemModal').style.display === 'flex') {
+                  renderLiveOrders();
+              }
+              if (document.getElementById('historyModal').style.display === 'flex') {
+                  renderHistoryOrders();
+              }
+          });
+          window.addEventListener('storage_synced', () => {
+              refreshMenuTabs();
+              refreshActiveGrid();
+              updateOrderBadge();
+              if (document.getElementById('orderSystemModal').style.display === 'flex') {
+                  renderLiveOrders();
+              }
+              if (document.getElementById('historyModal').style.display === 'flex') {
+                  renderHistoryOrders();
+              }
+          });
       }
 
       function refreshMenuTabs() {
           const tabsContainer = document.getElementById('menuTabs');
           const activeTabElem = document.querySelector('.tab-btn.active');
           let currentActiveCategory = activeTabElem ? activeTabElem.getAttribute('data-category') : null;
+          let menuData = getMenuData();
 
           tabsContainer.innerHTML = '';
           let firstCategory = true;
@@ -852,11 +919,13 @@
               closeBtn.title = isAllSoldOut ? "點擊重新開啟大選項" : "一鍵關閉整大類";
               closeBtn.onclick = (e) => {
                   e.stopPropagation();
+                  let currentMenu = getMenuData();
                   let shouldOpen = isAllSoldOut;
-                  menuData[category].forEach(i => {
+                  currentMenu[category].forEach(i => {
                       i.soldOut = !shouldOpen;
-                      checkInventoryLogic(i.name, !shouldOpen);
+                      checkInventoryLogic(currentMenu, i.name, !shouldOpen);
                   });
+                  saveMenuData(currentMenu);
                   refreshMenuTabs();
                   renderGrid(category);
               };
@@ -899,8 +968,13 @@
           
           card.onclick = () => {
               if (isEditMode) {
-                  item.soldOut = !item.soldOut;
-                  checkInventoryLogic(item.name, item.soldOut);
+                  let menuData = getMenuData();
+                  let targetItem = menuData[category].find(i => i.id === item.id);
+                  if (targetItem) {
+                      targetItem.soldOut = !targetItem.soldOut;
+                      checkInventoryLogic(menuData, targetItem.name, targetItem.soldOut);
+                      saveMenuData(menuData);
+                  }
                   refreshMenuTabs();
                   renderGrid(category);
               } else {
@@ -927,7 +1001,12 @@
           
           card.onclick = () => {
               if (isEditMode) {
-                  item.soldOut = !item.soldOut;
+                  let menuData = getMenuData();
+                  let targetItem = menuData[category].find(i => i.id === item.id);
+                  if (targetItem) {
+                      targetItem.soldOut = !targetItem.soldOut;
+                      saveMenuData(menuData);
+                  }
                   refreshMenuTabs();
                   renderGrid(category);
               } else {
@@ -963,6 +1042,7 @@
               if (item.chickenOptions) {
                   showChickenChoiceModal(item);
               } else {
+                  let menuData = getMenuData();
                   const chickenList = menuData["信仰雞本位主義 (主食)"];
                   const breast = chickenList.find(i => i.name === "鹹水雞胸");
                   if (breast && breast.soldOut) {
@@ -983,6 +1063,7 @@
       }
 
       function showChickenChoiceModal(item) {
+          let menuData = getMenuData();
           const chickenList = menuData["信仰雞本位主義 (主食)"];
           const saltHalfSoldOut = chickenList.find(i => i.name === "鹹水半雞").soldOut;
           const smokeHalfSoldOut = chickenList.find(i => i.name === "煙燻半雞").soldOut;
@@ -1010,6 +1091,7 @@
       }
 
       function confirmChickenChoice(itemId, chosenChicken) {
+          let menuData = getMenuData();
           const item = menuData["智能合約 (套餐)"].find(s => s.id === itemId);
           addComboToCart(item, chosenChicken);
           closeOptModal();
@@ -1118,6 +1200,7 @@
           const displayArea = document.getElementById('menuDisplayArea');
           const noticeBox = document.getElementById('categoryNotice');
           displayArea.innerHTML = '';
+          const menuData = getMenuData();
           
           if (categoryNotices[category]) {
               noticeBox.innerHTML = categoryNotices[category];
@@ -1388,7 +1471,7 @@
           pendingOrderPayloadForConfirm = {
               id: Date.now(),
               orderNo: "#001",
-              status: "等待接單", 
+              status: "等待接單",
               date: dateStr,
               weekDay: weekDayStr,
               time: timeStr,
@@ -1511,6 +1594,7 @@
               counter++;
           });
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          window.dispatchEvent(new Event('storage_synced'));
 
           playSound('new_order');
           document.getElementById('receiptModal').style.display = 'none';
@@ -1519,7 +1603,7 @@
           updateOrderBadge();
       }
 
-      // ================= 📋 接單系統邏輯 =================
+      // ================= 📋 接單系統與歷史訂單邏輯 =================
       function updateOrderBadge() {
           let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
           const badge = document.getElementById('orderBadgeCount');
@@ -1620,6 +1704,7 @@
           }
 
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          window.dispatchEvent(new Event('storage_synced'));
           renderLiveOrders();
           updateOrderBadge();
       }
@@ -1629,6 +1714,7 @@
           let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
           liveOrders = liveOrders.filter(o => o.id !== orderId);
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          window.dispatchEvent(new Event('storage_synced'));
           renderLiveOrders();
           updateOrderBadge();
       }
@@ -1645,39 +1731,39 @@
           ord.total = newTotal;
 
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          window.dispatchEvent(new Event('storage_synced'));
           renderLiveOrders();
       }
 
-      // ================= 📊 歷史訂單查詢與管理邏輯 =================
-      let activeOrderSource = 'live'; // 'live' 或 'history'
-
+      // 歷史訂單管理
       function openHistoryModal() {
-          setHistoryDateToday();
-          isHistorySelecting = false;
-          document.getElementById('historySelectToggleBtn').innerText = "選取";
-          document.getElementById('historyBatchDeleteBtn').style.display = 'none';
+          const today = new Date();
+          let yyyy = today.getFullYear();
+          let mm = String(today.getMonth() + 1).padStart(2, '0');
+          let dd = String(today.getDate()).padStart(2, '0');
+          document.getElementById('historyDateFilter').value = `${yyyy}-${mm}-${dd}`;
+          
+          isHistorySelectMode = false;
+          document.querySelectorAll('.history-select-th, .history-select-td').forEach(el => el.style.display = 'none');
+          document.getElementById('batchDeleteBtn').style.display = 'none';
+          document.getElementById('toggleSelectModeBtn').innerText = "選取";
+
           renderHistoryOrders();
           document.getElementById('historyModal').style.display = 'flex';
       }
 
       function closeHistoryModal() {
-          document.getElementById('historyModal').style.display = 'none';
-      }
+          // 儲存目前的視窗大小以便下次記憶
+          const modalContent = document.getElementById('historyModalContent');
+          let sizeObj = { width: modalContent.style.width || '850px', height: modalContent.style.height || '75vh' };
+          localStorage.setItem('pos_history_modal_size', JSON.stringify(sizeObj));
 
-      function setHistoryDateToday() {
-          const now = new Date();
-          let yyyy = now.getFullYear();
-          let mm = String(now.getMonth() + 1).padStart(2, '0');
-          let dd = String(now.getDate()).padStart(2, '0');
-          document.getElementById('historyDateFilter').value = `${yyyy}-${mm}-${dd}`;
-          renderHistoryOrders();
+          document.getElementById('historyModal').style.display = 'none';
       }
 
       function changeHistoryDate(days) {
           const dateInput = document.getElementById('historyDateFilter');
-          if (!dateInput.value) {
-              setHistoryDateToday();
-          }
+          if (!dateInput.value) return;
           let dt = new Date(dateInput.value);
           dt.setDate(dt.getDate() + days);
           let yyyy = dt.getFullYear();
@@ -1687,70 +1773,66 @@
           renderHistoryOrders();
       }
 
-      function toggleHistorySelectionMode() {
-          isHistorySelecting = !isHistorySelecting;
-          const btn = document.getElementById('historySelectToggleBtn');
-          const batchBtn = document.getElementById('historyBatchDeleteBtn');
-          if (isHistorySelecting) {
-              btn.innerText = "取消選取";
+      function toggleHistorySelectMode() {
+          isHistorySelectMode = !isHistorySelectMode;
+          const ths = document.querySelectorAll('.history-select-th');
+          const tds = document.querySelectorAll('.history-select-td');
+          const batchBtn = document.getElementById('batchDeleteBtn');
+          const toggleBtn = document.getElementById('toggleSelectModeBtn');
+
+          if (isHistorySelectMode) {
+              ths.forEach(el => el.style.display = 'table-cell');
+              tds.forEach(el => el.style.display = 'table-cell');
               batchBtn.style.display = 'inline-block';
+              toggleBtn.innerText = "取消選取";
           } else {
-              btn.innerText = "選取";
+              ths.forEach(el => el.style.display = 'none');
+              tds.forEach(el => el.style.display = 'none');
               batchBtn.style.display = 'none';
+              toggleBtn.innerText = "選取";
           }
-          renderHistoryOrders();
       }
 
       function renderHistoryOrders() {
-          const container = document.getElementById('historyOrderListContainer');
-          container.innerHTML = '';
+          const tbody = document.getElementById('historyTableBody');
+          tbody.innerHTML = '';
 
-          const filterDateVal = document.getElementById('historyDateFilter').value.replace(/-/g, '/');
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          const filterDateVal = document.getElementById('historyDateFilter').value; // 格式 yyyy-mm-dd
+          let formattedFilterDate = filterDateVal ? filterDateVal.replace(/-/g, '/') : '';
 
-          // 依選擇的日期過濾 (比對 ord.date)
-          let filteredHistory = history.filter(ord => {
-              if (!filterDateVal) return true;
-              return ord.date === filterDateVal;
+          let filtered = history.filter(ord => {
+              if (!formattedFilterDate) return true;
+              return ord.date === formattedFilterDate;
           });
 
-          if (filteredHistory.length === 0) {
-              container.innerHTML = `<div style="text-align:center; padding:40px; color:#8a7356;">指定日期 (${filterDateVal || '全部'}) 沒有已完成的歷史訂單 📊</div>`;
+          if (filtered.length === 0) {
+              tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#8a7356;">此日期無歷史訂單紀錄 📊</td></tr>`;
               return;
           }
 
-          filteredHistory.forEach(ord => {
-              const div = document.createElement('div');
-              div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; font-size:13px; color:#eddab2; display:flex; flex-direction:column; gap:6px; position:relative;";
+          filtered.forEach((ord) => {
+              let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+              if (ord.custNotes) itemsStr += ` (備註: ${ord.custNotes})`;
+
+              const tr = document.createElement('tr');
+              tr.style.cssText = "border-bottom:1px solid #3d2b1a; color:#eddab2;";
               
-              let itemsHtml = ord.items.map((i, idx) => `
-                  <div style="display:flex; justify-content:space-between; font-size:13px; color:#eddab2;">
-                      <span>${i.name} x ${i.qty}</span>
-                      <span>$${i.price * i.qty}</span>
-                  </div>
-              `).join('');
+              let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
 
-              let checkboxHtml = isHistorySelecting ? `<input type="checkbox" class="history-checkbox" value="${ord.id}" style="width:18px; height:18px; cursor:pointer;">` : '';
-
-              div.innerHTML = `
-                  <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #5c4524; padding-bottom:6px;">
-                      <div style="display:flex; align-items:center; gap:8px;">
-                          ${checkboxHtml}
-                          <span style="font-weight:bold; color:var(--primary-gold); font-size:15px;">${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
-                      </div>
-                      <div style="display:flex; gap:6px; align-items:center;">
-                          <button class="header-btn" style="padding:2px 8px; font-size:11px; background:#004080; border-color:#66b2ff;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">修改品項</button>
-                          <button style="background:#7a1c1c; color:#fff; border:none; width:24px; height:24px; border-radius:4px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;" onclick="deleteSingleHistoryOrder(${ord.id})" title="刪除訂單">✕</button>
-                      </div>
-                  </div>
-                  <div style="color:#c4ae85;">日期：${ord.date} | 取餐時間：${ord.pickupTime} | 付款：${ord.payment}</div>
-                  <div style="background:#1f160d; padding:6px 8px; border-radius:4px;">${itemsHtml}</div>
-                  <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px; color:var(--primary-gold);">
-                      <span>備註：${ord.custNotes || '無'}</span>
-                      <span>總金額：$${ord.total}</span>
-                  </div>
+              tr.innerHTML = `
+                  <td style="padding:8px; display:${selectTdDisplay};" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}"></td>
+                  <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
+                  <td style="padding:8px;">${ord.date}<br><span style="font-size:11px; color:#a89269;">${ord.pickupTime}</span></td>
+                  <td style="padding:8px;">${ord.customer}<br><span style="font-size:11px; color:#a89269;">${ord.phone}</span></td>
+                  <td style="padding:8px; max-width:250px; word-break:break-all;">${itemsStr}</td>
+                  <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">$${ord.total}</td>
+                  <td style="padding:8px; text-align:center; white-space:nowrap;">
+                      <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">修改</button>
+                      <button class="header-btn" style="background:#7a1c1c; padding:3px 6px; font-size:11px;" onclick="deleteSingleHistoryOrder(${ord.id})">✕</button>
+                  </td>
               `;
-              container.appendChild(div);
+              tbody.appendChild(tr);
           });
       }
 
@@ -1759,31 +1841,34 @@
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           history = history.filter(o => o.id !== orderId);
           localStorage.setItem('pos_order_history', JSON.stringify(history));
+          window.dispatchEvent(new Event('storage_synced'));
           renderHistoryOrders();
       }
 
       function batchDeleteHistoryOrders() {
-          const checkboxes = document.querySelectorAll('.history-checkbox:checked');
-          if (checkboxes.length === 0) {
+          const chks = document.querySelectorAll('.history-chk:checked');
+          if (chks.length === 0) {
               alert("請至少勾選一筆歷史訂單！");
               return;
           }
-          if (!confirm(`確定要刪除選取的 ${checkboxes.length} 筆歷史訂單嗎？`)) return;
+          if (!confirm(`確定要刪除選取的 ${chks.length} 筆歷史訂單嗎？`)) return;
 
-          let idsToDelete = Array.from(checkboxes).map(cb => Number(cb.value));
+          let idsToDelete = Array.from(chks).map(c => Number(c.value));
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           history = history.filter(o => !idsToDelete.includes(o.id));
           localStorage.setItem('pos_order_history', JSON.stringify(history));
+          window.dispatchEvent(new Event('storage_synced'));
           renderHistoryOrders();
       }
 
-      // ================= ✏️ 通用訂單品項修改 (支援接單與歷史) =================
-      function openEditOrderItemsModal(orderId, source) {
+      // 訂單內修改/新增品項邏輯 (支援 live 與 history)
+      function openEditOrderItemsModal(orderId, targetType) {
           currentEditingOrderId = orderId;
-          activeOrderSource = source; // 'live' 或 'history'
+          currentEditingTarget = targetType; // 'live' 或 'history'
           
           const catSelect = document.getElementById('editCatSelect');
           catSelect.innerHTML = '';
+          const menuData = getMenuData();
 
           for (let cat in menuData) {
               let opt = document.createElement('option');
@@ -1800,9 +1885,8 @@
       function closeEditOrderItemsModal() {
           document.getElementById('editOrderItemsModal').style.display = 'none';
           currentEditingOrderId = null;
-          if (activeOrderSource === 'live') {
-              renderLiveOrders();
-          } else {
+          renderLiveOrders();
+          if (document.getElementById('historyModal').style.display === 'flex') {
               renderHistoryOrders();
           }
       }
@@ -1812,6 +1896,7 @@
           const itemSelect = document.getElementById('editItemSelect');
           const selectedCat = catSelect.value;
           itemSelect.innerHTML = '';
+          const menuData = getMenuData();
 
           if (menuData[selectedCat]) {
               menuData[selectedCat].forEach(item => {
@@ -1827,8 +1912,9 @@
           const container = document.getElementById('editingItemsContainer');
           container.innerHTML = '';
 
-          let storageKey = (activeOrderSource === 'live') ? 'pos_live_orders' : 'pos_order_history';
-          let ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          let ordersArr = [];
+          let storageKey = currentEditingTarget === 'live' ? 'pos_live_orders' : 'pos_order_history';
+          ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
           let ord = ordersArr.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
@@ -1848,7 +1934,7 @@
           if (!itemSelect.value) return;
 
           let itemData = JSON.parse(itemSelect.value);
-          let storageKey = (activeOrderSource === 'live') ? 'pos_live_orders' : 'pos_order_history';
+          let storageKey = currentEditingTarget === 'live' ? 'pos_live_orders' : 'pos_order_history';
           let ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
           let ord = ordersArr.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
@@ -1866,11 +1952,12 @@
           ord.total = newTotal;
 
           localStorage.setItem(storageKey, JSON.stringify(ordersArr));
+          window.dispatchEvent(new Event('storage_synced'));
           renderEditingItemsList();
       }
 
       function removeEditingItem(itemIdx) {
-          let storageKey = (activeOrderSource === 'live') ? 'pos_live_orders' : 'pos_order_history';
+          let storageKey = currentEditingTarget === 'live' ? 'pos_live_orders' : 'pos_order_history';
           let ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
           let ord = ordersArr.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
@@ -1883,6 +1970,7 @@
           ord.total = newTotal;
 
           localStorage.setItem(storageKey, JSON.stringify(ordersArr));
+          window.dispatchEvent(new Event('storage_synced'));
           renderEditingItemsList();
       }
 
