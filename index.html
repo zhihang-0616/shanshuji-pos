@@ -41,8 +41,6 @@
       .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 8px 14px; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
       .header-btn:hover { filter: brightness(1.15); }
       
-      .store-status-static { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; z-index: 2; display: inline-block; }
-      
       .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 2; }
       .login-btn.logged-in { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border-color: #81c784; }
 
@@ -545,10 +543,7 @@
           const adminActionGroup = document.getElementById('adminActionGroup');
 
           if (!isUserAdminMode()) {
-              headerTopRow.innerHTML = `
-                  <div class="store-status-static">🟢 營業中</div>
-                  <div></div>
-              `;
+              headerTopRow.innerHTML = `<div></div><div></div>`;
               storeInfoContainer.innerHTML = `
                   <div class="store-info-box">
                       <div class="store-info-row">
@@ -565,7 +560,7 @@
           } else {
               const loggedIn = isAdminLoggedIn();
               headerTopRow.innerHTML = `
-                  <div class="store-status-static">🟢 營業中</div>
+                  <div></div>
                   <button id="loginStatusBtn" class="login-btn ${loggedIn ? 'logged-in' : ''}" onclick="toggleAdminLogin()">
                       ${loggedIn ? '🔓 已登入 (點擊登出)' : '🔒 管理員登入'}
                   </button>
