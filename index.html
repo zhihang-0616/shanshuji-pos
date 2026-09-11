@@ -216,7 +216,7 @@
           <button class="header-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold); padding:4px 10px; font-size:12px;" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
       </div>
 
-      <!-- 總金額與 下一步(選擇口味) 按鈕區域 -->
+      <!-- 總金額與下一步 / 結帳按鈕區域 -->
       <div class="summary-box">
           <div class="total-row">
                 <span>總金額:</span>
@@ -224,7 +224,7 @@
           </div>
           <div class="action-buttons">
                 <button class="btn btn-clear" onclick="clearCart()">清除</button>
-                <button class="btn btn-submit" onclick="openCheckoutModal()">下一步(選擇口味)</button>
+                <button class="btn btn-submit" onclick="openCheckoutModal()">下一步</button>
           </div>
       </div>
   </div>
@@ -327,6 +327,11 @@
   <!-- 彈跳視窗 -->
   <div class="modal" id="optModal">
       <div class="modal-content" id="optModalContent"></div>
+  </div>
+
+  <!-- 步驟二：收據確認下單 Modal -->
+  <div class="modal" id="receiptModal">
+      <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px;"></div>
   </div>
 
   <div class="modal" id="adminMenuModal">
@@ -531,23 +536,23 @@
       function setAdminLoggedIn(status) {
           localStorage.setItem('pos_is_logged_in', status ? 'true' : 'false');
           updateHeaderLayout();
-          updateModalActionButtons();
+          updateCheckoutButtons();
       }
 
-      function updateModalActionButtons() {
-          const container = document.getElementById('modalActionButtonsContainer');
+      function updateCheckoutButtons() {
+          const container = document.querySelector('.action-buttons');
           const loggedIn = isAdminLoggedIn();
           
           if (loggedIn && isUserAdminMode()) {
               container.innerHTML = `
-                  <button class="btn btn-clear" onclick="closeCheckoutModal()">取消</button>
-                  <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
-                  <button class="btn btn-backdate" onclick="submitOrder(true)">補單</button>
+                  <button class="btn btn-clear" onclick="clearCart()">清除</button>
+                  <button class="btn btn-submit" onclick="openCheckoutModal()">下一步</button>
+                  <button class="btn btn-backdate" onclick="submitOrder(true)">補單完成</button>
               `;
           } else {
               container.innerHTML = `
-                  <button class="btn btn-clear" onclick="closeCheckoutModal()">取消</button>
-                  <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
+                  <button class="btn btn-clear" onclick="clearCart()">清除</button>
+                  <button class="btn btn-submit" onclick="openCheckoutModal()">下一步</button>
               `;
           }
       }
@@ -740,6 +745,8 @@
       let currentEditingOrderIndex = null;
       let activeCashOrderIndex = null;
       
+      let pendingSubmitPayload = null; // 用於暫存收據「確認下單」前的資料
+
       let shiftDenomData = {
           principal: { 1000: 0, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 },
           reserve: { 1000: 0, 500: 0, 100: 0, 50: 0, 10: 0, 5: 0, 1: 0 },
@@ -763,7 +770,6 @@
               alert("購物車是空的，請先選擇餐點！");
               return;
           }
-          updateModalActionButtons();
           document.getElementById('checkoutModal').style.display = 'flex';
       }
 
@@ -1253,6 +1259,7 @@
 
       function initPOS() {
           updateHeaderLayout();
+          updateCheckoutButtons();
           initFlatMenuOptions();
           refreshMenuTabs();
           setDefaultPickupTime();
@@ -2044,7 +2051,7 @@
           }
       }
 
-      // 點擊結帳出單 / 補單 -> 驗證並直接下單，不跳出二次收據視窗
+      // 步驟一：點擊結帳出單 -> 驗證資料並彈出收據 Modal 預覽 (等待最後確認下單)
       function submitOrder(isBackdate = false) {
           if (currentCart.length === 0) {
               alert("購物車是空的，請先選擇餐點！");
@@ -2126,7 +2133,7 @@
           if (orderPrefs.salt) finalPrefs.salt = orderPrefs.salt;
           if (orderPrefs.extras.length > 0) finalPrefs.extras = orderPrefs.extras;
 
-          const payload = {
+          pendingSubmitPayload = {
               id: Date.now(),
               orderNo: "",
               status: orderStatus,
@@ -2154,17 +2161,90 @@
           };
 
           closeCheckoutModal();
-          saveOrderToHistory(payload);
 
           if (isBackdate) {
+              saveOrderToHistory(pendingSubmitPayload);
               playSound('done');
               alert(`補單已成功完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})。`);
-          } else {
-              playSound('new_order');
-              alert("訂單已成功送出！管理員接單系統已即時收到新訂單。");
+              clearCart();
+              return;
           }
 
+          // 顯示收據 Modal 預覽，下方帶有「確認下單」按鈕
+          const modal = document.getElementById('receiptModal');
+          const content = document.getElementById('receiptContent');
+          
+          let receiptHtml = `
+              <button class="modal-close-x" onclick="closeReceipt()">✕</button>
+
+              <div class="receipt-header">
+                  <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
+                  <p style="font-size:13px; color:#a89269;">點單明細收據預覽 (確認後將正式發送)</p>
+              </div>
+              
+              <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custName}</span></div>
+              <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custPhone}</span></div>
+              <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${formattedPickupTime}</span></div>
+              <div class="receipt-line"><span>歸屬日期:</span> <span style="font-weight:bold; color:var(--primary-gold);">${dateStr} (${weekDayStr})</span></div>
+              <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
+              
+              <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
+              <div class="receipt-line"><span>口味:</span> <span>${pendingSubmitPayload.prefs.flavor || '無'}</span></div>
+              <div class="receipt-line"><span>辣度:</span> <span>${pendingSubmitPayload.prefs.spice || '無'}</span></div>
+              <div class="receipt-line"><span>鹹度:</span> <span>${pendingSubmitPayload.prefs.salt || '無'}</span></div>
+              <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>備註/配備:</span> <span>${finalCustNotes || '無'}</span></div>
+              
+              <div style="margin: 10px 0; font-weight:bold; font-size:15px; color:var(--text-gold);">【點購品項】</div>
+          `;
+
+          currentCart.forEach(item => {
+              let itemCost = item.price * item.qty;
+              receiptHtml += `
+                  <div class="receipt-line">
+                      <span>${item.name} x ${item.qty}</span>
+                      <span>$${itemCost}</span>
+                  </div>
+              `;
+              if (item.subItems) {
+                  item.subItems.forEach(sub => {
+                      receiptHtml += `
+                          <div class="receipt-line" style="padding-left:15px; font-size:13px; color:#a89269;">
+                              <span>└ ${sub.name}</span>
+                              <span>$0</span>
+                          </div>
+                      `;
+                  });
+              }
+          });
+
+          if (orderPrefs.flavor === "泰式+5元") {
+              receiptHtml += `<div class="receipt-line"><span>泰式口味加價</span> <span>$5</span></div>`;
+          }
+
+          receiptHtml += `
+              <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:17px; color:var(--primary-gold);" class="receipt-line">
+                  <span>總計金額:</span>
+                  <span>$${subtotal}</span>
+              </div>
+              <button class="btn btn-submit" style="width:100%; margin-top:15px; padding:12px; font-size:16px;" onclick="confirmFinalSubmitOrder()">確認下單</button>
+          `;
+
+          content.innerHTML = receiptHtml;
+          modal.style.display = 'flex';
+      }
+
+      // 步驟二：點擊收據中的「確認下單」後，正式寫入紀錄並同步至接單系統
+      function confirmFinalSubmitOrder() {
+          if (!pendingSubmitPayload) return;
+          saveOrderToHistory(pendingSubmitPayload);
+          closeReceipt();
           clearCart();
+          alert("訂單已成功送出！管理員接單系統已即時收到新訂單。");
+      }
+
+      function closeReceipt() {
+          document.getElementById('receiptModal').style.display = 'none';
+          pendingSubmitPayload = null;
       }
 
       function openOrderManager() {
