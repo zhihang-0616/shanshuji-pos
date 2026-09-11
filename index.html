@@ -152,13 +152,6 @@
       .receipt-header { text-align: center; border-bottom: 1px dashed #5c4524; padding-bottom: 10px; margin-bottom: 10px; }
       .receipt-line { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
 
-      /* 自訂彈窗按鈕與群組樣式 */
-      .modal-option-group { margin-bottom: 12px; }
-      .modal-option-label { display: block; font-size: 13px; color: #d6c29a; margin-bottom: 6px; font-weight: bold; }
-      .modal-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
-      .modal-opt-btn { flex: 1; padding: 8px 10px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; text-align: center; font-weight: bold; transition: 0.2s; }
-      .modal-opt-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; box-shadow: 0 0 8px rgba(212, 175, 55, 0.6); }
-
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: #140f0a; }
       ::-webkit-scrollbar-thumb { background: #5c4524; border-radius: 4px; }
@@ -563,6 +556,7 @@
   </div>
 
   <script>
+      // 已自動對接您的 Google Apps Script 網址
       const GAS_URL = "https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec";
 
       async function syncToCloud(payload) {
@@ -1764,7 +1758,7 @@
               id: Date.now(),
               status: "等待接單",
               date: dateStr,
-              weekDay: weekDaysStr,
+              weekDay: weekDayStr,
               time: timeStr,
               customer: custName,
               phone: custPhone,
@@ -1867,6 +1861,7 @@
           liveOrders.push(pendingOrderPayloadForConfirm);
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           
+          // ☁️ 串接雲端：新增訂單
           syncToCloud({
               action: "add",
               orderID: pendingOrderPayloadForConfirm.orderID,
