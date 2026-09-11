@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>去中心鹹水雞 X 厝邊溫食 POS 系統</title>
-   <style>                                                                                                                      
+   <style>                                                                                                       
       :root {
           --primary-gold: #d4af37;
           --primary-gold-dark: #aa7c11;
@@ -2048,6 +2048,36 @@
           
           localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
           localStorage.setItem('pos_order_history', JSON.stringify(history));
+
+          // ===== 同步資料到 Google 試算表 =====
+          let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+          let payload = {
+              orderNo: ord.orderNo,
+              orderID: ord.orderID,
+              status: ord.status,
+              date: ord.date,
+              weekDay: ord.weekDay,
+              time: ord.time,
+              customer: ord.customer,
+              phone: ord.phone,
+              pickupTime: ord.pickupTime,
+              payment: ord.payment,
+              total: ord.total,
+              itemsStr: itemsStr,
+              flavorStr: ord.flavorStr || '',
+              custNotes: ord.custNotes || ''
+          };
+
+          const scriptURL = 'https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec';
+          
+          fetch(scriptURL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          }).catch(err => console.error('同步至雲端失敗:', err));
+          // ===================================
+
           window.dispatchEvent(new Event('storage_synced'));
           playSound('done');
       }
