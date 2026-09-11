@@ -295,7 +295,7 @@
       </div>
   </div>
 
-  <!-- 收據與確認下單視窗 (確認下單已移至最上方且無二次視窗) -->
+  <!-- 收據與確認下單視窗 -->
   <div class="modal" id="receiptModal">
       <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px;"></div>
   </div>
@@ -1372,7 +1372,7 @@
                   <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
               </div>
 
-              <!-- 確認下單按鈕已置於收據預覽視窗的最上方，且點擊後直接出單不跳二次視窗 -->
+              <!-- 確認下單按鈕置於頂部，點擊直接出單不跳提示框 -->
               <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px; margin-bottom:14px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
               
               <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
@@ -1445,7 +1445,6 @@
           localStorage.setItem('pos_order_history', JSON.stringify(history));
 
           playSound('done');
-          alert("訂單已成功送出！");
           document.getElementById('receiptModal').style.display = 'none';
           clearCart();
           pendingOrderPayloadForConfirm = null;
