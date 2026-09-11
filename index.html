@@ -584,7 +584,7 @@
               let logged = localStorage.getItem('pos_mgr_logged') === 'true';
               if (logged) {
                   isLoggedMgr = true;
-                  document.getElementById('loginLogoutBtn').innerText = "登出";
+                  document.getElementById('loginLogoutBtn').innerText = "登入";
                   document.getElementById('loginLogoutBtn').style.background = "#8b1e0f";
               } else {
                   isLoggedMgr = false;
@@ -678,12 +678,12 @@
       }
 
       function changeStoreStatus(val) {
-          localStorage.setItem('pos_store_status', val);
+          sessionStorage.setItem('pos_store_status', val);
           window.dispatchEvent(new Event('storage_synced'));
       }
 
       function syncStoreStatusUI() {
-          let status = localStorage.getItem('pos_store_status') || '營業中';
+          let status = sessionStorage.getItem('pos_store_status') || '營業中';
           const select = document.getElementById('storeStatusSelect');
           select.value = status;
           
@@ -1314,7 +1314,7 @@
       }
 
       function handleItemClick(item, category) {
-          let status = localStorage.getItem('pos_store_status') || '營業中';
+          let status = sessionStorage.getItem('pos_store_status') || '營業中';
           if (status === '休息中') {
               alert("目前店家休息中，暫停接受點餐！");
               return;
@@ -1669,7 +1669,7 @@
       }
 
       function openStep1Modal() {
-          let status = localStorage.getItem('pos_store_status') || '營業中';
+          let status = sessionStorage.getItem('pos_store_status') || '營業中';
           if (status === '休息中') {
               alert("目前店家休息中，暫停接受點餐！");
               return;
@@ -1975,7 +1975,6 @@
               ord.status = "製作中";
               localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
               
-              // 一按接單立刻發送 LINE 通知（包含完整品項與詳細資訊）
               fetch('https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec', {
                   method: 'POST',
                   mode: 'no-cors',
@@ -2386,7 +2385,7 @@
           ord.items.splice(index, 1);
           let newTotal = 0;
           ord.items.forEach(i => newTotal += i.price * i.qty);
-          if (ord.flavorStr && ord.flavorStr.includes("泰Scale+5元")) newTotal += 5;
+          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
           ord.total = newTotal;
 
           if (currentEditingTarget === 'live') {
