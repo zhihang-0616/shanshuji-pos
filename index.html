@@ -96,7 +96,7 @@
       .order-title { background: linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); color: var(--primary-gold); padding: 12px 16px; font-size: 17px; font-weight: bold; text-align: center; cursor: pointer; user-select: none; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 2px solid var(--border-gold); text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
       .order-title:hover { background: #4a331f; }
       
-      .order-list { flex: 2; min-height: 120px; max-height: 50vh; overflow-y: auto; padding: 8px 12px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
+      .order-list { flex: 1; min-height: 150px; overflow-y: auto; padding: 8px 12px; border-bottom: 2px dashed var(--border-gold); -webkit-overflow-scrolling: touch; background: #150d07; }
       .order-list.collapsed { display: none; }
       
       .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 6px; border-bottom: 1px solid #2d2014; font-size: 14px; gap: 6px; color: #eddab2; }
@@ -123,10 +123,9 @@
       .pref-label { font-weight: bold; min-width: 45px; color: #c4ae85; font-size: 13px; }
       .pref-btn { padding: 4px 10px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; font-size: 13px; cursor: pointer; position: relative; }
       .pref-btn.active { background: var(--gold-gradient); color: #1a0d00; border-color: #fff; font-weight: bold; }
-      .pref-btn.disabled { background: #222; color: #555; text-decoration: line-through; cursor: not-allowed; border-color: #333; }
       .eco-notice { font-size: 11px; color: #9c8458; margin-top: 3px; width: 100%; text-align: center; font-weight: bold; }
 
-      .summary-box { padding: 10px 14px; background: #1a110a; }
+      .summary-box { padding: 12px 14px; background: #1a110a; }
       .total-row { display: flex; justify-content: space-between; font-size: 17px; font-weight: bold; color: var(--primary-gold); margin-bottom: 8px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
       .payment-methods { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
       .pay-btn { flex: 1; padding: 8px 6px; border: 1px solid #543f24; background: #170f09; color: #d1bd97; border-radius: 4px; cursor: pointer; text-align: center; font-size: 13px; font-weight: bold; }
@@ -140,7 +139,7 @@
       .btn-submit:hover { filter: brightness(1.15); }
 
       .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
-      .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 26px 22px 22px 22px; border-radius: 8px; width: 360px; max-height: 80vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
+      .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 26px 22px 22px 22px; border-radius: 8px; width: 380px; max-height: 85vh; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
       
       .modal-close-x { position: absolute; top: 10px; right: 12px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; z-index: 10; transition: 0.2s; }
       .modal-close-x:hover { background: #8b1e0f; }
@@ -203,79 +202,94 @@
       
       <div class="order-list" id="orderList"></div>
 
-      <!-- 動態步驟區塊：預設隱藏圖一表單，點選下一步後展開 -->
-      <div id="checkoutStepContainer" style="display:flex; flex-direction:column; flex:1; overflow-y:auto;">
-          <div id="nextStepActionBox" style="padding:12px; text-align:center; background:#1a110a;">
-              <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px;" onclick="proceedToCustomerInfo()">下一步 (填寫資料與口味)</button>
-          </div>
-
-          <div id="customerAndPrefFormArea" style="display:none; flex-direction:column;">
-              <div class="customer-info-box">
-                  <div class="input-row">
-                        <span class="input-label">訂購人*:</span>
-                        <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
-                  </div>
-                  <div class="input-row">
-                        <span class="input-label" id="phoneLable">電話*:</span>
-                        <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
-                  </div>
-                  <div class="input-row">
-                        <span class="input-label">取餐時間*:</span>
-                        <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
-                        <span id="weekdayBadge" class="weekday-badge">星期--</span>
-                  </div>
-                  <div class="input-row">
-                        <span class="input-label">顧客備註:</span>
-                        <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如：多蒜、少蔥)">
-                  </div>
-              </div>
-
-              <div class="preferences-box">
-                  <div class="pref-header">開倉調整</div>
-                  <div class="pref-group">
-                        <span class="pref-label">口味:</span>
-                        <button class="pref-btn" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
-                        <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
-                        <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
-                  </div>
-                  <div class="pref-group">
-                        <span class="pref-label">辣度:</span>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
-                  </div>
-                  <div class="pref-group">
-                        <span class="pref-label">鹹度:</span>
-                        <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
-                        <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
-                        <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
-                  </div>
-                  <div class="pref-group" style="margin-top:3px; border-top:1px dashed #543f24; padding-top:3px;">
-                        <span class="pref-label">配備:</span>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食分開裝" onclick="handleAddonClick('麵食分開裝', this)">麵食分開裝</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食裝一起" onclick="handleAddonClick('麵食裝一起', this)">麵食裝一起</button>
-                        <div class="eco-notice">🌱 依法不主動提供免洗餐具</div>
-                  </div>
-              </div>
-          </div>
+      <!-- 主畫面底部只留下一步按鈕 -->
+      <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
+          <button class="btn btn-submit" style="width:100%; padding:14px; font-size:16px;" onclick="openStep1Modal()">下一步 (填寫資料與口味)</button>
       </div>
+  </div>
 
-      <div class="summary-box">
-          <div class="total-row">
-                <span>總金額:</span>
-                <span id="totalAmount">$0</span>
+  <!-- 第一步 Modal：填寫取餐資料與口味選擇 -->
+  <div class="modal" id="step1Modal">
+      <div class="modal-content" style="width:420px;">
+          <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">填寫取餐資料與口味選擇</h3>
+
+          <div class="customer-info-box" style="margin-bottom:12px; border-radius:6px; border:1px solid var(--border-gold);">
+              <div class="input-row">
+                    <span class="input-label">訂購人*:</span>
+                    <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
+              </div>
+              <div class="input-row">
+                    <span class="input-label" id="phoneLable">電話*:</span>
+                    <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
+              </div>
+              <div class="input-row">
+                    <span class="input-label">取餐時間*:</span>
+                    <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
+                    <span id="weekdayBadge" class="weekday-badge">星期--</span>
+              </div>
+              <div class="input-row">
+                    <span class="input-label">顧客備註:</span>
+                    <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如：多蒜、少蔥)">
+              </div>
           </div>
-          <div class="payment-methods" id="payMethods">
-                <button class="pay-btn active" onclick="setPayment('現金', this)">現金</button>
-                <button class="pay-btn" onclick="setPayment('轉帳', this)">轉帳</button>
-                <button class="pay-btn" onclick="setPayment('Linepay', this)">Linepay</button>
-                <button class="pay-btn" onclick="setPayment('全支付', this)">全支付</button>
+
+          <div class="preferences-box" style="margin-bottom:15px; border-radius:6px; border:1px solid var(--border-gold);">
+              <div class="pref-header">開倉調整</div>
+              <div class="pref-group">
+                    <span class="pref-label">口味:</span>
+                    <button class="pref-btn" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
+                    <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
+                    <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
+              </div>
+              <div class="pref-group">
+                    <span class="pref-label">辣度:</span>
+                    <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
+                    <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
+                    <button class="pref-btn" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
+                    <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
+              </div>
+              <div class="pref-group">
+                    <span class="pref-label">鹹度:</span>
+                    <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
+                    <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
+                    <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
+              </div>
+              <div class="pref-group" style="margin-top:3px; border-top:1px dashed #543f24; padding-top:3px;">
+                    <span class="pref-label">配備:</span>
+                    <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
+                    <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
+                    <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食分開裝" onclick="handleAddonClick('麵食分開裝', this)">麵食分開裝</button>
+                    <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食裝一起" onclick="handleAddonClick('麵食裝一起', this)">麵食裝一起</button>
+                    <div class="eco-notice">🌱 依法不主動提供免洗餐具</div>
+              </div>
           </div>
-          <div class="action-buttons" id="actionButtonsContainer">
-                <button class="btn btn-clear" onclick="clearCart()">清除</button>
+
+          <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px;" onclick="proceedToStep2Checkout()">下一步 (結帳資訊)</button>
+      </div>
+  </div>
+
+  <!-- 第二步 Modal：結帳資訊 (圖 1 畫面) -->
+  <div class="modal" id="step2Modal">
+      <div class="modal-content" style="width:380px;">
+          <button class="modal-close-x" onclick="closeStep2Modal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">結帳資訊</h3>
+
+          <div class="summary-box" style="background:#140f0a; border:1px solid var(--border-gold); border-radius:6px; padding:14px; margin-bottom:15px;">
+              <div class="total-row" style="margin-bottom:12px;">
+                    <span>總金額:</span>
+                    <span id="modalTotalAmount">$0</span>
+              </div>
+              <div class="payment-methods" id="payMethods">
+                    <button class="pay-btn active" onclick="setPayment('現金', this)">現金</button>
+                    <button class="pay-btn" onclick="setPayment('轉帳', this)">轉帳</button>
+                    <button class="pay-btn" onclick="setPayment('Linepay', this)">Linepay</button>
+                    <button class="pay-btn" onclick="setPayment('全支付', this)">全支付</button>
+              </div>
+          </div>
+
+          <div class="action-buttons" style="display:flex; gap:10px;">
+                <button class="btn btn-clear" onclick="clearCartAndClose()">清除</button>
                 <button class="btn btn-submit" onclick="submitOrder()">結帳出單</button>
           </div>
       </div>
@@ -596,14 +610,12 @@
           } else {
               setPref(type, val, btnEl);
           }
-          updateCartUI();
       }
 
       function handleAddonClick(val, btnEl) {
           toggleAddon(val, btnEl);
       }
 
-      // 精確的庫存與套餐品項連動邏輯
       function checkInventoryLogic(changedItemName, isSoldOut) {
           const chickenList = menuData["信仰雞本位主義 (主食)"];
           if (!chickenList) return;
@@ -615,7 +627,6 @@
           const m5 = chickenList.find(i => i.name === "煙燻雞腿"); 
           const m6 = chickenList.find(i => i.name === "煙燻半雞"); 
 
-          // 鹹水系列連動
           if (["鹹水雞腿", "鹹水雞胸"].includes(changedItemName)) {
               if (isSoldOut) {
                   if (m3) m3.soldOut = true;
@@ -634,7 +645,6 @@
               }
           }
 
-          // 煙燻系列連動
           if (["煙燻雞腿", "煙燻雞胸"].includes(changedItemName)) {
               if (isSoldOut) {
                   if (m6) m6.soldOut = true;
@@ -905,6 +915,7 @@
       function showChickenChoiceModal(item) {
           const chickenList = menuData["信仰雞本位主義 (主食)"];
           const saltHalfSoldOut = chickenList.find(i => i.name === "鹹水半雞").soldOut;
+          const smokeHalfSoldOut = chickenList.find(i => i.name === "煙燻半雞").soldOut;
 
           const modal = document.getElementById('optModal');
           const content = document.getElementById('optModalContent');
@@ -916,6 +927,7 @@
           item.chickenOptions.forEach(opt => {
               let isDisabled = false;
               if ((opt.includes("鹹水半雞") || opt === "全鹹水") && saltHalfSoldOut) isDisabled = true;
+              if ((opt.includes("煙燻半雞") || opt === "全煙燻") && smokeHalfSoldOut) isDisabled = true;
 
               if (isDisabled) {
                   html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0; padding:10px;" disabled>${opt} (售完)</button>`;
@@ -1158,15 +1170,12 @@
           if (orderPrefs.flavor === "泰式+5元") {
               total += 5;
           }
-
-          document.getElementById('totalAmount').innerText = `$${total}`;
       }
 
       function setPref(type, value, btnEl) {
           orderPrefs[type] = value;
           btnEl.parentNode.querySelectorAll('.pref-btn').forEach(b => b.classList.remove('active'));
           btnEl.classList.add('active');
-          updateCartUI();
       }
 
       function toggleAddon(value, btnEl) {
@@ -1197,22 +1206,68 @@
           document.getElementById('custPhone').value = '';
           document.getElementById('custNotes').value = '';
           setDefaultPickupTime();
-          
-          // 重設步驟顯示
-          document.getElementById('nextStepActionBox').style.display = 'block';
-          document.getElementById('customerAndPrefFormArea').style.display = 'none';
-
           updateCartUI();
           refreshActiveGrid();
       }
 
-      function proceedToCustomerInfo() {
+      function clearCartAndClose() {
+          clearCart();
+          closeStep2Modal();
+      }
+
+      // 步驟控制邏輯
+      function openStep1Modal() {
           if (currentCart.length === 0) {
               alert("購物車是空的，請先選擇餐點！");
               return;
           }
-          document.getElementById('nextStepActionBox').style.display = 'none';
-          document.getElementById('customerAndPrefFormArea').style.display = 'flex';
+          document.getElementById('step1Modal').style.display = 'flex';
+      }
+
+      function closeStep1Modal() {
+          document.getElementById('step1Modal').style.display = 'none';
+      }
+
+      function proceedToStep2Checkout() {
+          let custName = document.getElementById('custName').value.trim();
+          let custPhone = document.getElementById('custPhone').value.trim();
+          const pickupTimeRaw = document.getElementById('pickupTime').value;
+
+          if (!custName) {
+              alert("請填寫【訂購人】才可繼續！");
+              document.getElementById('custName').focus();
+              return;
+          }
+
+          const phoneRegex = /^09\d{8}$/;
+          if (!phoneRegex.test(custPhone)) {
+              alert("手機號碼格式錯誤！請輸入正確的手機號碼 (共10碼數字)");
+              document.getElementById('custPhone').focus();
+              return;
+          }
+
+          if (!pickupTimeRaw) {
+              alert("請選擇【取餐時間】！");
+              return;
+          }
+
+          // 計算總金額並帶入圖 1 畫面
+          let subtotal = 0;
+          currentCart.forEach(item => {
+              subtotal += item.price * item.qty;
+          });
+          if (orderPrefs.flavor === "泰式+5元") {
+              subtotal += 5;
+          }
+
+          document.getElementById('modalTotalAmount').innerText = `$${subtotal}`;
+
+          closeStep1Modal();
+          document.getElementById('step2Modal').style.display = 'flex';
+      }
+
+      function closeStep2Modal() {
+          document.getElementById('step2Modal').style.display = 'none';
       }
 
       function checkOrderStatusByPhone() {
@@ -1234,33 +1289,10 @@
       }
 
       function submitOrder() {
-          if (currentCart.length === 0) {
-              alert("購物車是空的，請先選擇餐點！");
-              return;
-          }
-
           let custName = document.getElementById('custName').value.trim();
           let custPhone = document.getElementById('custPhone').value.trim();
           const pickupTimeRaw = document.getElementById('pickupTime').value;
           const custNotes = document.getElementById('custNotes').value.trim();
-
-          if (!custName) {
-              alert("請填寫【訂購人】才可完成下單！");
-              document.getElementById('custName').focus();
-              return;
-          }
-
-          const phoneRegex = /^09\d{8}$/;
-          if (!phoneRegex.test(custPhone)) {
-              alert("手機號碼格式錯誤！請輸入正確的手機號碼 (共10碼數字)");
-              document.getElementById('custPhone').focus();
-              return;
-          }
-
-          if (!pickupTimeRaw) {
-              alert("請選擇【取餐時間】！");
-              return;
-          }
 
           let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
           const pickupDateObj = new Date(datePart);
@@ -1325,6 +1357,7 @@
               }))
           };
 
+          closeStep2Modal();
           showReceiptPreviewModal(pendingOrderPayloadForConfirm);
       }
 
@@ -1392,6 +1425,7 @@
 
       function closeReceiptModalAndBack() {
           document.getElementById('receiptModal').style.display = 'none';
+          document.getElementById('step2Modal').style.display = 'flex'; // 點擊 X 可返回圖 1 重新選擇結帳方式
       }
 
       function confirmFinalOrderSubmit() {
@@ -1400,7 +1434,6 @@
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           history.push(pendingOrderPayloadForConfirm);
           
-          // 自動編流水號
           let counter = 1;
           history.forEach(ord => {
               if (ord.date === pendingOrderPayloadForConfirm.date) {
