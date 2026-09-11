@@ -49,6 +49,7 @@
 
       .soldout-list-btn { background: linear-gradient(135deg, #5c2c16, #33160a); color: #ffebcc; border: 1px solid var(--border-gold); }
       .mgmt-mode-btn { background: linear-gradient(135deg, #4a148c, #280659); color: #e1bee7; border: 1px solid #ba68c8; }
+      .history-list-btn { background: linear-gradient(135deg, #006064, #00363a); color: #e0f7fa; border: 1px solid #4dd0e1; }
 
       .menu-tabs { display: flex; justify-content: space-between; background: #120c07; border-bottom: 2px solid var(--border-gold); -webkit-overflow-scrolling: touch; width: 100%; }
       .tab-btn { flex: 1; padding: 14px 6px 10px 6px; border: none; background: transparent; font-size: 15px; font-weight: bold; cursor: pointer; color: #a89269; transition: 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
@@ -235,30 +236,38 @@
 
   <!-- 管理模式 Modal -->
   <div class="modal" id="managementModal">
-      <div class="modal-content" style="width:380px; resize:none;">
+      <div class="modal-content" style="width:420px; resize:none;">
           <button class="modal-close-x" onclick="closeManagementModal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center;">⚙️ 管理模式</h3>
           
           <div style="display:flex; flex-direction:column; gap:12px;">
               <button class="btn btn-submit" style="padding:14px; font-size:15px;" onclick="openHistoryModalFromMgmt()">📊 歷史訂單查詢</button>
-              <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:12px; font-size:15px;" onclick="openChangePasswordModal()">🔑 修改管理密碼</button>
+              <button class="header-btn" style="background:#5c2c16; padding:12px; font-size:14px; text-align:center;" onclick="openChangePasswordModal()">🔑 修改密碼</button>
           </div>
       </div>
   </div>
 
-  <!-- 修改密碼 Modal -->
+  <!-- 修改密碼 Modal (需輸入舊密碼與新密碼) -->
   <div class="modal" id="changePasswordModal">
-      <div class="modal-content" style="width:360px; resize:none;">
+      <div class="modal-content" style="width:380px; resize:none;">
           <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">🔑 修改管理密碼</h3>
           
-          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
+          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
               <div class="input-row">
-                  <span class="input-label" style="min-width:75px;">新密碼:</span>
-                  <input type="password" id="newAdminPwd" class="input-field" placeholder="請輸入新密碼">
+                  <span class="input-label" style="min-width:85px;">舊密碼:</span>
+                  <input type="password" id="oldPwdInput" class="input-field" placeholder="請輸入舊密碼">
+              </div>
+              <div class="input-row">
+                  <span class="input-label" style="min-width:85px;">新密碼:</span>
+                  <input type="password" id="newPwdInput" class="input-field" placeholder="請輸入新密碼">
+              </div>
+              <div class="input-row">
+                  <span class="input-label" style="min-width:85px;">確認新密碼:</span>
+                  <input type="password" id="confirmPwdInput" class="input-field" placeholder="請再次輸入新密碼">
               </div>
           </div>
-          <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="saveNewAdminPassword()">確認更新密碼</button>
+          <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmChangePassword()">確認更換密碼</button>
       </div>
   </div>
 
@@ -624,7 +633,9 @@
 
       function openChangePasswordModal() {
           closeManagementModal();
-          document.getElementById('newAdminPwd').value = '';
+          document.getElementById('oldPwdInput').value = '';
+          document.getElementById('newPwdInput').value = '';
+          document.getElementById('confirmPwdInput').value = '';
           document.getElementById('changePasswordModal').style.display = 'flex';
       }
 
@@ -632,15 +643,31 @@
           document.getElementById('changePasswordModal').style.display = 'none';
       }
 
-      function saveNewAdminPassword() {
-          let newPwd = document.getElementById('newAdminPwd').value.trim();
-          if (!newPwd) {
-              alert("密碼不能為空！");
+      function confirmChangePassword() {
+          let oldPwd = document.getElementById('oldPwdInput').value.trim();
+          let newPwd = document.getElementById('newPwdInput').value.trim();
+          let confirmPwd = document.getElementById('confirmPwdInput').value.trim();
+          let currentPwd = localStorage.getItem('pos_admin_pwd') || '8888';
+
+          if (!oldPwd || !newPwd || !confirmPwd) {
+              alert("請完整填寫舊密碼、新密碼與確認新密碼！");
               return;
           }
+
+          if (oldPwd !== currentPwd) {
+              alert("舊密碼輸入錯誤，無法變更！");
+              return;
+          }
+
+          if (newPwd !== confirmPwd) {
+              alert("新密碼與確認新密碼不相符！");
+              return;
+          }
+
           localStorage.setItem('pos_admin_pwd', newPwd);
           alert("管理密碼修改成功！");
           closeChangePasswordModal();
+          document.getElementById('managementModal').style.display = 'flex';
       }
 
       function changeStoreStatus(val) {
