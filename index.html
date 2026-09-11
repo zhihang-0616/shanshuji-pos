@@ -315,16 +315,32 @@
       </div>
   </div>
 
-  <!-- 歷史訂單查詢 Modal -->
+  <!-- 歷史訂單查詢 Modal (加大尺寸與新增日期/批次選取功能) -->
   <div class="modal" id="historyModal">
-      <div class="modal-content" style="width:550px; max-width:95vw;">
+      <div class="modal-content" style="width:750px; max-width:95vw; height:85vh; display:flex; flex-direction:column;">
           <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
-          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📊 歷史訂單查詢 (已完成)</h3>
-          <div id="historyOrderListContainer" style="max-height:65vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
+          
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-gold); padding-bottom:8px;">
+              <h3 style="color:var(--primary-gold); margin:0;">📊 歷史訂單查詢 (已完成)</h3>
+              <div style="display:flex; gap:8px; align-items:center;">
+                  <button class="header-btn" id="historySelectToggleBtn" onclick="toggleHistorySelectionMode()" style="background:#3d2b1a; border-color:var(--border-gold);">選取</button>
+                  <button class="header-btn" id="historyBatchDeleteBtn" onclick="batchDeleteHistoryOrders()" style="background:#8b1e0f; display:none;">刪除已選取</button>
+              </div>
+          </div>
+
+          <!-- 日期查詢與前一天/後一天控制列 -->
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; background:#150d07; padding:8px; border-radius:6px; border:1px solid var(--border-gold);">
+              <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(-1)">⬅️ 前一天</button>
+              <input type="date" id="historyDateFilter" class="input-field" style="max-width:160px; text-align:center;" onchange="renderHistoryOrders()">
+              <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(1)">後一天 ➡️</button>
+              <button class="header-btn" style="background:#2e7d32; margin-left:auto;" onclick="setHistoryDateToday()">今日</button>
+          </div>
+
+          <div id="historyOrderListContainer" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px;"></div>
       </div>
   </div>
 
-  <!-- 編輯訂單品項 Modal (先選大選項，再選品項) -->
+  <!-- 編輯訂單品項 Modal (支援接單與歷史訂單修改/新增品項) -->
   <div class="modal" id="editOrderItemsModal">
       <div class="modal-content" style="width:450px;">
           <button class="modal-close-x" onclick="closeEditOrderItemsModal()">✕</button>
@@ -560,7 +576,8 @@
       let currentPayment = "現金";
       let isEditMode = false;
       let pendingOrderPayloadForConfirm = null;
-      let currentEditingOrderId = null; // 用於接單系統內編輯訂單
+      let currentEditingOrderId = null; 
+      let isHistorySelecting = false; // 歷史訂單批次選取狀態
 
       function setDefaultPickupTime() {
           const now = new Date();
@@ -1371,7 +1388,7 @@
           pendingOrderPayloadForConfirm = {
               id: Date.now(),
               orderNo: "#001",
-              status: "等待接單", // 等待接單 -> 接單/完成 -> 已取餐
+              status: "等待接單", 
               date: dateStr,
               weekDay: weekDayStr,
               time: timeStr,
@@ -1502,7 +1519,7 @@
           updateOrderBadge();
       }
 
-      // ================= 📋 接單系統與歷史訂單邏輯 =================
+      // ================= 📋 接單系統邏輯 =================
       function updateOrderBadge() {
           let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
           const badge = document.getElementById('orderBadgeCount');
@@ -1566,7 +1583,7 @@
                   <div style="background:#1f160d; padding:8px; border-radius:4px; margin-top:4px;">
                       <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:13px; font-weight:bold; color:var(--primary-gold);">
                           <span>訂單品項明細：</span>
-                          <button class="header-btn" style="padding:2px 8px; font-size:11px;" onclick="openEditOrderItemsModal(${ord.id})">＋ 修改/新增品項</button>
+                          <button class="header-btn" style="padding:2px 8px; font-size:11px;" onclick="openEditOrderItemsModal(${ord.id}, 'live')">＋ 修改/新增品項</button>
                       </div>
                       ${itemsHtml}
                   </div>
@@ -1594,7 +1611,6 @@
           } else if (ord.status === "製作中") {
               ord.status = "待取餐";
           } else if (ord.status === "待取餐") {
-              // 已取餐 -> 完整完成，移至歷史紀錄
               liveOrders = liveOrders.filter(o => o.id !== orderId);
               let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
               ord.status = "已完成";
@@ -1623,8 +1639,6 @@
           if (!ord) return;
 
           ord.items.splice(itemIndex, 1);
-          
-          // 重新計算總金額
           let newTotal = 0;
           ord.items.forEach(i => newTotal += i.price * i.qty);
           if (ord.prefs && ord.prefs.flavor === "泰式+5元") newTotal += 5;
@@ -1634,9 +1648,140 @@
           renderLiveOrders();
       }
 
-      // 訂單內修改/新增品項邏輯 (先選大選項，再選品項)
-      function openEditOrderItemsModal(orderId) {
+      // ================= 📊 歷史訂單查詢與管理邏輯 =================
+      let activeOrderSource = 'live'; // 'live' 或 'history'
+
+      function openHistoryModal() {
+          setHistoryDateToday();
+          isHistorySelecting = false;
+          document.getElementById('historySelectToggleBtn').innerText = "選取";
+          document.getElementById('historyBatchDeleteBtn').style.display = 'none';
+          renderHistoryOrders();
+          document.getElementById('historyModal').style.display = 'flex';
+      }
+
+      function closeHistoryModal() {
+          document.getElementById('historyModal').style.display = 'none';
+      }
+
+      function setHistoryDateToday() {
+          const now = new Date();
+          let yyyy = now.getFullYear();
+          let mm = String(now.getMonth() + 1).padStart(2, '0');
+          let dd = String(now.getDate()).padStart(2, '0');
+          document.getElementById('historyDateFilter').value = `${yyyy}-${mm}-${dd}`;
+          renderHistoryOrders();
+      }
+
+      function changeHistoryDate(days) {
+          const dateInput = document.getElementById('historyDateFilter');
+          if (!dateInput.value) {
+              setHistoryDateToday();
+          }
+          let dt = new Date(dateInput.value);
+          dt.setDate(dt.getDate() + days);
+          let yyyy = dt.getFullYear();
+          let mm = String(dt.getMonth() + 1).padStart(2, '0');
+          let dd = String(dt.getDate()).padStart(2, '0');
+          dateInput.value = `${yyyy}-${mm}-${dd}`;
+          renderHistoryOrders();
+      }
+
+      function toggleHistorySelectionMode() {
+          isHistorySelecting = !isHistorySelecting;
+          const btn = document.getElementById('historySelectToggleBtn');
+          const batchBtn = document.getElementById('historyBatchDeleteBtn');
+          if (isHistorySelecting) {
+              btn.innerText = "取消選取";
+              batchBtn.style.display = 'inline-block';
+          } else {
+              btn.innerText = "選取";
+              batchBtn.style.display = 'none';
+          }
+          renderHistoryOrders();
+      }
+
+      function renderHistoryOrders() {
+          const container = document.getElementById('historyOrderListContainer');
+          container.innerHTML = '';
+
+          const filterDateVal = document.getElementById('historyDateFilter').value.replace(/-/g, '/');
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+
+          // 依選擇的日期過濾 (比對 ord.date)
+          let filteredHistory = history.filter(ord => {
+              if (!filterDateVal) return true;
+              return ord.date === filterDateVal;
+          });
+
+          if (filteredHistory.length === 0) {
+              container.innerHTML = `<div style="text-align:center; padding:40px; color:#8a7356;">指定日期 (${filterDateVal || '全部'}) 沒有已完成的歷史訂單 📊</div>`;
+              return;
+          }
+
+          filteredHistory.forEach(ord => {
+              const div = document.createElement('div');
+              div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; font-size:13px; color:#eddab2; display:flex; flex-direction:column; gap:6px; position:relative;";
+              
+              let itemsHtml = ord.items.map((i, idx) => `
+                  <div style="display:flex; justify-content:space-between; font-size:13px; color:#eddab2;">
+                      <span>${i.name} x ${i.qty}</span>
+                      <span>$${i.price * i.qty}</span>
+                  </div>
+              `).join('');
+
+              let checkboxHtml = isHistorySelecting ? `<input type="checkbox" class="history-checkbox" value="${ord.id}" style="width:18px; height:18px; cursor:pointer;">` : '';
+
+              div.innerHTML = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #5c4524; padding-bottom:6px;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                          ${checkboxHtml}
+                          <span style="font-weight:bold; color:var(--primary-gold); font-size:15px;">${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
+                      </div>
+                      <div style="display:flex; gap:6px; align-items:center;">
+                          <button class="header-btn" style="padding:2px 8px; font-size:11px; background:#004080; border-color:#66b2ff;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">修改品項</button>
+                          <button style="background:#7a1c1c; color:#fff; border:none; width:24px; height:24px; border-radius:4px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;" onclick="deleteSingleHistoryOrder(${ord.id})" title="刪除訂單">✕</button>
+                      </div>
+                  </div>
+                  <div style="color:#c4ae85;">日期：${ord.date} | 取餐時間：${ord.pickupTime} | 付款：${ord.payment}</div>
+                  <div style="background:#1f160d; padding:6px 8px; border-radius:4px;">${itemsHtml}</div>
+                  <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px; color:var(--primary-gold);">
+                      <span>備註：${ord.custNotes || '無'}</span>
+                      <span>總金額：$${ord.total}</span>
+                  </div>
+              `;
+              container.appendChild(div);
+          });
+      }
+
+      function deleteSingleHistoryOrder(orderId) {
+          if (!confirm("確定要刪除這筆歷史訂單嗎？")) return;
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          history = history.filter(o => o.id !== orderId);
+          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          renderHistoryOrders();
+      }
+
+      function batchDeleteHistoryOrders() {
+          const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+          if (checkboxes.length === 0) {
+              alert("請至少勾選一筆歷史訂單！");
+              return;
+          }
+          if (!confirm(`確定要刪除選取的 ${checkboxes.length} 筆歷史訂單嗎？`)) return;
+
+          let idsToDelete = Array.from(checkboxes).map(cb => Number(cb.value));
+          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          history = history.filter(o => !idsToDelete.includes(o.id));
+          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          renderHistoryOrders();
+      }
+
+      // ================= ✏️ 通用訂單品項修改 (支援接單與歷史) =================
+      function openEditOrderItemsModal(orderId, source) {
           currentEditingOrderId = orderId;
+          activeOrderSource = source; // 'live' 或 'history'
+          
           const catSelect = document.getElementById('editCatSelect');
           catSelect.innerHTML = '';
 
@@ -1655,7 +1800,11 @@
       function closeEditOrderItemsModal() {
           document.getElementById('editOrderItemsModal').style.display = 'none';
           currentEditingOrderId = null;
-          renderLiveOrders();
+          if (activeOrderSource === 'live') {
+              renderLiveOrders();
+          } else {
+              renderHistoryOrders();
+          }
       }
 
       function onEditCategoryChange() {
@@ -1678,8 +1827,9 @@
           const container = document.getElementById('editingItemsContainer');
           container.innerHTML = '';
 
-          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-          let ord = liveOrders.find(o => o.id === currentEditingOrderId);
+          let storageKey = (activeOrderSource === 'live') ? 'pos_live_orders' : 'pos_order_history';
+          let ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          let ord = ordersArr.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
           ord.items.forEach((i, idx) => {
@@ -1698,8 +1848,9 @@
           if (!itemSelect.value) return;
 
           let itemData = JSON.parse(itemSelect.value);
-          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-          let ord = liveOrders.find(o => o.id === currentEditingOrderId);
+          let storageKey = (activeOrderSource === 'live') ? 'pos_live_orders' : 'pos_order_history';
+          let ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          let ord = ordersArr.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
           let existing = ord.items.find(i => i.name === itemData.name);
@@ -1714,13 +1865,14 @@
           if (ord.prefs && ord.prefs.flavor === "泰式+5元") newTotal += 5;
           ord.total = newTotal;
 
-          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          localStorage.setItem(storageKey, JSON.stringify(ordersArr));
           renderEditingItemsList();
       }
 
       function removeEditingItem(itemIdx) {
-          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-          let ord = liveOrders.find(o => o.id === currentEditingOrderId);
+          let storageKey = (activeOrderSource === 'live') ? 'pos_live_orders' : 'pos_order_history';
+          let ordersArr = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          let ord = ordersArr.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
           ord.items.splice(itemIdx, 1);
@@ -1730,42 +1882,8 @@
           if (ord.prefs && ord.prefs.flavor === "泰式+5元") newTotal += 5;
           ord.total = newTotal;
 
-          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+          localStorage.setItem(storageKey, JSON.stringify(ordersArr));
           renderEditingItemsList();
-      }
-
-      // 歷史訂單查詢
-      function openHistoryModal() {
-          const container = document.getElementById('historyOrderListContainer');
-          container.innerHTML = '';
-
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-
-          if (history.length === 0) {
-              container.innerHTML = '<div style="text-align:center; padding:30px; color:#8a7356;">目前沒有已完成的歷史訂單 📊</div>';
-          } else {
-              history.forEach(ord => {
-                  let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
-                  const div = document.createElement('div');
-                  div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:10px 14px; border-radius:6px; font-size:13px; color:#eddab2; display:flex; flex-direction:column; gap:4px;";
-                  div.innerHTML = `
-                      <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary-gold);">
-                          <span>${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
-                          <span>$${ord.total}</span>
-                      </div>
-                      <div>日期：${ord.date} | 取餐：${ord.pickupTime}</div>
-                      <div>品項：${itemsStr}</div>
-                      <div>備註：${ord.custNotes || '無'}</div>
-                  `;
-                  container.appendChild(div);
-              });
-          }
-
-          document.getElementById('historyModal').style.display = 'flex';
-      }
-
-      function closeHistoryModal() {
-          document.getElementById('historyModal').style.display = 'none';
       }
 
       window.onload = initPOS;
