@@ -343,6 +343,7 @@
           <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-submit" onclick="openOrderManagerFromAdmin()">📋 訂單管理紀錄</button>
                 <button class="btn btn-submit" onclick="openShiftReportModal()">📊 當日結算</button>
+                <button class="btn" style="background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #90caf9;" onclick="manualSyncCloudOrders()">🔄 手動同步雲端訂單</button>
                 <button class="btn" style="background: linear-gradient(135deg, #4a148c, #311b92); color: #e1bee7; border: 1px solid #b388ff;" onclick="changeAdminPassword()">🔑 修改密碼</button>
           </div>
       </div>
@@ -359,7 +360,10 @@
   <div class="modal" id="quickAcceptModal">
       <div class="modal-content" style="width:540px; max-width:95vw;">
           <button class="modal-close-x" onclick="closeQuickAcceptModal()">✕</button>
-          <h3 style="text-align:center; color:var(--text-gold); margin-bottom:12px;">⚡ 店家接單系統面板</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h3 style="color:var(--text-gold);">⚡ 店家接單系統面板</h3>
+              <button class="header-btn" style="background:#1565c0; padding:4px 8px; font-size:12px;" onclick="manualSyncCloudOrders()">🔄 同步雲端</button>
+          </div>
           <div id="quickAcceptContainer" style="max-height:65vh; overflow-y:auto;"></div>
       </div>
   </div>
@@ -387,6 +391,7 @@
                 <input type="text" id="searchKeywordInput" class="input-field" style="max-width:160px;" placeholder="搜尋 姓名或電話" oninput="filterOrderMgmtTable()">
                 <button class="header-btn" style="background:#3d2b1a;" onclick="setTodaySearch()">今天</button>
                 <button class="header-btn" style="background:#3d2b1a;" onclick="clearOrderSearchFilters()">顯示全部</button>
+                <button class="header-btn" style="background:#1565c0;" onclick="manualSyncCloudOrders(true)">🔄 同步雲端</button>
                 <div style="margin-left:auto;" id="mgmtOrderCount" style="font-weight:bold;">載入中...</div>
           </div>
 
@@ -964,6 +969,7 @@
           badge.innerText = "星期--";
       }
 
+      // 🔄 強制同步雲端訂單核心函數
       async function initCloudSync() {
           if (!GAS_WEB_APP_URL) return;
           try {
@@ -972,9 +978,31 @@
               if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
                   localStorage.setItem('pos_order_history', JSON.stringify(cloudOrders));
                   updatePendingCountHeader();
+                  console.log("雲端訂單同步成功，共載入:", cloudOrders.length, "筆");
               }
           } catch (e) {
               console.log("網路離線或同步失敗，使用本地端快取");
+          }
+      }
+
+      async function manualSyncCloudOrders(refreshTable = false) {
+          if (!GAS_WEB_APP_URL) return;
+          try {
+              let res = await fetch(`${GAS_WEB_APP_URL}?action=getOrders`);
+              let cloudOrders = await res.json();
+              if (Array.isArray(cloudOrders)) {
+                  localStorage.setItem('pos_order_history', JSON.stringify(cloudOrders));
+                  updatePendingCountHeader();
+                  if (refreshTable) {
+                      localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+                      filterOrderMgmtTable();
+                  }
+                  alert(`成功從雲端同步 ${cloudOrders.length} 筆訂單！`);
+              } else {
+                  alert("雲端回傳資料格式異常！");
+              }
+          } catch(e) {
+              alert("同步失敗，請檢查網路連線或 GAS 服務網址！");
           }
       }
 
@@ -1438,13 +1466,18 @@
           refreshMenuTabs();
           setDefaultPickupTime();
           updateCartUI();
-          await fetchStoreStatusFromCloud();
+          
+          // 🚀 開機強制同步雲端訂單
           await initCloudSync();
+          updatePendingCountHeader();
 
-          setInterval(() => {
-              fetchStoreStatusFromCloud();
+          await fetchStoreStatusFromCloud();
+
+          setInterval(async () => {
+              await fetchStoreStatusFromCloud();
+              await initCloudSync();
               updateHeaderLayout();
-          }, 5000);
+          }, 8000);
       }
 
       function refreshMenuTabs() {
