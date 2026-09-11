@@ -180,6 +180,11 @@
 </head>
 <body onload="initPOS()">
 
+  <!-- 點擊任意處解鎖瀏覽器音效限制提示橫幅 -->
+  <div id="audioUnlockBanner" style="position:fixed; top:0; left:0; width:100%; background:#d4af37; color:#1a0c00; text-align:center; padding:8px; font-weight:bold; z-index:9999; cursor:pointer;" onclick="unlockAudio()">
+      🔊 點擊此處或畫面任意處以啟用新訂單連續警示音效
+  </div>
+
   <div class="menu-container">
       <div class="menu-header">
           <div class="header-top-row" id="headerTopRow">
@@ -570,6 +575,30 @@
       let cachedMenuData = null;
       let cachedStoreStatus = "營業中";
       let cachedLiveOrders = [];
+      let continuousAlarmInterval = null;
+
+      function unlockAudio() {
+          playSound('unlock');
+          const banner = document.getElementById('audioUnlockBanner');
+          if (banner) banner.style.display = 'none';
+      }
+
+      function checkContinuousAlarm() {
+          let hasWaitingOrder = cachedLiveOrders.some(o => o.status === "等待接單");
+          if (hasWaitingOrder) {
+              if (!continuousAlarmInterval) {
+                  playSound('new_order');
+                  continuousAlarmInterval = setInterval(() => {
+                      playSound('new_order');
+                  }, 2500);
+              }
+          } else {
+              if (continuousAlarmInterval) {
+                  clearInterval(continuousAlarmInterval);
+                  continuousAlarmInterval = null;
+              }
+          }
+      }
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -712,7 +741,7 @@
               const ctx = new AudioContext();
               const now = ctx.currentTime;
 
-              if (type === 'new_order') {
+              if (type === 'new_order' || type === 'unlock') {
                   [0, 0.25, 0.5].forEach((offset, idx) => {
                       const osc1 = ctx.createOscillator();
                       const osc2 = ctx.createOscillator();
@@ -925,6 +954,7 @@
                       cachedLiveOrders = data.liveOrders;
                       localStorage.setItem('pos_live_orders', JSON.stringify(data.liveOrders));
                       updateOrderBadge();
+                      checkContinuousAlarm();
                   }
                   refreshMenuTabs();
                   refreshActiveGrid();
@@ -938,6 +968,7 @@
               if (savedMenu) cachedMenuData = JSON.parse(savedMenu);
               cachedStoreStatus = localStorage.getItem('pos_store_status') || '營業中';
               cachedLiveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+              checkContinuousAlarm();
           });
       }
 
@@ -1204,6 +1235,7 @@
           setDefaultPickupTime();
           updateCartUI();
           updateOrderBadge();
+          checkContinuousAlarm();
           
           let savedSize = localStorage.getItem('pos_history_modal_size');
           if (savedSize) {
@@ -1910,11 +1942,11 @@
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
           syncToServer();
           
-          playSound('new_order');
           document.getElementById('receiptModal').style.display = 'none';
           clearCart();
           pendingOrderPayloadForConfirm = null;
           updateOrderBadge();
+          checkContinuousAlarm();
       }
 
       function updateOrderBadge() {
@@ -2003,6 +2035,7 @@
               ord.status = "製作中";
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
               syncToServer();
+              checkContinuousAlarm();
               
               fetch(GAS_URL, {
                   method: 'POST',
@@ -2082,6 +2115,7 @@
           localStorage.setItem('pos_order_history', JSON.stringify(history));
           syncToServer();
           playSound('done');
+          checkContinuousAlarm();
           renderLiveOrders();
           updateOrderBadge();
       }
@@ -2091,6 +2125,7 @@
           cachedLiveOrders = cachedLiveOrders.filter(o => o.id !== orderId);
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
           syncToServer();
+          checkContinuousAlarm();
           renderLiveOrders();
           updateOrderBadge();
       }
