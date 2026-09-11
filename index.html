@@ -41,9 +41,6 @@
       .header-btn { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border: 1px solid #81c784; padding: 8px 14px; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
       .header-btn:hover { filter: brightness(1.15); }
       
-      .store-status-static { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; z-index: 2; display: inline-block; }
-      .store-status-select { background: #2b1f13; color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; outline: none; z-index: 2; }
-      
       .login-btn { background: linear-gradient(135deg, #543f24, #2b1f13); color: var(--primary-gold); border: 1px solid var(--border-gold); padding: 7px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; z-index: 2; }
       .login-btn.logged-in { background: linear-gradient(135deg, #1e7e34, #145222); color: #e6ffe6; border-color: #81c784; }
 
@@ -313,25 +310,6 @@
       <div class="modal-content" id="optModalContent"></div>
   </div>
 
-  <!-- 狀態自動恢復設定 Modal -->
-  <div class="modal" id="statusTimeModal">
-      <div class="modal-content" style="width:360px; text-align:center;">
-          <button class="modal-close-x" onclick="closeStatusTimeModal()">✕</button>
-          <h3 style="color:var(--primary-gold); margin-bottom:14px;" id="statusTimeModalTitle">設定關閉時間</h3>
-          <div style="font-size:13px; color:#d6c29a; margin-bottom:14px;">請選擇關閉模式：</div>
-          
-          <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
-               <button class="btn btn-submit" style="padding:10px; font-size:15px;" onclick="applyStoreStatusWithMode('direct')">直接關閉 (無限期)</button>
-               
-               <div style="background:#150d07; border:1px solid var(--border-gold); padding:10px; border-radius:6px; text-align:left;">
-                   <div style="font-size:13px; font-weight:bold; color:var(--primary-gold); margin-bottom:6px;">指定時間自動恢復營業：</div>
-                   <select id="autoResumeTimeSelect" class="input-field" style="width:100%; margin-bottom:8px;"></select>
-                   <button class="btn" style="width:100%; background:#3d2b1a; color:#fff; border:1px solid var(--border-gold); padding:8px; font-size:14px;" onclick="applyStoreStatusWithMode('timed')">確認定時關閉</button>
-               </div>
-          </div>
-      </div>
-  </div>
-
   <div class="modal" id="receiptModal">
       <div class="modal-content" id="receiptContent" style="font-family: monospace;"></div>
   </div>
@@ -437,14 +415,12 @@
       const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
       const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz7SS82hI1lUOH5OCgorlw-FOeP9xqZlynmCQNMaP1LJZEpL-BhZiJvTxGzdn6ooeMmtg/exec";
 
-      // ================= 🔊 音效系統 =================
       function playSound(type) {
           try {
               const AudioContext = window.AudioContext || window.webkitAudioContext;
               if (!AudioContext) return;
               const ctx = new AudioContext();
               const now = ctx.currentTime;
-
               if (type === 'new_order') {
                   [0, 0.25, 0.5].forEach((offset, idx) => {
                       const osc1 = ctx.createOscillator();
@@ -464,20 +440,6 @@
                       osc2.start(now + offset);
                       osc1.stop(now + offset + 0.35);
                       osc2.stop(now + offset + 0.35);
-                  });
-              } else if (type === 'accept') {
-                  [0, 0.15, 0.3].forEach((offset, idx) => {
-                      const osc = ctx.createOscillator();
-                      const gain = ctx.createGain();
-                      osc.connect(gain);
-                      gain.connect(ctx.destination);
-                      const freqs = [440, 554.37, 659.25, 880];
-                      osc.type = 'sine';
-                      osc.frequency.setValueAtTime(freqs[idx], now + offset);
-                      gain.gain.setValueAtTime(0.5, now + offset);
-                      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.4);
-                      osc.start(now + offset);
-                      osc.stop(now + offset + 0.4);
                   });
               } else if (type === 'done') {
                   [0, 0.2, 0.4].forEach((offset, idx) => {
@@ -560,128 +522,13 @@
           }
       }
 
-      function getStoreStatus() {
-          let resumeTime = localStorage.getItem('pos_store_resume_time');
-          if (resumeTime) {
-              let now = new Date().getTime();
-              if (now >= parseInt(resumeTime)) {
-                  localStorage.removeItem('pos_store_resume_time');
-                  localStorage.setItem('pos_store_status', '營業中');
-                  return '營業中';
-              }
-          }
-          return localStorage.getItem('pos_store_status') || '營業中';
-      }
-
-      function setStoreStatus(status) {
-          localStorage.setItem('pos_store_status', status);
-          if (status === '營業中') {
-              localStorage.removeItem('pos_store_resume_time');
-          }
-      }
-
-      let pendingTargetStatus = '';
-
-      function handleStoreStatusChange(val) {
-          if (val === '營業中') {
-              executeChangeStoreStatus('營業中');
-          } else {
-              pendingTargetStatus = val;
-              openStatusTimeModal(val);
-          }
-      }
-
-      function openStatusTimeModal(statusName) {
-          document.getElementById('statusTimeModalTitle').innerText = `設定【${statusName}】關閉模式`;
-          const selectElem = document.getElementById('autoResumeTimeSelect');
-          selectElem.innerHTML = '';
-
-          let now = new Date();
-          let currentHour = now.getHours();
-          let currentMin = now.getMinutes();
-
-          let startMin = currentMin < 30 ? 30 : 0;
-          let startHour = currentMin < 30 ? currentHour : currentHour + 1;
-
-          for (let h = startHour; h < 26; h++) {
-               let actualH = h % 24;
-               for (let m of [0, 30]) {
-                   if (h === startHour && m < startMin && h === currentHour) continue;
-                   if (h >= 24 && m > 0) break;
-
-                   let hStr = String(actualH).padStart(2, '0');
-                   let mStr = String(m).padStart(2, '0');
-                   let timeLabel = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
-                   
-                   let option = document.createElement('option');
-                   let targetDate = new Date();
-                   if (h >= 24) targetDate.setDate(targetDate.getDate() + 1);
-                   targetDate.setHours(actualH, m, 0, 0);
-
-                   option.value = targetDate.getTime();
-                   option.text = timeLabel;
-                   selectElem.appendChild(option);
-               }
-          }
-
-          document.getElementById('statusTimeModal').style.display = 'flex';
-      }
-
-      function closeStatusTimeModal() {
-          document.getElementById('statusTimeModal').style.display = 'none';
-          updateHeaderLayout();
-      }
-
-      function applyStoreStatusWithMode(mode) {
-          if (mode === 'direct') {
-              executeChangeStoreStatus(pendingTargetStatus);
-          } else {
-              const selectElem = document.getElementById('autoResumeTimeSelect');
-              let resumeTimestamp = selectElem.value;
-              if (!resumeTimestamp) {
-                  alert("請選擇自動恢復時間！");
-                  return;
-              }
-              localStorage.setItem('pos_store_resume_time', resumeTimestamp);
-              executeChangeStoreStatus(pendingTargetStatus);
-          }
-          closeStatusTimeModal();
-      }
-
-      async function executeChangeStoreStatus(val) {
-          setStoreStatus(val);
-          updateHeaderLayout();
-          await syncOrderToCloud({ action: "setStoreStatus", status: val });
-      }
-
-      async function fetchStoreStatusFromCloud() {
-          if (!GAS_WEB_APP_URL) return;
-          try {
-              let res = await fetch(`${GAS_WEB_APP_URL}?action=getStoreStatus`);
-              let data = await res.json();
-              if (data && data.storeStatus) {
-                  let currentLocal = localStorage.getItem('pos_store_status');
-                  if (data.storeStatus !== currentLocal) {
-                      localStorage.setItem('pos_store_status', data.storeStatus);
-                      updateHeaderLayout();
-                  }
-              }
-          } catch(e) {
-              console.log("雲端狀態同步失敗");
-          }
-      }
-
       function updateHeaderLayout() {
           const headerTopRow = document.getElementById('headerTopRow');
           const storeInfoContainer = document.getElementById('storeInfoContainer');
           const adminActionGroup = document.getElementById('adminActionGroup');
-          const currentStatus = getStoreStatus();
 
           if (!isUserAdminMode()) {
-              headerTopRow.innerHTML = `
-                  <div class="store-status-static">${currentStatus === '營業中' ? '🟢 營業中' : (currentStatus === '備料中' ? '🟡 備料中' : '🔴 休息中')}</div>
-                  <div></div>
-              `;
+              headerTopRow.innerHTML = `<div></div><div></div>`;
               storeInfoContainer.innerHTML = `
                   <div class="store-info-box">
                       <div class="store-info-row">
@@ -698,11 +545,7 @@
           } else {
               const loggedIn = isAdminLoggedIn();
               headerTopRow.innerHTML = `
-                  <select id="storeStatusSelect" class="store-status-select" onchange="handleStoreStatusChange(this.value)">
-                      <option value="營業中" ${currentStatus === '營業中' ? 'selected' : ''}>🟢 營業中</option>
-                      <option value="備料中" ${currentStatus === '備料中' ? 'selected' : ''}>🟡 備料中</option>
-                      <option value="休息中" ${currentStatus === '休息中' ? 'selected' : ''}>🔴 休息中</option>
-                  </select>
+                  <div></div>
                   <button id="loginStatusBtn" class="login-btn ${loggedIn ? 'logged-in' : ''}" onclick="toggleAdminLogin()">
                       ${loggedIn ? '🔓 已登入 (點擊登出)' : '🔒 管理員登入'}
                   </button>
@@ -873,25 +716,22 @@
           actualCash: ""
       };
 
-      // ================= 🔄 雲端同步與離線佇列機制 =================
       async function syncOrderToCloud(payload, actionType = "append") {
           if (!GAS_WEB_APP_URL) return;
           let dataToSend = Object.assign({}, payload, { action: actionType });
-          
           try {
               let response = await fetch(GAS_WEB_APP_URL, {
                   method: "POST",
-                  headers: { "Content-Type": "text/plain;charset=utf-8" }, // 避免 GAS 預檢跨域問題
+                  headers: { "Content-Type": "text/plain;charset=utf-8" },
                   body: JSON.stringify(dataToSend)
               });
               let result = await response.json();
               if (result.result !== "success") {
                   throw new Error("雲端回應失敗");
               }
-              // 同步成功後，順便檢查並清空離線佇列中已累積的資料
               processOfflineQueue();
           } catch(err) {
-              console.warn("網路異常或同步失敗，已加入離線佇列等待下次同步", err);
+              console.warn("網路異常或同步失敗，已加入離線佇列", err);
               saveToOfflineQueue(dataToSend);
           }
       }
@@ -905,7 +745,6 @@
       async function processOfflineQueue() {
           let queue = JSON.parse(localStorage.getItem('pos_offline_queue') || '[]');
           if (queue.length === 0) return;
-
           let remainingQueue = [];
           for (let item of queue) {
               try {
@@ -915,16 +754,13 @@
                       body: JSON.stringify(item)
                   });
                   let json = await res.json();
-                  if (json.result !== "success") {
-                      remainingQueue.push(item);
-                  }
+                  if (json.result !== "success") remainingQueue.push(item);
               } catch (e) {
                   remainingQueue.push(item);
               }
           }
           localStorage.setItem('pos_offline_queue', JSON.stringify(remainingQueue));
       }
-      // =============================================================
 
       function setDefaultPickupTime() {
           const now = new Date();
@@ -933,7 +769,6 @@
           let dd = String(now.getDate()).padStart(2, '0');
           let hh = String(now.getHours()).padStart(2, '0');
           let min = String(now.getMinutes()).padStart(2, '0');
-          
           document.getElementById('pickupTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
           updateWeekdayBadge();
       }
@@ -943,12 +778,10 @@
           let yyyy = now.getFullYear();
           let mm = String(now.getMonth() + 1).padStart(2, '0');
           let dd = String(now.getDate()).padStart(2, '0');
-          
           document.getElementById('modalPickupDate').value = `${yyyy}-${mm}-${dd}`;
           
           const selectElem = document.getElementById('modalPickupTimeSelect');
           selectElem.innerHTML = '';
-
           for (let h = 0; h < 27; h++) {
                let actualH = h % 24;
                for (let m of [0, 30]) {
@@ -956,19 +789,15 @@
                    let hStr = String(actualH).padStart(2, '0');
                    let mStr = String(m).padStart(2, '0');
                    let timeStr = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
-                   
                    let opt = document.createElement('option');
                    opt.value = `${hStr}:${mStr}`;
-                   if (h >= 24) opt.dataset.nextDay = "true";
                    opt.text = timeStr;
-                   
                    if (actualH === now.getHours() && Math.abs(m - now.getMinutes()) < 30) {
                        opt.selected = true;
                    }
                    selectElem.appendChild(opt);
                }
           }
-
           document.getElementById('pickupTimeModal').style.display = 'flex';
       }
 
@@ -979,12 +808,10 @@
       function confirmPickupTimeModal() {
           const dateVal = document.getElementById('modalPickupDate').value;
           const timeVal = document.getElementById('modalPickupTimeSelect').value;
-          
           if (!dateVal || !timeVal) {
               alert("請完整選擇日期與時間！");
               return;
           }
-
           let formattedDate = dateVal.replace(/-/g, '/');
           document.getElementById('pickupTime').value = `${formattedDate} ${timeVal}`;
           updateWeekdayBadge();
@@ -1014,10 +841,9 @@
                   localStorage.setItem('pos_order_history', JSON.stringify(cloudOrders));
                   updatePendingCountHeader();
               }
-              // 同步完成後順便清空離線佇列
               processOfflineQueue();
           } catch (e) {
-              console.log("網路離線或同步失敗，使用本地端快取");
+              console.log("網路離線或同步失敗，使用本地快取");
           }
       }
 
@@ -1096,13 +922,11 @@
                       ${makeDenomRows('principal')}
                       <div style="text-align:right; font-weight:bold; color:#fff1cd;">本金總額：$${principalSum}</div>
                   </div>
-
                   <div>
                       <div style="font-weight:bold; color:var(--primary-gold);">備用金細項：</div>
                       ${makeDenomRows('reserve')}
                       <div style="text-align:right; font-weight:bold; color:#fff1cd;">備用金總額：$${reserveSum}</div>
                   </div>
-
                   <div class="input-row" style="margin-top:4px;">
                       <span class="input-label" style="min-width:130px;">實收現金總額:</span>
                       <div style="flex:1; display:flex; gap:8px; align-items:center;">
@@ -1110,40 +934,27 @@
                           <span style="font-size:13px; color:var(--primary-gold); white-space:nowrap;">(系統計算: $${cashTotal})</span>
                       </div>
                   </div>
-
                   <div style="background:#150d07; border:1px solid var(--border-gold); padding:10px; border-radius:6px; display:flex; flex-direction:column; gap:6px;">
                       <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--primary-gold);">
                           <span>行動支付總額:</span>
                           <span>$${mobileTotal}</span>
                       </div>
-                      <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;">
-                          <span>- LINE PAY:</span>
-                          <span>$${linepayTotal}</span>
-                      </div>
-                      <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;">
-                          <span>- 全支付:</span>
-                          <span>$${allpayTotal}</span>
-                      </div>
-                      <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;">
-                          <span>- 轉帳:</span>
-                          <span>$${transferTotal}</span>
-                      </div>
+                      <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;"><span>- LINE PAY:</span><span>$${linepayTotal}</span></div>
+                      <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;"><span>- 全支付:</span><span>$${allpayTotal}</span></div>
+                      <div style="display:flex; justify-content:space-between; font-size:13px; color:#d6c29a; padding-left:10px;"><span>- 轉帳:</span><span>$${transferTotal}</span></div>
                   </div>
-
                   <div class="input-row">
                       <span class="input-label" style="min-width:130px;">今日總營收:</span>
                       <div style="flex:1; padding:8px 12px; background:#150d07; border:1px solid var(--border-gold); border-radius:4px; color:var(--primary-gold); font-weight:bold; font-size:16px;">
                           $${allTotal}
                       </div>
                   </div>
-
                   <div style="background:#140f0a; border:1px solid var(--border-gold); padding:12px; border-radius:6px; text-align:center;">
                       <div style="font-size:14px; margin-bottom:4px; color:#a89269;">今日盈虧 (實點現金 - (本金+備用金+系統現金))</div>
                       <div style="font-size:22px; font-weight:bold; color:${diff >= 0 ? '#81c784' : '#ff9999'};" id="shiftDiffDisplay">
                           $${diff}
                       </div>
                   </div>
-
                   <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="confirmAndSyncShiftReport()">確認結算</button>
               </div>
           `;
@@ -1191,7 +1002,6 @@
           let allpayTotal = todayOrders.filter(o => o.payment === '全支付').reduce((sum, o) => sum + o.total, 0);
           let transferTotal = todayOrders.filter(o => o.payment === '轉帳').reduce((sum, o) => sum + o.total, 0);
           let allTotal = cashTotal + linepayTotal + allpayTotal + transferTotal;
-
           let actualCashNum = parseFloat(shiftDenomData.actualCash) || 0;
 
           let summaryPayload = {
@@ -1201,18 +1011,12 @@
               date: todayStr,
               weekDay: weekDaysArr[todayObj.getDay()],
               time: "23:59",
-              fullTime: `${todayStr} 23:59`,
               customer: "【當日總結報表】",
               phone: "-",
               pickupTime: "-",
               custNotes: `實收現金: $${actualCashNum} | LINE PAY: $${linepayTotal} | 全支付: $${allpayTotal} | 轉帳: $${transferTotal}`,
-              originalTotal: allTotal,
               total: allTotal,
-              discountPercent: 100,
-              deductAmount: 0,
-              discountNote: "",
               payment: "綜合結算",
-              prefs: {},
               items: [
                   { name: "實收現金", qty: 1, price: actualCashNum },
                   { name: "LINE PAY", qty: 1, price: linepayTotal },
@@ -1222,7 +1026,7 @@
           };
 
           syncOrderToCloud(summaryPayload, "append");
-          alert(`已成功送出【當日總結】至雲端試算表！\n今日總營收: $${allTotal}\n實收現金: $${actualCashNum}\nLINE PAY: $${linepayTotal}\n全支付: $${allpayTotal}\n轉帳: $${transferTotal}`);
+          alert(`已成功送出【當日總結】至雲端試算表！\n今日總營收: $${allTotal}`);
           closeShiftReportModal();
       }
 
@@ -1243,24 +1047,12 @@
       function changeAdminPassword() {
           let currentInput = prompt("請輸入當前管理員密碼:");
           if (currentInput === null) return;
-          
           if (currentInput !== getAdminPassword()) {
-              alert("目前密碼輸入錯誤，無法更換密碼！");
+              alert("目前密碼輸入錯誤！");
               return;
           }
-
           let newPwd = prompt("請輸入新管理員密碼:");
-          if (!newPwd || newPwd.trim() === '') {
-              alert("密碼不可為空！");
-              return;
-          }
-
-          let confirmPwd = prompt("請再次輸入新管理員密碼確認:");
-          if (newPwd !== confirmPwd) {
-              alert("兩次密碼輸入不一致，修改失敗！");
-              return;
-          }
-
+          if (!newPwd || newPwd.trim() === '') return;
           setAdminPassword(newPwd.trim());
           alert("管理員密碼已成功修改！");
           closeAdminMenu();
@@ -1282,7 +1074,6 @@
                   alert(`【${val}】目前暫停供應！`);
                   return;
               }
-              
               if (orderPrefs[type] === val) {
                   orderPrefs[type] = "";
                   btnEl.classList.remove('active');
@@ -1316,7 +1107,6 @@
       function checkInventoryLogic(changedItemName, isSoldOut) {
           const chickenList = menuData["信仰雞本位主義 (主食)"];
           if (!chickenList) return;
-
           const m1 = chickenList.find(i => i.id === "m1"); 
           const m2 = chickenList.find(i => i.id === "m2"); 
           const m3 = chickenList.find(i => i.id === "m3"); 
@@ -1325,39 +1115,11 @@
           const m6 = chickenList.find(i => i.id === "m6"); 
 
           if (changedItemName === "鹹水雞腿" || changedItemName === "鹹水雞胸") {
-              if (isSoldOut) {
-                  if (m3) m3.soldOut = true;
-              } else {
-                  if (m1 && m2 && !m1.soldOut && !m2.soldOut) {
-                      if (m3) m3.soldOut = false;
-                  }
-              }
+              if (isSoldOut) { if (m3) m3.soldOut = true; } 
+              else { if (m1 && m2 && !m1.soldOut && !m2.soldOut) { if (m3) m3.soldOut = false; } }
           } else if (changedItemName === "鹹水半雞") {
-              if (isSoldOut) {
-                  if (m1) m1.soldOut = true;
-                  if (m2) m2.soldOut = true;
-              } else {
-                  if (m1) m1.soldOut = false;
-                  if (m2) m2.soldOut = false;
-              }
-          }
-
-          if (changedItemName === "煙燻雞腿" || changedItemName === "煙燻雞胸") {
-              if (isSoldOut) {
-                  if (m6) m6.soldOut = true;
-              } else {
-                  if (m4 && m5 && !m4.soldOut && !m5.soldOut) {
-                      if (m6) m6.soldOut = false;
-                  }
-              }
-          } else if (changedItemName === "煙燻半雞") {
-              if (isSoldOut) {
-                  if (m4) m4.soldOut = true;
-                  if (m5) m5.soldOut = true;
-              } else {
-                  if (m4) m4.soldOut = false;
-                  if (m5) m5.soldOut = false;
-              }
+              if (isSoldOut) { if (m1) m1.soldOut = true; if (m2) m2.soldOut = true; } 
+              else { if (m1) m1.soldOut = false; if (m2) m2.soldOut = false; }
           }
       }
 
@@ -1385,15 +1147,12 @@
           const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           const pendingList = history.filter(o => !o.status || o.status === "等待接單" || o.status === "已接單" || o.status === "待顧客取餐");
           const btn = document.getElementById('quickAcceptHeaderBtn');
-          if (btn) {
-              btn.innerText = `⚡ 接單系統 (${pendingList.length})`;
-          }
+          if (btn) btn.innerText = `⚡ 接單系統 (${pendingList.length})`;
       }
 
       function openSoldoutListModal() {
           const container = document.getElementById('soldoutListContainer');
           container.innerHTML = '';
-
           let soldoutItems = [];
           for (let category in menuData) {
               let isCatSoldOut = menuData[category].every(i => i.soldOut);
@@ -1401,64 +1160,35 @@
                   soldoutItems.push({ type: 'category', category: category, name: `【大選項】${category}` });
               } else {
                   menuData[category].forEach(item => {
-                      if (item.soldOut) {
-                          soldoutItems.push({ type: 'item', category: category, item: item, name: item.name });
-                      }
+                      if (item.soldOut) soldoutItems.push({ type: 'item', category: category, item: item, name: item.name });
                   });
               }
           }
-
           if (soldoutItems.length === 0) {
               container.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">目前沒有任何售完品項 🎉</div>';
           } else {
               soldoutItems.forEach(entry => {
                   const div = document.createElement('div');
                   div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#140f0a; border:1px solid var(--border-gold); padding:10px 14px; border-radius:6px; margin-bottom:8px;";
-                  
                   if (entry.type === 'category') {
-                      div.innerHTML = `
-                          <div>
-                              <div style="font-weight:bold; color:var(--primary-gold);">${entry.name}</div>
-                              <div style="font-size:12px; color:#a89269;">整大類已關閉</div>
-                          </div>
-                          <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreCategory('${entry.category}')">一鍵恢復</button>
-                      `;
+                      div.innerHTML = `<div><div style="font-weight:bold; color:var(--primary-gold);">${entry.name}</div></div><button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreCategory('${entry.category}')">一鍵恢復</button>`;
                   } else {
-                      div.innerHTML = `
-                          <div>
-                              <div style="font-weight:bold; color:#fff1cd;">${entry.name}</div>
-                              <div style="font-size:12px; color:#a89269;">分類：${entry.category}</div>
-                          </div>
-                          <button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復</button>
-                      `;
+                      div.innerHTML = `<div><div style="font-weight:bold; color:#fff1cd;">${entry.name}</div></div><button class="header-btn" style="background:linear-gradient(135deg, #2e7d32, #1b5e20);" onclick="restoreSoldoutItem('${entry.category}', '${entry.item.id}')">一鍵恢復</button>`;
                   }
                   container.appendChild(div);
               });
           }
-
           document.getElementById('soldoutListModal').style.display = 'flex';
       }
 
-      function closeSoldoutListModal() {
-          document.getElementById('soldoutListModal').style.display = 'none';
-      }
-
+      function closeSoldoutListModal() { document.getElementById('soldoutListModal').style.display = 'none'; }
       function restoreSoldoutItem(category, itemId) {
           const item = menuData[category].find(i => i.id === itemId);
-          if (item) {
-              item.soldOut = false;
-              checkInventoryLogic(item.name, false);
-              refreshMenuTabs();
-              refreshActiveGrid();
-              openSoldoutListModal();
-          }
+          if (item) { item.soldOut = false; checkInventoryLogic(item.name, false); refreshMenuTabs(); refreshActiveGrid(); openSoldoutListModal(); }
       }
-
       function restoreCategory(category) {
           menuData[category].forEach(i => i.soldOut = false);
-          refreshMenuTabs();
-          refreshActiveGrid();
-          openSoldoutListModal();
+          refreshMenuTabs(); refreshActiveGrid(); openSoldoutListModal();
       }
 
       async function initPOS() {
@@ -1468,26 +1198,18 @@
           refreshMenuTabs();
           setDefaultPickupTime();
           updateCartUI();
-          await fetchStoreStatusFromCloud();
           await initCloudSync();
-
-          setInterval(() => {
-              fetchStoreStatusFromCloud();
-              updateHeaderLayout();
-          }, 5000);
       }
 
       function refreshMenuTabs() {
           const tabsContainer = document.getElementById('menuTabs');
           const activeTabElem = document.querySelector('.tab-btn.active');
           let currentActiveCategory = activeTabElem ? activeTabElem.getAttribute('data-category') : null;
-
           tabsContainer.innerHTML = '';
           let firstCategory = true;
 
           for (let category in menuData) {
               const isAllSoldOut = menuData[category].every(i => i.soldOut);
-              
               const btn = document.createElement('div');
               btn.className = `tab-btn ${isAllSoldOut ? 'category-sold-out' : ''}`;
               btn.setAttribute('data-category', category);
@@ -1495,15 +1217,10 @@
               const closeBtn = document.createElement('div');
               closeBtn.className = 'cat-close-btn';
               closeBtn.innerText = '✕';
-              closeBtn.title = "一鍵關閉整大類";
               closeBtn.onclick = (e) => {
                   e.stopPropagation();
-                  menuData[category].forEach(i => {
-                      i.soldOut = true;
-                      checkInventoryLogic(i.name, true);
-                  });
-                  refreshMenuTabs();
-                  renderGrid(category);
+                  menuData[category].forEach(i => { i.soldOut = true; checkInventoryLogic(i.name, true); });
+                  refreshMenuTabs(); renderGrid(category);
               };
 
               const contentSpan = document.createElement('span');
@@ -1526,118 +1243,57 @@
                   btn.classList.add('active');
                   renderGrid(category);
               };
-
               tabsContainer.appendChild(btn);
-              if (firstCategory && !currentActiveCategory) {
-                  firstCategory = false;
-              }
+              if (firstCategory && !currentActiveCategory) firstCategory = false;
           }
-
-          if (currentActiveCategory) {
-              renderGrid(currentActiveCategory);
-          }
+          if (currentActiveCategory) renderGrid(currentActiveCategory);
       }
 
       function createCardElement(item, category) {
           const card = document.createElement('div');
           card.className = `item-card ${item.soldOut ? 'sold-out' : ''}`;
-          
           card.onclick = () => {
               if (isEditMode) {
                   item.soldOut = !item.soldOut;
                   checkInventoryLogic(item.name, item.soldOut);
-                  refreshMenuTabs();
-                  renderGrid(category);
+                  refreshMenuTabs(); renderGrid(category);
               } else {
-                  const currentStatus = getStoreStatus();
-                  if (currentStatus !== "營業中" && !isUserAdminMode()) {
-                      alert(`現在店家${currentStatus}`);
-                      return;
-                  }
                   if (!item.soldOut) handleItemClick(item, category);
               }
           };
-          
           let count = currentCart.filter(c => c.id === item.id).reduce((sum, c) => sum + c.qty, 0);
           const badgeHtml = (count > 0 && !item.soldOut) ? `<div class="badge">${count}</div>` : '';
           const soldOutTag = item.soldOut ? `<div class="sold-out-overlay">已售完</div>` : '';
-          
-          card.innerHTML = `
-              ${badgeHtml}
-              ${soldOutTag}
-              <div class="item-name">${formatTitleWithBracket(item.name)}</div>
-              <div class="item-price">$${item.price}</div>
-          `;
+          card.innerHTML = `${badgeHtml}${soldOutTag}<div class="item-name">${formatTitleWithBracket(item.name)}</div><div class="item-price">$${item.price}</div>`;
           return card;
       }
 
       function createComboCardElement(item, category) {
           const card = document.createElement('div');
           card.className = `combo-card ${item.soldOut ? 'sold-out' : ''}`;
-          
           card.onclick = () => {
               if (isEditMode) {
                   item.soldOut = !item.soldOut;
-                  refreshMenuTabs();
-                  renderGrid(category);
+                  refreshMenuTabs(); renderGrid(category);
               } else {
-                  const currentStatus = getStoreStatus();
-                  if (currentStatus !== "營業中" && !isUserAdminMode()) {
-                      alert(`現在店家${currentStatus}`);
-                      return;
-                  }
                   if (!item.soldOut) handleItemClick(item, category);
               }
           };
-          
           let count = currentCart.filter(c => c.id.startsWith(item.id)).reduce((sum, c) => sum + c.qty, 0);
           const badgeHtml = (count > 0 && !item.soldOut) ? `<div class="badge" style="top:10px; right:10px;">${count}</div>` : '';
           const soldOutTag = item.soldOut ? `<div class="sold-out-overlay">已售完</div>` : '';
-
-          card.innerHTML = `
-              ${badgeHtml}
-              ${soldOutTag}
-              <div class="combo-header">
-                  <span class="combo-name">${item.name}</span>
-                  <span class="combo-price">$${item.price}</span>
-              </div>
-              <div class="combo-details">
-                  <div><strong>${item.chickenText}</strong></div>
-                  <div><strong>內容物：</strong>${item.items.join('、')}</div>
-              </div>
-          `;
+          card.innerHTML = `${badgeHtml}${soldOutTag}<div class="combo-header"><span class="combo-name">${item.name}</span><span class="combo-price">$${item.price}</span></div><div class="combo-details"><div><strong>${item.chickenText}</strong></div><div><strong>內容物：</strong>${item.items.join('、')}</div></div>`;
           return card;
       }
 
       function handleItemClick(item, category) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode()) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
-          if (item.soldOut) {
-              alert(`【${item.name}】目前已售完，無法點購！`);
-              return;
-          }
+          if (item.soldOut) return;
           if (category === "智能合約 (套餐)") {
-              if (item.chickenOptions) {
-                  showChickenChoiceModal(item);
-              } else {
-                  const chickenList = menuData["信仰雞本位主義 (主食)"];
-                  const breast = chickenList.find(i => i.id === "m1");
-                  if (breast && breast.soldOut && !isUserAdminMode()) {
-                      alert("鹹水雞胸已售完, 無法點購此套餐！");
-                      return;
-                  }
-                  addComboToCart(item, item.fixedChicken);
-              }
+              if (item.chickenOptions) showChickenChoiceModal(item);
+              else addComboToCart(item, item.fixedChicken);
           } else if (category === "厝邊溫食(炒麵/燴飯)") {
-              if (item.needCustom) {
-                  showHotFoodCustomModal(item);
-              } else {
-                  addToCart({ id: item.id, name: item.name, price: item.price, category: category, qty: 1 });
-              }
+              if (item.needCustom) showHotFoodCustomModal(item);
+              else addToCart({ id: item.id, name: item.name, price: item.price, category: category, qty: 1 });
           } else {
               addToCart({ id: item.id, name: item.name, price: item.price, category: category, qty: 1 });
           }
@@ -1647,26 +1303,17 @@
           const chickenList = menuData["信仰雞本位主義 (主食)"];
           const saltHalfSoldOut = chickenList.find(i => i.id === "m3").soldOut;
           const smokeHalfSoldOut = chickenList.find(i => i.id === "m6").soldOut;
-
           const modal = document.getElementById('optModal');
           const content = document.getElementById('optModalContent');
-          let html = `
-              <button class="modal-close-x" onclick="closeOptModal()">✕</button>
-              <h4 style="margin-bottom:14px; text-align:center; font-size:16px;">選擇 【${item.name}】 雞肉品項</h4>
-          `;
-          
+          let html = `<button class="modal-close-x" onclick="closeOptModal()">✕</button><h4 style="margin-bottom:14px; text-align:center;">選擇 【${item.name}】 雞肉品項</h4>`;
           item.chickenOptions.forEach(opt => {
               let isDisabled = false;
               if (!isUserAdminMode()) {
-                  if ((opt === "鹹水半雞" || opt === "全鹹水" || opt.includes("鹹水半雞")) && saltHalfSoldOut) isDisabled = true;
-                  if ((opt === "煙燻半雞" || opt === "全煙燻" || opt.includes("煙燻半雞")) && smokeHalfSoldOut) isDisabled = true;
+                  if ((opt === "鹹水半雞" || opt === "全鹹水") && saltHalfSoldOut) isDisabled = true;
+                  if ((opt === "煙燻半雞" || opt === "全煙燻") && smokeHalfSoldOut) isDisabled = true;
               }
-
-              if (isDisabled) {
-                  html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0; padding:10px;" disabled>${opt} (售完)</button>`;
-              } else {
-                  html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0; padding:10px;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
-              }
+              if (isDisabled) html += `<button class="modal-opt-btn disabled" style="width:100%; margin:6px 0; padding:10px;" disabled>${opt} (售完)</button>`;
+              else html += `<button class="modal-opt-btn" style="width:100%; margin:6px 0; padding:10px;" onclick="confirmChickenChoice('${item.id}', '${opt}')">${opt}</button>`;
           });
           content.innerHTML = html;
           modal.style.display = 'flex';
@@ -1681,90 +1328,30 @@
       function addComboToCart(item, chickenChoice) {
           let comboId = item.id + '_' + chickenChoice;
           let subItems = [{ name: chickenChoice, price: 0 }];
-          item.items.forEach(sub => {
-              subItems.push({ name: sub, price: 0 });
-          });
-
-          currentCart.push({
-              id: comboId,
-              name: item.name,
-              price: item.price,
-              category: "智能合約 (套餐)",
-              qty: 1,
-              subItems: subItems
-          });
-          updateCartUI();
-          refreshActiveGrid();
+          item.items.forEach(sub => subItems.push({ name: sub, price: 0 }));
+          currentCart.push({ id: comboId, name: item.name, price: item.price, category: "智能合約 (套餐)", qty: 1, subItems: subItems });
+          updateCartUI(); refreshActiveGrid();
       }
 
-      let tempSpice = "";
-      let tempSalt = "";
-
+      let tempSpice = "", tempSalt = "";
       function showHotFoodCustomModal(item) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode()) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
-          if (item.soldOut && !isUserAdminMode()) {
-              alert(`【${item.name}】目前已售完，無法點購！`);
-              return;
-          }
           const modal = document.getElementById('optModal');
           const content = document.getElementById('optModalContent');
-
-          tempSpice = "";
-          tempSalt = "";
-
-          let spiceBtnsHtml = '';
-          ["不辣", "小辣", "中辣", "大辣"].forEach(sp => {
-              spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`;
-          });
-
-          let saltBtnsHtml = '';
-          ["清淡", "正常", "重鹹"].forEach(sa => {
-              saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`;
-          });
-
-          content.innerHTML = `
-              <button class="modal-close-x" onclick="closeOptModal()">✕</button>
-              <h4 style="margin-bottom:16px; text-align:center; color:var(--text-gold); font-size:17px;">【${item.name}】</h4>
-              
-              <div class="modal-option-group">
-                  <span class="modal-option-label">選擇辣度：</span>
-                  <div class="modal-btn-row">${spiceBtnsHtml}</div>
-              </div>
-              
-              <div class="modal-option-group" style="margin-bottom:18px;">
-                  <span class="modal-option-label">選擇鹹度：</span>
-                  <div class="modal-btn-row">${saltBtnsHtml}</div>
-              </div>
-
-              <button class="btn btn-submit" style="width:100%; margin-top:5px;" onclick="confirmHotFoodCustom('${item.id}', '${item.name}', ${item.price})">確認加入</button>
-          `;
+          tempSpice = ""; tempSalt = "";
+          let spiceBtnsHtml = '', saltBtnsHtml = '';
+          ["不辣", "小辣", "中辣", "大辣"].forEach(sp => { spiceBtnsHtml += `<button class="modal-opt-btn hot-spice-btn" onclick="selectHotOpt('spice', '${sp}', this)">${sp}</button>`; });
+          ["清淡", "正常", "重鹹"].forEach(sa => { saltBtnsHtml += `<button class="modal-opt-btn hot-salt-btn" onclick="selectHotOpt('salt', '${sa}', this)">${sa}</button>`; });
+          content.innerHTML = `<button class="modal-close-x" onclick="closeOptModal()">✕</button><h4 style="margin-bottom:16px; text-align:center;">【${item.name}】</h4><div class="modal-option-group"><span class="modal-option-label">選擇辣度：</span><div class="modal-btn-row">${spiceBtnsHtml}</div></div><div class="modal-option-group" style="margin-bottom:18px;"><span class="modal-option-label">選擇鹹度：</span><div class="modal-btn-row">${saltBtnsHtml}</div></div><button class="btn btn-submit" style="width:100%;" onclick="confirmHotFoodCustom('${item.id}', '${item.name}', ${item.price})">確認加入</button>`;
           modal.style.display = 'flex';
       }
 
       function selectHotOpt(type, val, btn) {
           if (type === 'spice') {
-              if (tempSpice === val) {
-                  tempSpice = "";
-                  btn.classList.remove('active');
-              } else {
-                  tempSpice = val;
-                  document.querySelectorAll('.hot-spice-btn').forEach(b => b.classList.remove('active'));
-                  btn.classList.add('active');
-              }
+              if (tempSpice === val) { tempSpice = ""; btn.classList.remove('active'); }
+              else { tempSpice = val; document.querySelectorAll('.hot-spice-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
           } else {
-              if (tempSalt === val) {
-                  tempSalt = "";
-                  btn.classList.remove('active');
-              } else {
-                  tempSalt = val;
-                  document.querySelectorAll('.hot-salt-btn').forEach(b => b.classList.remove('active'));
-                  btn.classList.add('active');
-              }
+              if (tempSalt === val) { tempSalt = ""; btn.classList.remove('active'); }
+              else { tempSalt = val; document.querySelectorAll('.hot-salt-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
           }
       }
 
@@ -1772,101 +1359,67 @@
           let prefsArr = [];
           if (tempSpice) prefsArr.push(tempSpice);
           if (tempSalt) prefsArr.push(tempSalt);
-
           let fullName = prefsArr.length > 0 ? `${name} [${prefsArr.join('/')}]` : name;
           let uniqueId = id + '_' + prefsArr.join('_');
           addToCart({ id: uniqueId, name: fullName, price: price, category: "厝邊溫食(炒麵/燴飯)", qty: 1 });
           closeOptModal();
       }
 
-      function closeOptModal() {
-          document.getElementById('optModal').style.display = 'none';
-      }
+      function closeOptModal() { document.getElementById('optModal').style.display = 'none'; }
 
       function renderGrid(category) {
           const displayArea = document.getElementById('menuDisplayArea');
           const noticeBox = document.getElementById('categoryNotice');
           displayArea.innerHTML = '';
-          
-          if (categoryNotices[category]) {
-              noticeBox.innerHTML = categoryNotices[category];
-              noticeBox.style.display = 'block';
-          } else {
-              noticeBox.style.display = 'none';
-          }
+          if (categoryNotices[category]) { noticeBox.innerHTML = categoryNotices[category]; noticeBox.style.display = 'block'; }
+          else { noticeBox.style.display = 'none'; }
 
           if (category === "信仰雞本位主義 (主食)") {
               const container = document.createElement('div');
               container.className = 'chicken-bawi-container';
-
               const headerRow = document.createElement('div');
               headerRow.className = 'bawi-header-row';
               headerRow.innerHTML = '<div>鹹本位</div><div>燻本位</div>';
               container.appendChild(headerRow);
-
               const items = menuData[category];
               for (let i = 0; i < items.length; i += 2) {
                   const row = document.createElement('div');
                   row.className = 'bawi-grid-row';
                   row.appendChild(createCardElement(items[i], category));
-                  if (items[i+1]) {
-                      row.appendChild(createCardElement(items[i+1], category));
-                  }
+                  if (items[i+1]) row.appendChild(createCardElement(items[i+1], category));
                   container.appendChild(row);
               }
               displayArea.appendChild(container);
           } else if (category === "智能合約 (套餐)") {
               const comboContainer = document.createElement('div');
               comboContainer.className = 'combo-vertical-container';
-              menuData[category].forEach(item => {
-                  comboContainer.appendChild(createComboCardElement(item, category));
-              });
+              menuData[category].forEach(item => comboContainer.appendChild(createComboCardElement(item, category)));
               displayArea.appendChild(comboContainer);
           } else {
               const grid = document.createElement('div');
               grid.className = 'grid-container';
-              menuData[category].forEach(item => {
-                  grid.appendChild(createCardElement(item, category));
-              });
+              menuData[category].forEach(item => grid.appendChild(createCardElement(item, category)));
               displayArea.appendChild(grid);
           }
       }
 
       function addToCart(itemObj) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode()) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
           let existing = currentCart.find(c => c.id === itemObj.id);
-          if (existing) {
-              existing.qty++;
-          } else {
-              currentCart.push(itemObj);
-          }
-          updateCartUI();
-          refreshActiveGrid();
+          if (existing) existing.qty++;
+          else currentCart.push(itemObj);
+          updateCartUI(); refreshActiveGrid();
       }
 
       function changeQty(index, delta) {
           if (currentCart[index]) {
               currentCart[index].qty += delta;
-              if (currentCart[index].qty <= 0) {
-                  removeItem(index);
-                  return;
-              }
-              updateCartUI();
-              refreshActiveGrid();
+              if (currentCart[index].qty <= 0) { removeItem(index); return; }
+              updateCartUI(); refreshActiveGrid();
           }
       }
 
       function removeItem(index) {
-          if (currentCart[index]) {
-              currentCart.splice(index, 1);
-              updateCartUI();
-              refreshActiveGrid();
-          }
+          if (currentCart[index]) { currentCart.splice(index, 1); updateCartUI(); refreshActiveGrid(); }
       }
 
       function refreshActiveGrid() {
@@ -1881,27 +1434,12 @@
           const listContainer = document.getElementById('orderList');
           listContainer.innerHTML = '';
           let total = 0;
-
           currentCart.forEach((item, idx) => {
               total += item.price * item.qty;
-              
               const div = document.createElement('div');
               div.className = 'order-item';
-              div.innerHTML = `
-                  <div class="order-item-info">
-                      <div><strong>${item.name}</strong></div>
-                      <div style="font-size:13px; color:#a38c62;">$${item.price} × ${item.qty}</div>
-                  </div>
-                  <div class="order-item-qty">
-                      <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
-                      <span>${item.qty}</span>
-                      <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
-                  </div>
-                  <div class="order-item-price">$${item.price * item.qty}</div>
-                  <button class="delete-item-btn" onclick="removeItem(${idx})" title="刪除品項">✕</button>
-              `;
+              div.innerHTML = `<div class="order-item-info"><div><strong>${item.name}</strong></div><div style="font-size:13px; color:#a38c62;">$${item.price} × ${item.qty}</div></div><div class="order-item-qty"><button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button><span>${item.qty}</span><button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button></div><div class="order-item-price">$${item.price * item.qty}</div><button class="delete-item-btn" onclick="removeItem(${idx})">✕</button>`;
               listContainer.appendChild(div);
-
               if (item.subItems) {
                   item.subItems.forEach(sub => {
                       const subDiv = document.createElement('div');
@@ -1911,11 +1449,7 @@
                   });
               }
           });
-
-          if (orderPrefs.flavor === "泰式+5元") {
-              total += 5;
-          }
-
+          if (orderPrefs.flavor === "泰式+5元") total += 5;
           document.getElementById('totalAmount').innerText = `$${total}`;
       }
 
@@ -1928,13 +1462,8 @@
 
       function toggleAddon(value, btnEl) {
           const idx = orderPrefs.extras.indexOf(value);
-          if (idx > -1) {
-              orderPrefs.extras.splice(idx, 1);
-              btnEl.classList.remove('active');
-          } else {
-              orderPrefs.extras.push(value);
-              btnEl.classList.add('active');
-          }
+          if (idx > -1) { orderPrefs.extras.splice(idx, 1); btnEl.classList.remove('active'); }
+          else { orderPrefs.extras.push(value); btnEl.classList.add('active'); }
       }
 
       function setPayment(method, btnEl) {
@@ -1945,17 +1474,13 @@
 
       function clearCart() {
           currentCart = [];
-          orderPrefs.flavor = "";
-          orderPrefs.spice = "";
-          orderPrefs.salt = "";
-          orderPrefs.extras = [];
+          orderPrefs.flavor = ""; orderPrefs.spice = ""; orderPrefs.salt = ""; orderPrefs.extras = [];
           document.querySelectorAll('.preferences-box .pref-btn').forEach(b => b.classList.remove('active'));
           document.getElementById('custName').value = '';
           document.getElementById('custPhone').value = '';
           document.getElementById('custNotes').value = '';
           setDefaultPickupTime();
-          updateCartUI();
-          refreshActiveGrid();
+          updateCartUI(); refreshActiveGrid();
       }
 
       function reindexOrderNumbers(bizDateStr) {
@@ -1982,74 +1507,27 @@
           let phoneQuery = prompt("請輸入下單時填寫的手機號碼 (09xxxxxxx):");
           if (!phoneQuery) return;
           phoneQuery = phoneQuery.trim();
-
           const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           const matches = history.filter(o => o.phone && o.phone.trim() === phoneQuery);
-
-          if (matches.length === 0) {
-              alert(`查無手機號碼【${phoneQuery}】的訂單紀錄，請確認號碼是否輸入正確。`);
-              return;
-          }
-
+          if (matches.length === 0) { alert(`查無此手機號碼的訂單紀錄`); return; }
           let lastOrder = matches[matches.length - 1];
-          let statusText = "";
-
-          if (lastOrder.status === "已被店家拒絕") {
-              statusText = "🔴 您的訂單已被店家取消/拒絕";
-          } else if (lastOrder.status === "已完成") {
-              statusText = "🔵 餐點已完成 (可前來取餐)";
-          } else if (lastOrder.status === "待顧客取餐") {
-              statusText = "🟡 餐點製作完成，等待顧客取餐";
-          } else if (lastOrder.status === "已接單") {
-              statusText = "🟢 店家已接單 (餐點製作中)";
-          } else {
-              statusText = "🟡 等待店家接單中";
-          }
-
-          let currentItemsStr = lastOrder.items.map(i => `${i.name}x${i.qty}`).join('、');
-
-          alert(`訂單編號: ${lastOrder.orderNo}\n訂購人: ${lastOrder.customer}\n預計取餐時間: ${lastOrder.pickupTime}\n目前總額: $${lastOrder.total}\n目前品項: ${currentItemsStr}\n\n目前狀態：${statusText}`);
+          alert(`訂單編號: ${lastOrder.orderNo}\n訂購人: ${lastOrder.customer}\n目前狀態：${lastOrder.status || '等待接單'}`);
       }
 
-      function openQuickAcceptModal() {
-          renderQuickAcceptList();
-          document.getElementById('quickAcceptModal').style.display = 'flex';
-      }
+      function openQuickAcceptModal() { renderQuickAcceptList(); document.getElementById('quickAcceptModal').style.display = 'flex'; }
+      function closeQuickAcceptModal() { document.getElementById('quickAcceptModal').style.display = 'none'; activeCashOrderIndex = null; }
 
-      function closeQuickAcceptModal() {
-          document.getElementById('quickAcceptModal').style.display = 'none';
-          activeCashOrderIndex = null;
-      }
-
-      function getCustomerCRMInfo(phone, currentOrderId) {
+      function getCustomerCRMInfo(phone) {
           if (!phone || phone === "0900000000") return null;
           const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          const pastOrders = history.filter(o => o.phone === phone && o.id !== currentOrderId);
-          const visitCount = pastOrders.length + 1;
-
-          if (pastOrders.length === 0) {
-              return { visitCount: 1, lastPref: "首次消費新客" };
-          }
-
-          let lastOrd = pastOrders[pastOrders.length - 1];
-          let flavorStr = "";
-          if (lastOrd.prefs) {
-              let parts = [];
-              if (lastOrd.prefs.flavor) parts.push(lastOrd.prefs.flavor);
-              if (lastOrd.prefs.spice) parts.push(lastOrd.prefs.spice);
-              if (lastOrd.prefs.salt) parts.push(lastOrd.prefs.salt);
-              flavorStr = parts.join("/");
-          }
-          let lastItems = lastOrd.items.map(i => i.name).join('、');
-          let prefSummary = flavorStr ? `${flavorStr} | 品項: ${lastItems}` : lastItems;
-
-          return { visitCount: visitCount, lastPref: prefSummary };
+          const pastOrders = history.filter(o => o.phone === phone);
+          if (pastOrders.length === 0) return null;
+          return { visitCount: pastOrders.length };
       }
 
       function renderQuickAcceptList() {
           const container = document.getElementById('quickAcceptContainer');
           container.innerHTML = '';
-
           const history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           const pendingOrders = history.map((ord, idx) => ({ ...ord, originalIndex: idx })).filter(o => !o.status || o.status === "等待接單" || o.status === "已接單" || o.status === "待顧客取餐");
 
@@ -2061,102 +1539,23 @@
           pendingOrders.forEach(ord => {
               const card = document.createElement('div');
               card.className = 'quick-accept-card';
-              
-              const crmInfo = getCustomerCRMInfo(ord.phone, ord.id);
-              let crmBadgeHtml = '';
-              if (crmInfo) {
-                  crmBadgeHtml = `
-                      <div style="background:#1a110a; border:1px solid var(--border-gold); padding:6px 10px; border-radius:4px; margin-bottom:8px; font-size:13px; color:#f3e5ab;">
-                          🔥 <strong>【熟客標籤】</strong>第 <strong style="color:var(--primary-gold);">${crmInfo.visitCount}</strong>次消費 | 上次喜好：${crmInfo.lastPref}
-                      </div>
-                  `;
-              }
-
               let itemsHtml = '';
               ord.items.forEach((item, itemIdx) => {
                   let subNames = item.subItems ? ` <span style="font-size:12px; color:#a38c62;">(${item.subItems.map(s=>s.name).join(', ')})</span>` : '';
-                  itemsHtml += `
-                      <div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0; background:#140f0a; padding:4px 8px; border-radius:4px;">
-                          <span style="flex:2;">${item.name}${subNames} ($${item.price})</span>
-                          <div style="display:flex; align-items:center; gap:6px;">
-                              <button class="qty-btn" style="width:24px; height:24px; font-size:12px;" onclick="quickChangeItemQty(${ord.originalIndex}, ${itemIdx}, -1)">-</button>
-                              <span style="font-weight:bold; min-width:20px; text-align:center;">${item.qty}</span>
-                              <button class="qty-btn" style="width:24px; height:24px; font-size:12px;" onclick="quickChangeItemQty(${ord.originalIndex}, ${itemIdx}, 1)">+</button>
-                              <button class="delete-item-btn" style="width:22px; height:22px; font-size:11px;" onclick="quickRemoveItem(${ord.originalIndex}, ${itemIdx})">✕</button>
-                          </div>
-                      </div>
-                  `;
+                  itemsHtml += `<div style="display:flex; justify-content:space-between; margin:4px 0; background:#140f0a; padding:4px 8px; border-radius:4px;"><span style="flex:2;">${item.name}${subNames} x${item.qty} ($${item.price})</span></div>`;
               });
-
               let flavorStr = (ord.prefs && (ord.prefs.flavor || ord.prefs.spice || ord.prefs.salt)) ? `${ord.prefs.flavor || ''} ${ord.prefs.spice || ''} ${ord.prefs.salt || ''}`.trim() : '無';
 
               let actionButtonsHtml = '';
-              let cashBoxHtml = '';
-
               if (!ord.status || ord.status === "等待接單") {
-                  actionButtonsHtml = `
-                      <button class="accept-btn-accept" onclick="quickAcceptOrder(${ord.originalIndex})">🟢 接單</button>
-                      <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
-                  `;
+                  actionButtonsHtml = `<button class="accept-btn-accept" onclick="quickAcceptOrder(${ord.originalIndex})">🟢 接單</button><button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>`;
               } else if (ord.status === "已接單") {
-                  if (ord.payment === '現金') {
-                      actionButtonsHtml = `
-                          <button class="accept-btn-done" style="flex:2;" onclick="clickFinishOrder(${ord.originalIndex})">✔️ 完成 (結帳/找零)</button>
-                          <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
-                      `;
-
-                      if (activeCashOrderIndex === ord.originalIndex) {
-                          cashBoxHtml = `
-                              <div class="cash-box-inline">
-                                  <div style="font-size:15px; margin-bottom:8px; font-weight:bold; color:var(--primary-gold);">💵 現金收銀與找零計算</div>
-                                  <div style="font-size:14px; margin-bottom:8px;">應收總額：<strong style="color:#fff1cd; font-size:17px;">$${ord.total}</strong></div>
-                                  <div class="input-row" style="margin-bottom:8px;">
-                                      <span class="input-label" style="min-width:70px; font-size:13px;">實收現金:</span>
-                                     <input type="number" id="cashGivenInput_${ord.originalIndex}" class="input-field" placeholder="請輸入實收金額" oninput="calculateInlineChange(${ord.originalIndex})">
-                                  </div>
-                                  <div style="font-size:15px; font-weight:bold; color:#81c784; margin-bottom:10px; background:#1a110a; padding:8px; border-radius:4px; border:1px solid var(--border-gold);" id="changeResultText_${ord.originalIndex}">
-                                      應找零錢：$0
-                                  </div>
-                                  <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmInlineCashAndFinish(${ord.originalIndex})">確認完成找零 (進入待取餐)</button>
-                              </div>
-                          `;
-                      }
-                  } else {
-                      actionButtonsHtml = `
-                          <button class="accept-btn-done" style="flex:2;" onclick="quickUpdateStatus(${ord.originalIndex}, '待顧客取餐')">✔️ 完成 (進入待取餐)</button>
-                          <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
-                      `;
-                  }
+                  actionButtonsHtml = `<button class="accept-btn-done" style="flex:2;" onclick="quickUpdateStatus(${ord.originalIndex}, '待顧客取餐')">✔️ 完成 (待取餐)</button><button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>`;
               } else if (ord.status === "待顧客取餐") {
-                  actionButtonsHtml = `
-                      <button class="accept-btn-accept" style="flex:1; background:linear-gradient(135deg, #1565c0, #0d47a1);" onclick="clickPickupDone(${ord.originalIndex})">🔵 已取餐 (狀態改為已完成)</button>
-                      <button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>
-                  `;
+                  actionButtonsHtml = `<button class="accept-btn-accept" style="flex:1; background:linear-gradient(135deg, #1565c0, #0d47a1);" onclick="clickPickupDone(${ord.originalIndex})">🔵 已取餐 (完成)</button><button class="accept-btn-reject" onclick="confirmRejectOrder(${ord.originalIndex})">🔴 拒單</button>`;
               }
 
-              card.innerHTML = `
-                  <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; border-bottom:1px dashed var(--border-gold); padding-bottom:6px; margin-bottom:8px;">
-                      <span><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong> ${ord.customer} (${ord.phone})</span>
-                      <span style="color:var(--primary-gold);">$${ord.total} (${ord.payment})</span>
-                  </div>
-                  ${crmBadgeHtml}
-                  <div style="font-size:14px; line-height:1.5; margin-bottom:8px;">
-                      <div>📅 訂單日期：<strong style="color:#f3e5ab;">${ord.date}</strong></div>
-                      <div>🕒 預計取餐：<strong style="color:#f3e5ab;">${ord.pickupTime}</strong></div>
-                      <div>🧂 調味口味：${flavorStr}</div>
-                      <div>📝 顧客備註：${ord.custNotes || '無'}</div>
-                      <div>📌 目前狀態：<strong style="color:${ord.status === '待顧客取餐' ? '#ff9800' : (ord.status === '已接單' ? '#81c784' : '#f3e5ab')};">${ord.status || '等待接單'}</strong></div>
-                      <div style="margin-top:6px; font-weight:bold; color:var(--primary-gold);">🍗 訂購品項與數量調整：</div>
-                      <div style="max-height:150px; overflow-y:auto; margin-top:4px;">${itemsHtml}</div>
-                  </div>
-                  <div style="display:flex; gap:6px; margin-bottom:8px;">
-                      <button class="header-btn" style="flex:1; background:#3d2b1a; font-size:13px;" onclick="openItemEditModal(${ord.originalIndex})">+ 新增品項</button>
-                  </div>
-                  <div class="accept-btn-group">
-                      ${actionButtonsHtml}
-                  </div>
-                  ${cashBoxHtml}
-              `;
+              card.innerHTML = `<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; border-bottom:1px dashed var(--border-gold); padding-bottom:6px; margin-bottom:8px;"><span><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong> ${ord.customer} (${ord.phone})</span><span style="color:var(--primary-gold);">$${ord.total} (${ord.payment})</span></div><div style="font-size:14px; line-height:1.5; margin-bottom:8px;"><div>📅 日期：${ord.date}</div><div>🕒 取餐：${ord.pickupTime}</div><div>🧂 口味：${flavorStr}</div><div>📝 備註：${ord.custNotes || '無'}</div><div>📌 狀態：<strong>${ord.status || '等待接單'}</strong></div><div style="margin-top:6px; font-weight:bold; color:var(--primary-gold);">品項：</div>${itemsHtml}</div><div class="accept-btn-group">${actionButtonsHtml}</div>`;
               container.appendChild(card);
           });
       }
@@ -2166,66 +1565,19 @@
           if (history[originalIndex]) {
               history[originalIndex].status = "已接單";
               localStorage.setItem('pos_order_history', JSON.stringify(history));
-              updatePendingCountHeader();
-              renderQuickAcceptList();
+              updatePendingCountHeader(); renderQuickAcceptList();
               syncOrderToCloud(history[originalIndex], "append");
-              playSound('accept');
           }
       }
 
-      function clickFinishOrder(originalIndex) {
+      function quickUpdateStatus(originalIndex, newStatus) {
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          let ord = history[originalIndex];
-          if (!ord) return;
-
-          if (ord.payment === '現金') {
-              activeCashOrderIndex = originalIndex;
-              renderQuickAcceptList();
-              setTimeout(() => {
-                  const inputElem = document.getElementById(`cashGivenInput_${originalIndex}`);
-                  if (inputElem) inputElem.focus();
-              }, 100);
-          } else {
-              quickUpdateStatus(originalIndex, '待顧客取餐');
+          if (history[originalIndex]) {
+              history[originalIndex].status = newStatus;
+              if (newStatus === "已完成") syncOrderToCloud(history[originalIndex], "append");
+              localStorage.setItem('pos_order_history', JSON.stringify(history));
+              updatePendingCountHeader(); renderQuickAcceptList();
           }
-      }
-
-      function calculateInlineChange(originalIndex) {
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          let ord = history[originalIndex];
-          if (!ord) return;
-
-          let givenInput = document.getElementById(`cashGivenInput_${originalIndex}`);
-          let changeResultElem = document.getElementById(`changeResultText_${originalIndex}`);
-          if (!givenInput || !changeResultElem) return;
-
-          let given = parseFloat(givenInput.value) || 0;
-          let change = given - ord.total;
-          
-          if (change >= 0) {
-              changeResultElem.innerText = `應找零錢：$${change}`;
-              changeResultElem.style.color = '#81c784';
-          } else {
-              changeResultElem.innerText = `金額不足！還差：$${Math.abs(change)}`;
-              changeResultElem.style.color = '#ff9999';
-          }
-      }
-
-      function confirmInlineCashAndFinish(originalIndex) {
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          let ord = history[originalIndex];
-          if (!ord) return;
-
-          let givenInput = document.getElementById(`cashGivenInput_${originalIndex}`);
-          let given = givenInput ? (parseFloat(givenInput.value) || 0) : 0;
-
-          if (given < ord.total) {
-              alert("實收現金小於應收總額，請確認金額！");
-              return;
-          }
-
-          activeCashOrderIndex = null;
-          quickUpdateStatus(originalIndex, '待顧客取餐');
       }
 
       function clickPickupDone(originalIndex) {
@@ -2234,569 +1586,120 @@
       }
 
       function confirmRejectOrder(originalIndex) {
-          if (confirm("確定要拒絕/取消這筆訂單嗎？取消後資料將完全刪除！")) {
+          if (confirm("確定要拒絕/取消這項訂單嗎？")) {
               let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
               let targetOrd = history[originalIndex];
               if (targetOrd) {
                   let bizDate = targetOrd.date;
                   history.splice(originalIndex, 1);
                   localStorage.setItem('pos_order_history', JSON.stringify(history));
-                  
                   reindexOrderNumbers(bizDate);
-                  
-                  updatePendingCountHeader();
-                  renderQuickAcceptList();
-
+                  updatePendingCountHeader(); renderQuickAcceptList();
                   syncOrderToCloud(targetOrd, "delete");
                   playSound('reject');
               }
           }
       }
 
-      function quickChangeItemQty(orderIndex, itemIdx, delta) {
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          if (history[orderIndex] && history[orderIndex].items[itemIdx]) {
-              history[orderIndex].items[itemIdx].qty += delta;
-              if (history[orderIndex].items[itemIdx].qty <= 0) {
-                  history[orderIndex].items.splice(itemIdx, 1);
-              }
-              calculateOrderFinalTotal(history[orderIndex]);
-              localStorage.setItem('pos_order_history', JSON.stringify(history));
-              renderQuickAcceptList();
-          }
-      }
-
-      function quickRemoveItem(orderIndex, itemIdx) {
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          if (history[orderIndex] && history[orderIndex].items[itemIdx]) {
-              history[orderIndex].items.splice(itemIdx, 1);
-              calculateOrderFinalTotal(history[orderIndex]);
-              localStorage.setItem('pos_order_history', JSON.stringify(history));
-              renderQuickAcceptList();
-          }
-      }
-
-      function quickUpdateStatus(originalIndex, newStatus) {
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          if (history[originalIndex]) {
-              history[originalIndex].status = newStatus;
-
-              if (newStatus === "已完成") {
-                  syncOrderToCloud(history[originalIndex], "append");
-              }
-
-              localStorage.setItem('pos_order_history', JSON.stringify(history));
-              updatePendingCountHeader();
-              renderQuickAcceptList();
-          }
-      }
-
       function submitOrder(isBackdate = false) {
-          const currentStatus = getStoreStatus();
-          if (currentStatus !== "營業中" && !isUserAdminMode() && !isBackdate) {
-              alert(`現在店家${currentStatus}`);
-              return;
-          }
-
-          if (currentCart.length === 0) {
-              alert("購物車是空的，請先選擇餐點！");
-              return;
-          }
-
+          if (currentCart.length === 0) { alert("購物車是空的！"); return; }
           let custName = document.getElementById('custName').value.trim();
           let custPhone = document.getElementById('custPhone').value.trim();
           const pickupTimeRaw = document.getElementById('pickupTime').value;
           const custNotes = document.getElementById('custNotes').value.trim();
 
-          if (!custName) {
-              if (isUserAdminMode() && isBackdate) {
-                  custName = "補單客戶";
-              } else {
-                  alert("請填寫【訂購人】才可完成下單！");
-                  document.getElementById('custName').focus();
-                  return;
-              }
-          }
-
-          if (!isUserAdminMode()) {
-              const phoneRegex = /^09\d{8}$/;
-              if (!phoneRegex.test(custPhone)) {
-                  alert("手機號碼格式錯誤！請輸入正確的手機號碼 (例如：0912345678，共10碼數字)");
-                  document.getElementById('custPhone').focus();
-                  return;
-              }
-          } else {
-              if (!custPhone) custPhone = "0900000000";
-          }
-
-          if (!pickupTimeRaw) {
-              alert("請選擇【取餐時間】才可完成下單！");
-              return;
-          }
+          if (!custName) { alert("請填寫訂購人！"); return; }
+          if (!pickupTimeRaw) { alert("請選擇取餐時間！"); return; }
 
           let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
           const pickupDateObj = new Date(datePart);
-          const pickupWeekDayStr = !isNaN(pickupDateObj.getTime()) ? weekDaysArr[pickupDateObj.getDay()] : "";
-          
-          let formattedPickupTime = `${pickupTimeRaw}`;
-          if (pickupWeekDayStr && !formattedPickupTime.includes('星期')) {
-              formattedPickupTime += ` (${pickupWeekDayStr})`;
-          }
-
           let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
-          if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
-              bizDateObj.setDate(bizDateObj.getDate() - 1);
-          }
+          if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) bizDateObj.setDate(bizDateObj.getDate() - 1);
           
           let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
-          
           let timeStr = pickupTimeRaw.split(' ')[1] || "00:00";
           let weekDayStr = weekDaysArr[bizDateObj.getDay()];
 
-          let subtotal = 0;
-          currentCart.forEach(item => {
-              subtotal += item.price * item.qty;
-          });
-          if (orderPrefs.flavor === "泰式+5元") {
-              subtotal += 5;
-          }
-
-          let allNotesParts = [];
-          if (orderPrefs.extras.length > 0) {
-              allNotesParts.push(orderPrefs.extras.join(', '));
-          }
-          if (custNotes) {
-              allNotesParts.push(custNotes);
-          }
-          let finalCustNotes = allNotesParts.join(' / ');
-
-          const orderStatus = isBackdate ? "已完成" : "等待接單";
-
-          let finalPrefs = {};
-          if (orderPrefs.flavor) finalPrefs.flavor = orderPrefs.flavor;
-          if (orderPrefs.spice) finalPrefs.spice = orderPrefs.spice;
-          if (orderPrefs.salt) finalPrefs.salt = orderPrefs.salt;
-          if (orderPrefs.extras.length > 0) finalPrefs.extras = orderPrefs.extras;
+          let subtotal = currentCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+          if (orderPrefs.flavor === "泰式+5元") subtotal += 5;
 
           const orderPayload = {
               id: Date.now(),
               orderNo: "",
-              status: orderStatus,
+              status: isBackdate ? "已完成" : "等待接單",
               date: dateStr,
               weekDay: weekDayStr,
               time: timeStr,
-              fullTime: `${dateStr} ${timeStr}`,
               customer: custName,
-              phone: custPhone,
-              pickupTime: formattedPickupTime,
-              custNotes: finalCustNotes,
-              originalTotal: subtotal,
+              phone: custPhone || "0900000000",
+              pickupTime: pickupTimeRaw,
+              custNotes: custNotes,
               total: subtotal,
-              discountPercent: 100,
-              deductAmount: 0,
-              discountNote: "",
               payment: currentPayment,
-              prefs: finalPrefs,
-              items: currentCart.map(item => ({
-                  name: item.name,
-                  qty: item.qty,
-                  price: item.price,
-                  subItems: item.subItems ? item.subItems.map(s => ({ name: s.name, price: 0 })) : null
-              }))
+              prefs: orderPrefs,
+              items: currentCart.map(item => ({ name: item.name, qty: item.qty, price: item.price, subItems: item.subItems }))
           };
 
           saveOrderToHistory(orderPayload);
           let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           let savedOrder = history.find(o => o.id === orderPayload.id);
+          if (savedOrder) syncOrderToCloud(savedOrder, "append");
 
           if (isBackdate) {
-              if (savedOrder) syncOrderToCloud(savedOrder, "append");
-              playSound('done');
-              alert(`[${savedOrder ? savedOrder.orderNo : ''}] 已成功補單完成！已自動歸類至指定日期：${dateStr} (${weekDayStr})，並已同步備份至雲端。`);
+              alert("已成功補單完成！");
               clearCart();
               return;
           }
-
-          if (savedOrder) syncOrderToCloud(savedOrder, "append");
 
           const modal = document.getElementById('receiptModal');
           const content = document.getElementById('receiptContent');
           const displayNo = savedOrder ? savedOrder.orderNo : '#000';
           
-          let receiptHtml = `
-              <button class="modal-close-x" onclick="closeReceipt()">✕</button>
-
-              <div class="receipt-header">
-                  <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
-                  <p style="font-size:13px; color:#a89269;">點單明細收據 (流水號: <strong style="color:var(--primary-gold);">${displayNo}</strong>)</p>
-              </div>
-              
-              <div style="background:#fff3cd; color:#856404; padding:8px; font-size:13px; text-align:center; border-radius:4px; margin-bottom:10px; font-weight:bold;">
-                  💡 流水號：${displayNo} | 電話查詢：${custPhone}
-              </div>
-              <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custName}</span></div>
-              <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${custPhone}</span></div>
-              <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${formattedPickupTime}</span></div>
-              <div class="receipt-line"><span>歸屬日期:</span> <span style="font-weight:bold; color:var(--primary-gold);">${dateStr} (${weekDayStr})</span></div>
-              <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span>${currentPayment}</span></div>
-              
-              <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
-              <div class="receipt-line"><span>口味:</span> <span>${orderPayload.prefs.flavor || '無'}</span></div>
-              <div class="receipt-line"><span>辣度:</span> <span>${orderPayload.prefs.spice || '無'}</span></div>
-              <div class="receipt-line"><span>鹹度:</span> <span>${orderPayload.prefs.salt || '無'}</span></div>
-              <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>備註/配備:</span> <span>${finalCustNotes || '無'}</span></div>
-              
-              <div style="margin: 10px 0; font-weight:bold; font-size:15px; color:var(--text-gold);">【點購品項】</div>
-          `;
-
-          currentCart.forEach(item => {
-              let itemCost = item.price * item.qty;
-              receiptHtml += `
-                  <div class="receipt-line">
-                      <span>${item.name} x ${item.qty}</span>
-                      <span>$${itemCost}</span>
-                  </div>
-              `;
-              if (item.subItems) {
-                  item.subItems.forEach(sub => {
-                      receiptHtml += `
-                          <div class="receipt-line" style="padding-left:15px; font-size:13px; color:#a89269;">
-                              <span>└ ${sub.name}</span>
-                              <span>$0</span>
-                          </div>
-                      `;
-                  });
-              }
-          });
-
-          if (orderPrefs.flavor === "泰式+5元") {
-              receiptHtml += `<div class="receipt-line"><span>泰式口味加價</span><span>$5</span></div>`;
-          }
-
-          receiptHtml += `
-              <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:17px; color:var(--primary-gold);" class="receipt-line">
-                  <span>總計金額:</span>
-                  <span>$${subtotal}</span>
-              </div>
-          `;
-
-          content.innerHTML = receiptHtml;
+          content.innerHTML = `<button class="modal-close-x" onclick="closeReceipt()">✕</button><div class="receipt-header"><h3>去中心鹹水雞 X 厝邊溫食</h3><p>流水號: <strong>${displayNo}</strong></p></div><div class="receipt-line"><span>訂購人:</span> <span>${custName}</span></div><div class="receipt-line"><span>總計:</span> <span>$${subtotal}</span></div><button class="btn btn-submit" style="width:100%; margin-top:10px;" onclick="closeReceipt()">確定</button>`;
           modal.style.display = 'flex';
       }
 
-      function closeReceipt() {
-          document.getElementById('receiptModal').style.display = 'none';
-          clearCart();
-      }
+      function closeReceipt() { document.getElementById('receiptModal').style.display = 'none'; clearCart(); }
 
       function openOrderManager() {
           localOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           setTodaySearch();
           document.getElementById('adminMgmtModal').style.display = 'flex';
       }
-
-      function closeOrderManager() {
-          document.getElementById('adminMgmtModal').style.display = 'none';
-      }
-
+      function closeOrderManager() { document.getElementById('adminMgmtModal').style.display = 'none'; }
       function setTodaySearch() {
           const today = new Date();
-          const yyyy = today.getFullYear();
-          const mm = String(today.getMonth() + 1).padStart(2, '0');
-          const dd = String(today.getDate()).padStart(2, '0');
-          document.getElementById('searchDateSingle').value = `${yyyy}-${mm}-${dd}`;
-          document.getElementById('searchKeywordInput').value = '';
+          document.getElementById('searchDateSingle').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
           filterOrderMgmtTable();
       }
-
       function shiftSearchDate(days) {
           const dateInput = document.getElementById('searchDateSingle');
-          let val = dateInput.value;
-          let targetDate = val ? new Date(val) : new Date();
-          if (isNaN(targetDate.getTime())) targetDate = new Date();
-
-          targetDate.setDate(targetDate.getDate() + days);
-
-          const yyyy = targetDate.getFullYear();
-          const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
-          const dd = String(targetDate.getDate()).padStart(2, '0');
-          dateInput.value = `${yyyy}-${mm}-${dd}`;
+          let dt = dateInput.value ? new Date(dateInput.value) : new Date();
+          dt.setDate(dt.getDate() + days);
+          dateInput.value = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
           filterOrderMgmtTable();
       }
-
-      function calculateOrderFinalTotal(ord) {
-          let baseTotal = 0;
-          ord.items.forEach(it => {
-              baseTotal += (it.price * it.qty);
-          });
-          ord.originalTotal = baseTotal;
-
-          let currentTotal = baseTotal;
-
-          let p = parseFloat(ord.discountPercent);
-          if (!isNaN(p) && p > 0 && p < 100) {
-              currentTotal = Math.round(currentTotal * (p / 100));
-          }
-
-          let d = parseInt(ord.deductAmount);
-          if (!isNaN(d) && d > 0) {
-              currentTotal = Math.max(0, currentTotal - d);
-          }
-
-          ord.total = currentTotal;
-
-          let notes = [];
-          if (!isNaN(p) && p > 0 && p < 100) {
-              notes.push(`折扣${p}%(-$${baseTotal - Math.round(baseTotal * (p / 100))})`);
-          }
-          if (!isNaN(d) && d > 0) {
-              notes.push(`折讓-$${d}`);
-          }
-          ord.discountNote = notes.join(" ");
-      }
-
       function filterOrderMgmtTable() {
           const dateVal = document.getElementById('searchDateSingle').value;
-          const keywordQuery = document.getElementById('searchKeywordInput').value.trim().toLowerCase();
-
-          const filtered = localOrderHistory.filter(ord => {
-              let ordDateStandard = ord.date ? ord.date.replace(/\//g, '-') : "";
-              
-              let matchDate = true;
-              if (dateVal && ordDateStandard !== dateVal) matchDate = false;
-
-              let matchKeyword = !keywordQuery || 
-                  (ord.customer && ord.customer.toLowerCase().includes(keywordQuery)) || 
-                  (ord.phone && ord.phone.toLowerCase().includes(keywordQuery));
-
-              return matchDate && matchKeyword;
-          });
-
-          renderOrderMgmtTable(filtered, true);
+          const filtered = localOrderHistory.filter(ord => !dateVal || (ord.date && ord.date.replace(/\//g, '-') === dateVal));
+          renderOrderMgmtTable(filtered);
       }
-
-      function clearOrderSearchFilters() {
-          document.getElementById('searchDateSingle').value = '';
-          document.getElementById('searchKeywordInput').value = '';
-          renderOrderMgmtTable(localOrderHistory, false);
-      }
-
-      function renderOrderMgmtTable(ordersToRender, isFiltered = false) {
+      function renderOrderMgmtTable(orders) {
           const tbody = document.getElementById('mgmtTableBody');
           tbody.innerHTML = '';
-          
-          const totalCount = localOrderHistory.length;
-          const displayCount = isFiltered ? ordersToRender.length : totalCount;
-          document.getElementById('mgmtOrderCount').innerText = `篩選結果：${displayCount} / ${totalCount} 筆`;
-
-          if (ordersToRender.length === 0) {
-              tbody.innerHTML = `<tr><td colspan="10" style="padding:20px; color:#888;">沒有找到符合指定條件的歷史訂單紀錄</td></tr>`;
-              return;
-          }
-
-          ordersToRender.forEach((ord) => {
+          document.getElementById('mgmtOrderCount').innerText = `總計：${orders.length} 筆`;
+          orders.forEach(ord => {
               const realIndex = localOrderHistory.findIndex(item => item.id === ord.id);
-
-              if (ord.discountPercent === undefined) ord.discountPercent = 100;
-              if (ord.deductAmount === undefined) ord.deductAmount = 0;
-              calculateOrderFinalTotal(ord);
-
-              let flavorFullStr = "";
-              if (ord.prefs) {
-                  let fParts = [];
-                  if (ord.prefs.flavor) fParts.push(ord.prefs.flavor);
-                  if (ord.prefs.spice) fParts.push(ord.prefs.spice);
-                  if (ord.prefs.salt) fParts.push(ord.prefs.salt);
-                  flavorFullStr = fParts.join(" ");
-              }
-
-              let displayTime = ord.time || "";
-
+              let flavorFullStr = ord.prefs ? `${ord.prefs.flavor||''} ${ord.prefs.spice||''} ${ord.prefs.salt||''}`.trim() : "";
               const tr = document.createElement('tr');
-              tr.innerHTML = `
-                  <td><strong style="color:var(--primary-gold);">${ord.orderNo || '#000'}</strong><br><input type="text" class="edit-input" style="max-width:90px;" value="${ord.date}" onchange="autoSaveHistoryItem(${realIndex}, 'date', this.value)"><br><span style="font-size:11px; color:#a89269;">${ord.weekDay || ''}</span> <input type="text" class="edit-input" style="max-width:60px; display:inline-block;" value="${displayTime}" onchange="autoSaveHistoryItem(${realIndex}, 'time', this.value)"></td>
-                  <td><input type="text" class="edit-input" value="${ord.customer}" onchange="autoSaveHistoryItem(${realIndex}, 'customer', this.value)"></td>
-                  <td><input type="text" class="edit-input" value="${ord.phone || ''}" placeholder="電話" onchange="autoSaveHistoryItem(${realIndex}, 'phone', this.value)"></td>
-                  <td>
-                      <div class="discount-container">
-                          <div style="font-size:12px;">折數: <input type="number" class="edit-input" style="width:50px;" value="${ord.discountPercent}" onchange="autoSaveHistoryDiscount(${realIndex}, 'discountPercent', this.value)"> %</div>
-                          <div style="font-size:12px;">扣錢: $<input type="number" class="edit-input" style="width:50px;" value="${ord.deductAmount}" onchange="autoSaveHistoryDiscount(${realIndex}, 'deductAmount', this.value)"></div>
-                      </div>
-                  </td>
-                  <td style="font-weight:bold; color:var(--primary-gold); font-size:15px;" id="mgmtTotal_${realIndex}">$${ord.total}</td>
-                  <td>
-                      <select class="edit-input" onchange="autoSaveHistoryItem(${realIndex}, 'payment', this.value)">
-                          <option value="現金" ${ord.payment === '現金' ? 'selected' : ''}>現金</option>
-                          <option value="轉帳" ${ord.payment === '轉帳' ? 'selected' : ''}>轉帳</option>
-                          <option value="Linepay" ${ord.payment === 'Linepay' ? 'selected' : ''}>Linepay</option>
-                          <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
-                      </select>
-                  </td>
-                  <td><button style="background:#543f24; color:#fff; border:1px solid var(--border-gold); padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="openItemEditModal(${realIndex})">調整品項 (${ord.items.length})</button></td>
-                  <td><input type="text" class="edit-input" value="${flavorFullStr}" onchange="autoSaveHistoryFlavorFull(${realIndex}, this.value)"></td>
-                  <td><input type="text" class="edit-input" value="${ord.custNotes || ''}" onchange="autoSaveHistoryItem(${realIndex}, 'custNotes', this.value)"></td>
-                  <td><button style="background:#8b1e0f; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;" onclick="deleteHistoryOrder(${realIndex})">刪除</button></td>
-              `;
+              tr.innerHTML = `<td><strong>${ord.orderNo||''}</strong><br>${ord.date}</td><td>${ord.customer}</td><td>${ord.phone}</td><td>-</td><td style="color:var(--primary-gold);">$${ord.total}</td><td>${ord.payment}</td><td>(${ord.items.length}項)</td><td>${flavorFullStr}</td><td>${ord.custNotes||''}</td><td><button style="background:#8b1e0f; color:#fff; border:none; padding:4px 8px; border-radius:4px;" onclick="deleteHistoryOrder(${realIndex})">刪除</button></td>`;
               tbody.appendChild(tr);
           });
       }
-
-      function commitAndSync(index) {
-          localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
-          updatePendingCountHeader();
-          if (localOrderHistory[index]) {
-              syncOrderToCloud(localOrderHistory[index], "update");
-          }
-      }
-
-      function autoSaveHistoryItem(index, key, val) {
-          localOrderHistory[index][key] = val;
-          if (key === 'date') {
-              let parts = val.split('/');
-              if (parts.length === 3) {
-                  let dt = new Date(`${parts[0]}-${parts[1]}-${parts[2]}`);
-                  if (!isNaN(dt.getTime())) {
-                      localOrderHistory[index].weekDay = weekDaysArr[dt.getDay()];
-                      reindexOrderNumbers(val);
-                  }
-              }
-          }
-          commitAndSync(index);
-      }
-
-      function autoSaveHistoryFlavorFull(index, val) {
-          if (!localOrderHistory[index].prefs) localOrderHistory[index].prefs = {};
-          let parts = val.split(' ');
-          localOrderHistory[index].prefs.flavor = parts[0] || '';
-          localOrderHistory[index].prefs.spice = parts[1] || '';
-          localOrderHistory[index].prefs.salt = parts[2] || '';
-          commitAndSync(index);
-      }
-
-      function autoSaveHistoryDiscount(index, key, val) {
-          localOrderHistory[index][key] = val;
-          calculateOrderFinalTotal(localOrderHistory[index]);
-          const totalCell = document.getElementById(`mgmtTotal_${index}`);
-          if (totalCell) totalCell.innerText = `$${localOrderHistory[index].total}`;
-          commitAndSync(index);
-      }
-
-      function openItemEditModal(index) {
-          closeQuickAcceptModal();
-          currentEditingOrderIndex = index;
-          renderItemEditList();
-          document.getElementById('itemEditModal').style.display = 'flex';
-      }
-
-      function closeItemEditModal() {
-          if (currentEditingOrderIndex !== null && localOrderHistory[currentEditingOrderIndex]) {
-              calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-              commitAndSync(currentEditingOrderIndex);
-              filterOrderMgmtTable();
-          }
-          document.getElementById('itemEditModal').style.display = 'none';
-          openQuickAcceptModal();
-      }
-
-      function renderItemEditList() {
-          const container = document.getElementById('itemEditContainer');
-          container.innerHTML = '';
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          let ord = history[currentEditingOrderIndex];
-          if (!ord) return;
-
-          ord.items.forEach((item, itemIdx) => {
-              const div = document.createElement('div');
-              div.style.cssText = "display:flex; gap:6px; align-items:center; margin-bottom:10px;";
-              div.innerHTML = `
-                  <input type="text" class="edit-input" style="flex:2;" value="${item.name}" onchange="updateItemDetailAuto(${currentEditingOrderIndex}, ${itemIdx}, 'name', this.value)">
-                  <span style="font-size:13px;">數量:</span>
-                  <input type="number" class="edit-input" style="width:50px;" value="${item.qty}" onchange="updateItemDetailAuto(${currentEditingOrderIndex}, ${itemIdx}, 'qty', parseInt(this.value))">
-                  <span style="font-size:13px;">單價:</span>
-                  <input type="number" class="edit-input" style="width:60px;" value="${item.price}" onchange="updateItemDetailAuto(${currentEditingOrderIndex}, ${itemIdx}, 'price', parseInt(this.value))">
-                  <button style="background:#8b1e0f; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;" onclick="removeItemFromEditingOrderAuto(${currentEditingOrderIndex}, ${itemIdx})">✕</button>
-              `;
-              container.appendChild(div);
-          });
-      }
-
-      function updateItemDetailAuto(orderIdx, itemIdx, field, value) {
-          if (localOrderHistory[orderIdx] && localOrderHistory[orderIdx].items[itemIdx]) {
-              localOrderHistory[orderIdx].items[itemIdx][field] = value;
-              calculateOrderFinalTotal(localOrderHistory[orderIdx]);
-              commitAndSync(orderIdx);
-              renderItemEditList();
-          }
-      }
-
-      function removeItemFromEditingOrderAuto(orderIdx, itemIdx) {
-          if (localOrderHistory[orderIdx] && localOrderHistory[orderIdx].items[itemIdx]) {
-              localOrderHistory[orderIdx].items.splice(itemIdx, 1);
-              calculateOrderFinalTotal(localOrderHistory[orderIdx]);
-              commitAndSync(orderIdx);
-              renderItemEditList();
-          }
-      }
-
-      function showMenuSelectModalForEdit() {
-          const dropdown = document.getElementById('menuSelectDropdown');
-          dropdown.innerHTML = '';
-          
-          flatMenuOptions.forEach((opt, idx) => {
-              let optionElem = document.createElement('option');
-              optionElem.value = idx;
-              optionElem.text = `[${opt.category}] ${opt.name} ($${opt.price})`;
-              dropdown.appendChild(optionElem);
-          });
-
-          updateSelectedMenuPricePreview();
-          document.getElementById('menuSelectModal').style.display = 'flex';
-      }
-
-      function updateSelectedMenuPricePreview() {
-          const dropdown = document.getElementById('menuSelectDropdown');
-          const selectedIdx = dropdown.value;
-          if (flatMenuOptions[selectedIdx]) {
-              document.getElementById('menuSelectPricePreview').innerText = `預設單價：$${flatMenuOptions[selectedIdx].price}`;
-          }
-      }
-
-      function confirmAddSelectedItemToOrder() {
-          const dropdown = document.getElementById('menuSelectDropdown');
-          const selectedIdx = dropdown.value;
-          const opt = flatMenuOptions[selectedIdx];
-
-          if (opt) {
-              if (localOrderHistory[currentEditingOrderIndex]) {
-                  localOrderHistory[currentEditingOrderIndex].items.push({
-                      name: opt.name,
-                      qty: 1,
-                      price: opt.price,
-                      subItems: null
-                  });
-                  calculateOrderFinalTotal(localOrderHistory[currentEditingOrderIndex]);
-                  commitAndSync(currentEditingOrderIndex);
-                  renderItemEditList();
-              }
-              closeMenuSelectModal();
-          }
-      }
-
-      function closeMenuSelectModal() {
-          document.getElementById('menuSelectModal').style.display = 'none';
-      }
-
       function deleteHistoryOrder(index) {
-          if (confirm("確定要刪除這筆訂單嗎？")) {
-              let deletedOrd = localOrderHistory[index];
-              let bizDate = deletedOrd ? deletedOrd.date : "";
+          if (confirm("確定刪除？")) {
               localOrderHistory.splice(index, 1);
-              if (bizDate) reindexOrderNumbers(bizDate);
               localStorage.setItem('pos_order_history', JSON.stringify(localOrderHistory));
-              updatePendingCountHeader();
-              if (deletedOrd) {
-                  syncOrderToCloud(deletedOrd, "delete");
-              }
               filterOrderMgmtTable();
           }
       }
