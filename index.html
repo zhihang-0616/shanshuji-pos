@@ -301,18 +301,28 @@
           <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">填寫取餐資訊</h3>
 
+          <!-- 新增訂單類型選擇：外帶自取 / 現場點餐 -->
+          <div style="margin-bottom:10px; display:flex; gap:10px;">
+              <button type="button" class="btn" id="orderTypeTakeoutBtn" style="background:var(--gold-gradient); color:#1a0c00;" onclick="switchOrderType('外帶自取')">外帶自取</button>
+              <button type="button" class="btn" id="orderTypeOnsiteBtn" style="background:#170f09; color:#d1bd97; border:1px solid #543f24;" onclick="switchOrderType('現場點餐')">現場點餐</button>
+          </div>
+
           <div class="customer-info-box" style="margin-bottom:12px; border-radius:6px; border:1px solid var(--border-gold);">
-              <div class="input-row">
-                    <span class="input-label">訂購人*:</span>
+              <div class="input-row" id="rowCustName">
+                    <span class="input-label" id="labelCustName">訂購人*:</span>
                     <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
               </div>
-              <div class="input-row">
+              <div class="input-row" id="rowCustPhone">
                     <span class="input-label" id="phoneLable">電話*:</span>
                     <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
               </div>
               <div class="input-row">
                     <span class="input-label">取餐時間*:</span>
                     <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
+                    <!-- 現場點餐專用即時勾選框 -->
+                    <label id="instantCheckLabel" style="display:none; align-items:center; gap:4px; font-size:13px; color:var(--primary-gold); white-space:nowrap; cursor:pointer;">
+                        <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer;"> 即時
+                    </label>
                     <span id="weekdayBadge" class="weekday-badge">星期--</span>
               </div>
               <div class="input-row">
@@ -452,6 +462,7 @@
                           <th style="padding:8px; white-space:nowrap;">流水號</th>
                           <th style="padding:8px; white-space:nowrap;">訂單ID</th>
                           <th style="padding:8px; white-space:nowrap;">狀態</th>
+                          <th style="padding:8px; white-space:nowrap;">類型</th>
                           <th style="padding:8px; white-space:nowrap;">日期</th>
                           <th style="padding:8px; white-space:nowrap;">星期</th>
                           <th style="padding:8px; white-space:nowrap;">時間</th>
@@ -586,9 +597,10 @@
       let isLoggedMgr = false;
       let cachedMenuData = null;
       let cachedStoreStatus = "營業中";
-      let cachedPrepUntil = 0; // 備料中自動解鎖的時間戳記
+      let cachedPrepUntil = 0; 
       let cachedLiveOrders = [];
       let pendingPrepStatusVal = "備料中";
+      let currentOrderType = "外帶自取"; // 預設類型
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -722,19 +734,15 @@
           let now = new Date();
           let currentMs = now.getTime();
           
-          // 計算當天凌晨 02:00 作為極限時間
           let maxLimitDate = new Date(now);
           if (now.getHours() < 5) {
-              // 如果本來就在半夜，極限就是當天 02:00
               maxLimitDate.setHours(2, 0, 0, 0);
           } else {
-              // 否則極限是隔日凌晨 02:00
               maxLimitDate.setDate(maxLimitDate.getDate() + 1);
               maxLimitDate.setHours(2, 0, 0, 0);
           }
           let maxLimitMs = maxLimitDate.getTime();
 
-          // 以 30 分鐘 (1800000 毫秒) 為單位遞增
           let stepMs = 30 * 60 * 1000;
           let nextSlotMs = Math.ceil(currentMs / stepMs) * stepMs;
           if (nextSlotMs <= currentMs) nextSlotMs += stepMs;
@@ -1090,46 +1098,121 @@
       let isHistorySelectMode = false;
       let pendingCashOrderId = null;
 
+      function switchOrderType(type) {
+          currentOrderType = type;
+          const takeoutBtn = document.getElementById('orderTypeTakeoutBtn');
+          const onsiteBtn = document.getElementById('orderTypeOnsiteBtn');
+          const rowCustName = document.getElementById('rowCustName');
+          const rowCustPhone = document.getElementById('rowCustPhone');
+          const instantLabel = document.getElementById('instantCheckLabel');
+
+          if (type === '外帶自取') {
+              takeoutBtn.style.background = 'var(--gold-gradient)';
+              takeoutBtn.style.color = '#1a0c00';
+              takeoutBtn.style.border = 'none';
+
+              onsiteBtn.style.background = '#170f09';
+              onsiteBtn.style.color = '#d1bd97';
+              onsiteBtn.style.border = '1px solid #543f24';
+
+              rowCustName.style.display = 'flex';
+              rowCustPhone.style.display = 'flex';
+              instantLabel.style.display = 'none';
+              document.getElementById('isInstantOrder').checked = false;
+              document.getElementById('pickupTime').disabled = false;
+          } else {
+              onsiteBtn.style.background = 'var(--gold-gradient)';
+              onsiteBtn.style.color = '#1a0c00';
+              onsiteBtn.style.border = 'none';
+
+              takeoutBtn.style.background = '#170f09';
+              takeoutBtn.style.color = '#d1bd97';
+              takeoutBtn.style.border = '1px solid #543f24';
+
+              rowCustName.style.display = 'none';
+              rowCustPhone.style.display = 'none';
+              instantLabel.style.display = 'flex';
+          }
+          setDefaultPickupTime();
+      }
+
+      function toggleInstantOrder(checkbox) {
+          const pickupTimeInput = document.getElementById('pickupTime');
+          if (checkbox.checked) {
+              const now = new Date();
+              let yyyy = now.getFullYear();
+              let mm = String(now.getMonth() + 1).padStart(2, '0');
+              let dd = String(now.getDate()).padStart(2, '0');
+              let hh = String(now.getHours()).padStart(2, '0');
+              let min = String(now.getMinutes()).padStart(2, '0');
+              pickupTimeInput.value = `${yyyy}/${mm}/${dd} ${hh}:${min} (即時)`;
+              pickupTimeInput.disabled = true;
+              updateWeekdayBadge();
+          } else {
+              pickupTimeInput.disabled = false;
+              setDefaultPickupTime();
+          }
+      }
+
       function setDefaultPickupTime() {
+          if (currentOrderType === '現場點餐' && document.getElementById('isInstantOrder').checked) return;
+
           const now = new Date();
-          let yyyy = now.getFullYear();
-          let mm = String(now.getMonth() + 1).padStart(2, '0');
-          let dd = String(now.getDate()).padStart(2, '0');
-          let hh = String(now.getHours()).padStart(2, '0');
-          let min = String(now.getMinutes()).padStart(2, '0');
+          // 外帶自取：當下時間 + 15 分鐘起算，之後以 5 分鐘為單位對齊
+          let addMinutes = (currentOrderType === '外帶自取') ? 15 : 0;
+          let targetTimeMs = now.getTime() + (addMinutes * 60 * 1000);
+          let stepMs = 5 * 60 * 1000;
+          let alignedMs = Math.ceil(targetTimeMs / stepMs) * stepMs;
+          
+          let targetDate = new Date(alignedMs);
+          let yyyy = targetDate.getFullYear();
+          let mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+          let dd = String(targetDate.getDate()).padStart(2, '0');
+          let hh = String(targetDate.getHours()).padStart(2, '0');
+          let min = String(targetDate.getMinutes()).padStart(2, '0');
           
           document.getElementById('pickupTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
           updateWeekdayBadge();
       }
 
       function openPickupTimeModal() {
+          if (currentOrderType === '現場點餐' && document.getElementById('isInstantOrder').checked) return;
+
           const now = new Date();
-          let yyyy = now.getFullYear();
-          let mm = String(now.getMonth() + 1).padStart(2, '0');
-          let dd = String(now.getDate()).padStart(2, '0');
+          let addMinutes = (currentOrderType === '外帶自取') ? 15 : 0;
+          let minAllowedMs = now.getTime() + (addMinutes * 60 * 1000);
+
+          let baseDate = new Date(minAllowedMs);
+          let yyyy = baseDate.getFullYear();
+          let mm = String(baseDate.getMonth() + 1).padStart(2, '0');
+          let dd = String(baseDate.getDate()).padStart(2, '0');
           
           document.getElementById('modalPickupDate').value = `${yyyy}-${mm}-${dd}`;
           
           const selectElem = document.getElementById('modalPickupTimeSelect');
           selectElem.innerHTML = '';
 
+          // 產生 24 小時制時間選項（以 5 分鐘為單位）
           for (let h = 0; h < 27; h++) {
               let actualH = h % 24;
-              for (let m of [0, 30]) {
+              for (let m = 0; m < 60; m += 5) {
                   if (h >= 24 && m > 0) break;
-                  let hStr = String(actualH).padStart(2, '0');
-                  let mStr = String(m).padStart(2, '0');
-                  let timeStr = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
                   
-                  let opt = document.createElement('option');
-                  opt.value = `${hStr}:${mStr}`;
-                  if (h >= 24) opt.dataset.nextDay = "true";
-                  opt.text = timeStr;
-                  
-                  if (actualH === now.getHours() && Math.abs(m - now.getMinutes()) < 30) {
-                      opt.selected = true;
+                  // 組合出完整時間戳記來驗證是否小於限制時間
+                  let checkDate = new Date(`${yyyy}-${mm}-${dd} ${String(actualH).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+                  if (h >= 24) checkDate.setDate(checkDate.getDate() + 1);
+
+                  if (checkDate.getTime() >= minAllowedMs) {
+                      let hStr = String(actualH).padStart(2, '0');
+                      let mStr = String(m).padStart(2, '0');
+                      let timeStr = `${h >= 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
+                      
+                      let opt = document.createElement('option');
+                      opt.value = `${hStr}:${mStr}`;
+                      if (h >= 24) opt.dataset.nextDay = "true";
+                      opt.text = timeStr;
+                      selectElem.appendChild(opt);
                   }
-                  selectElem.appendChild(opt);
               }
           }
 
@@ -1857,7 +1940,8 @@
           document.getElementById('custNotes').value = '';
           document.getElementById('discountPercent').value = '100';
           document.getElementById('discountAmount').value = '0';
-          setDefaultPickupTime();
+          document.getElementById('isInstantOrder').checked = false;
+          switchOrderType('外帶自取');
           updateCartUI();
           refreshActiveGrid();
       }
@@ -1880,6 +1964,7 @@
               alert("購物車是空的，請先選擇餐點！");
               return;
           }
+          switchOrderType('外帶自取');
           updateStep1Total();
           document.getElementById('step1Modal').style.display = 'flex';
       }
@@ -1907,10 +1992,16 @@
           const pickupTimeRaw = document.getElementById('pickupTime').value;
           const custNotes = document.getElementById('custNotes').value.trim();
 
-          if (!custName) {
-              alert("請填寫【訂購人】才可繼續！");
-              document.getElementById('custName').focus();
-              return;
+          // 現場點餐不需要填寫訂購人資訊
+          if (currentOrderType === '外帶自取') {
+              if (!custName) {
+                  alert("請填寫【訂購人】才可繼續！");
+                  document.getElementById('custName').focus();
+                  return;
+              }
+          } else {
+              custName = "現場客";
+              custPhone = "現場";
           }
 
           const isOnlyCuoBian = currentCart.every(item => item.category === "厝邊溫食(炒麵/燴飯)");
@@ -1922,8 +2013,7 @@
               }
           }
 
-          if (isAdminMode) {
-          } else {
+          if (currentOrderType === '外帶自取' && !isAdminMode) {
               const phoneRegex = /^09\d{8}$/;
               if (!phoneRegex.test(custPhone)) {
                   alert("手機號碼格式錯誤！請輸入正確的手機號碼 (共10碼數字)");
@@ -1975,12 +2065,13 @@
 
           pendingOrderPayloadForConfirm = {
               id: Date.now(),
+              orderType: currentOrderType, // 儲存訂單類型
               status: "等待接單",
               date: dateStr,
               weekDay: weekDayStr,
               time: timeStr,
               customer: custName,
-              phone: custPhone || "未填寫",
+              phone: custPhone,
               pickupTime: pickupTimeRaw,
               custNotes: finalCustNotes,
               flavorStr: flavorString,
@@ -2006,7 +2097,7 @@
               <button class="modal-close-x" onclick="closeReceiptModalAndBack()">✕</button>
               <div class="receipt-header">
                   <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
-                  <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
+                  <p style="font-size:13px; color:#a89269;">點單明細收據預覽 [${orderPayload.orderType}]</p>
               </div>
               
               <div style="display:flex; gap:8px; margin-bottom:14px;">
@@ -2014,6 +2105,7 @@
                   <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
               </div>
               
+              <div class="receipt-line"><span>訂單類型:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.orderType}</span></div>
               <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
               <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.phone}</span></div>
               <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.pickupTime}</span></div>
@@ -2136,7 +2228,7 @@
               div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px;";
               div.innerHTML = `
                   <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #5c4524; padding-bottom:6px;">
-                      <span style="font-weight:bold; color:var(--primary-gold);">${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
+                      <span style="font-weight:bold; color:var(--primary-gold);">${ord.orderNo} - [${ord.orderType || '外帶自取'}] ${ord.customer}</span>
                       <span style="font-size:12px; background:#3d2b1a; padding:2px 8px; border-radius:4px; color:#f3e5ab;">狀態: ${ord.status}</span>
                   </div>
                   <div style="font-size:12px; color:#c4ae85;">取餐時間：${ord.pickupTime} | 付款：${ord.payment}</div>
@@ -2347,7 +2439,7 @@
           });
 
           if (filtered.length === 0) {
-              tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:30px; color:#8a7356;">無符合條件的歷史訂單紀錄 📊</td></tr>`;
+              tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding:30px; color:#8a7356;">無符合條件的歷史訂單紀錄 📊</td></tr>`;
               return;
           }
 
@@ -2363,6 +2455,7 @@
                   <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
                   <td style="padding:8px; color:#a89269;">${ord.orderID}</td>
                   <td style="padding:8px;">${ord.status}</td>
+                  <td style="padding:8px; color:#f3e5ab; font-weight:bold;">${ord.orderType || '外帶自取'}</td>
                   <td style="padding:8px;">${ord.date}</td>
                   <td style="padding:8px;">${ord.weekDay}</td>
                   <td style="padding:8px;">${ord.time}</td>
