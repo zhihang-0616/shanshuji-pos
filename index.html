@@ -326,7 +326,12 @@
                         <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer; width:18px; height:18px;"> 即時
                     </label>
               </div>
-              <div class="input-row">
+              <!-- 備註說明：因現場餐點現點現做 實際取餐時間將視情況調整 店家稍後將更新時間 屆時請再行查看 -->
+              <div id="takeoutNoticeBox" style="font-size:12px; color:#d6c29a; margin-top:6px; line-height:1.4; background:#181008; padding:6px 10px; border-radius:4px; border:1px dashed #543f24;">
+                  (因現場餐點現點現做 實際取餐時間將視情況調整 店家稍後將更新時間 屆時請再行查看)
+              </div>
+              
+              <div class="input-row" style="margin-top:10px;">
                     <span class="input-label">顧客備註:</span>
                     <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如:多蒜、少雞油)">
               </div>
@@ -409,6 +414,31 @@
           <button class="modal-close-x" onclick="closeOrderSystemModal()">✕</button>
           <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:16px; font-size:24px;">📋 接單系統 (即時訂單管理)</h3>
           <div id="liveOrderListContainer" style="max-height:70vh; overflow-y:auto; display:flex; flex-direction:column; gap:14px;"></div>
+      </div>
+  </div>
+
+  <!-- 接單時選擇時間與確認 Modal -->
+  <div class="modal" id="acceptOrderModal">
+      <div class="modal-content" style="width:420px; resize:none;">
+          <button class="modal-close-x" onclick="closeAcceptOrderModal()">✕</button>
+          <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center; font-size:20px;">⚡ 確認接單與取餐時間</h3>
+          
+          <div style="font-size:14px; color:#d6c29a; margin-bottom:12px;" id="acceptOrderInfoDesc"></div>
+
+          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+              <div class="input-row">
+                  <span class="input-label" style="min-width:100px;">取餐時間:</span>
+                  <input type="text" id="acceptOrderTimeInput" class="input-field" placeholder="YYYY/MM/DD HH:MM">
+              </div>
+              <div style="font-size:12px; color:#a89269;">
+                  💡 若客人品項太多時間太近，可直接於上方修改取餐時間，再點擊「確認修改並接單」；若時間合適可直接點擊「直接接單」。
+              </div>
+          </div>
+
+          <div style="display:flex; gap:10px;">
+              <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:10px;" onclick="confirmAcceptOrderDirect()">直接接單</button>
+              <button class="btn btn-submit" style="flex:1; padding:10px;" onclick="confirmAcceptOrderWithTimeChange()">確認修改並接單</button>
+          </div>
       </div>
   </div>
 
@@ -579,6 +609,7 @@
       let pendingPrepStatusVal = "備料中";
       let currentOrderType = "外帶自取";
       let isShowingAllHistory = false;
+      let targetAcceptOrderId = null;
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -1098,6 +1129,7 @@
           const rowCustName = document.getElementById('rowCustName');
           const rowCustPhone = document.getElementById('rowCustPhone');
           const instantLabel = document.getElementById('instantCheckLabel');
+          const takeoutNoticeBox = document.getElementById('takeoutNoticeBox');
 
           if (type === '外帶自取') {
               takeoutBtn.style.background = 'var(--gold-gradient)';
@@ -1111,6 +1143,7 @@
               rowCustName.style.display = 'flex';
               rowCustPhone.style.display = 'flex';
               instantLabel.style.display = 'none';
+              takeoutNoticeBox.style.display = 'block';
               document.getElementById('isInstantOrder').checked = false;
               document.getElementById('pickupTime').disabled = false;
           } else {
@@ -1125,6 +1158,7 @@
               rowCustName.style.display = 'none';
               rowCustPhone.style.display = 'none';
               instantLabel.style.display = 'flex';
+              takeoutNoticeBox.style.display = 'none';
           }
           setDefaultPickupTime();
       }
@@ -2089,6 +2123,8 @@
                   <h3 style="margin-bottom:8px; color:var(--text-gold); font-size:20px;">去中心鹹水雞 X 厝邊溫食</h3>
                   <p style="font-size:14px; color:#a89269;">點單明細收據預覽 [${orderPayload.orderType}]</p>
               </div>
+
+              ${orderPayload.orderType === '外帶自取' ? '<div style="background:#3d2b1a; border:1px solid var(--primary-gold); color:#f3e5ab; padding:8px 12px; border-radius:6px; font-size:13px; text-align:center; margin-bottom:12px; font-weight:bold;">⚠️ 提醒：店家還未接單，請勿離開畫面，需等待確認取餐時間</div>' : ''}
               
               <div style="display:flex; gap:10px; margin-bottom:16px;">
                   <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:12px;" onclick="closeReceiptModalAndBack()">上一步</button>
@@ -2254,19 +2290,10 @@
           if (!ord) return;
 
           if (ord.status === "等待接單") {
-              ord.status = "製作中";
-              localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-              syncToServer();
-              
-              fetch(GAS_URL, {
-                  method: 'POST',
-                  mode: 'no-cors',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(ord)
-              }).catch(err => console.error('LINE 通知發送異常:', err));
-
-              renderLiveOrders();
-              updateOrderBadge();
+              targetAcceptOrderId = orderId;
+              document.getElementById('acceptOrderInfoDesc').innerText = `訂單編號: ${ord.orderNo} | 顧客: ${ord.customer}\n原訂取餐時間: ${ord.pickupTime}`;
+              document.getElementById('acceptOrderTimeInput').value = ord.pickupTime;
+              document.getElementById('acceptOrderModal').style.display = 'flex';
           } else if (ord.status === "製作中") {
               ord.status = "待取餐";
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
@@ -2279,6 +2306,60 @@
                   completeOrderToHistory(orderId);
               }
           }
+      }
+
+      function closeAcceptOrderModal() {
+          document.getElementById('acceptOrderModal').style.display = 'none';
+          targetAcceptOrderId = null;
+      }
+
+      function confirmAcceptOrderDirect() {
+          if (!targetAcceptOrderId) return;
+          let ord = cachedLiveOrders.find(o => o.id === targetAcceptOrderId);
+          if (!ord) return;
+
+          ord.status = "製作中";
+          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
+          syncToServer();
+          
+          fetch(GAS_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(ord)
+          }).catch(err => console.error('LINE 通知發送異常:', err));
+
+          closeAcceptOrderModal();
+          renderLiveOrders();
+          updateOrderBadge();
+      }
+
+      function confirmAcceptOrderWithTimeChange() {
+          if (!targetAcceptOrderId) return;
+          let ord = cachedLiveOrders.find(o => o.id === targetAcceptOrderId);
+          if (!ord) return;
+
+          let newTime = document.getElementById('acceptOrderTimeInput').value.trim();
+          if (!newTime) {
+              alert("請輸入有效的取餐時間！");
+              return;
+          }
+
+          ord.pickupTime = newTime;
+          ord.status = "製作中";
+          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
+          syncToServer();
+
+          fetch(GAS_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(ord)
+          }).catch(err => console.error('LINE 通知發送異常:', err));
+
+          closeAcceptOrderModal();
+          renderLiveOrders();
+          updateOrderBadge();
       }
 
       function showInlineCashRegister(ord) {
