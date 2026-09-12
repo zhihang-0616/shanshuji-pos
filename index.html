@@ -463,6 +463,7 @@
              <table style="width:100%; border-collapse:collapse; font-size:14px; text-align:left; min-width:1300px;">
                  <thead>
                      <tr style="border-bottom:2px solid var(--border-gold); color:var(--primary-gold); background:#1a110a;">
+                         <th style="padding:10px; text-align:center; min-width:160px; white-space:nowrap;">操作</th>
                          <th style="padding:10px; display:none; white-space:nowrap;" class="history-select-th">選取</th>
                          <th style="padding:10px; white-space:nowrap;">流水號</th>
                          <th style="padding:10px; white-space:nowrap;">訂單ID</th>
@@ -479,7 +480,6 @@
                          <th style="padding:10px; min-width:220px;">品項內容</th>
                          <th style="padding:10px; min-width:130px;">口味</th>
                          <th style="padding:10px; min-width:160px;">備註</th>
-                         <th style="padding:10px; text-align:center; white-space:nowrap;">操作</th>
                      </tr>
                  </thead>
                  <tbody id="historyTableBody"></tbody>
@@ -1103,10 +1103,8 @@
                              updateTrackingReceiptModal(trackingOrd);
                          }
                      } else {
-                         // 如果在 liveOrders 找不到，檢查是否已經被接單移到歷史或完成了
                          let historyOrd = cachedOrderHistory.find(o => o.id === activeTrackingOrderId);
                          if (historyOrd || !cachedLiveOrders.some(o => o.id === activeTrackingOrderId)) {
-                             // 若不在 liveOrders 中，視為已處理，更新畫面顯示已接單/製作中
                              updateTrackingReceiptModalDirectly();
                          }
                      }
@@ -1489,7 +1487,6 @@
              } catch(e) {}
          }
 
-         // 維持 2 秒輪詢頻率，並在每次輪詢時加強同步檢查
          setInterval(() => {
              checkAutoOpenStatus();
              fetchFromServer();
@@ -2206,7 +2203,6 @@
          cachedLiveOrders.push(pendingOrderPayloadForConfirm);
          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
          
-         // 關鍵優化：下單後立刻強迫向伺服器同步，讓店家端能用最快速度收到通知
          syncToServer();
          
          playSound('new_order');
@@ -2379,7 +2375,6 @@
          ord.status = "製作中";
          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
          
-         // 關鍵優化：接單後立即同步至伺服器並主動抓取，讓客戶端畫面能以最快速度更新
          syncToServer();
          fetchFromServer();
 
@@ -2410,7 +2405,6 @@
          ord.status = "製作中";
          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
          
-         // 關鍵優化：修改時間接單後立即同步與抓取
          syncToServer();
          fetchFromServer();
 
@@ -2426,7 +2420,6 @@
          updateOrderBadge();
      }
 
-     // 統一收銀與結帳畫面
      function showUniversalCashRegister(ord) {
          const panel = document.getElementById(`cash-panel-${ord.id}`);
          if (!panel) return;
@@ -2443,7 +2436,6 @@
                  💳 收銀結帳畫面 (原始金額：$${ord.total})
              </div>
              
-             <!-- 支付方式切換 -->
              <div style="margin-bottom:10px;">
                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">更改支付方式：</label>
                  <div style="display:flex; gap:6px;" id="reg-pay-btns-${ord.id}">
@@ -2454,7 +2446,6 @@
                  </div>
              </div>
 
-             <!-- 折扣與折讓調整選項 -->
              <div style="display:flex; gap:8px; margin-bottom:10px;">
                  <div style="flex:1;">
                      <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">折扣 % (例如 90=9折)：</label>
@@ -2470,7 +2461,6 @@
                  最終應收金額：<span id="regFinalTotal-${ord.id}">$${ord._tempTotal}</span>
              </div>
 
-             <!-- 若選現金才顯示計算框 -->
              <div id="regCashBox-${ord.id}" style="display: ${ord._tempPayment === '現金' ? 'block' : 'none'}; border-top:1px dashed #5c4524; padding-top:10px; margin-bottom:10px;">
                  <div style="margin-bottom:6px;">
                      <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:2px;">實收金額：</label>
@@ -2744,7 +2734,13 @@
              
              let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
              
+             // 操作欄位移至最前面
              tr.innerHTML = `
+                 <td style="padding:10px; text-align:center; white-space:nowrap;">
+                     <button class="header-btn" style="background:#4a148c; padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openEditOrderInfoModal(${ord.id}, 'history')">📝 資訊</button>
+                     <button class="header-btn" style="background:#8b5a00; padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
+                     <button class="header-btn" style="background:#8b1e0f; padding:4px 8px; font-size:12px;" onclick="deleteHistoryOrder(${ord.id})">✕ 刪除</button>
+                 </td>
                  <td style="padding:10px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}" style="width:16px; height:16px;"></td>
                  <td style="padding:10px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
                  <td style="padding:10px; color:#a89269;">${ord.orderID}</td>
@@ -2761,11 +2757,6 @@
                  <td style="padding:10px; max-width:250px; word-break:break-all;">${itemsStr}</td>
                  <td style="padding:10px;">${ord.flavorStr || ''}</td>
                  <td style="padding:10px;">${ord.custNotes || ''}</td>
-                 <td style="padding:10px; text-align:center; white-space:nowrap;">
-                     <button class="header-btn" style="background:#4a148c; padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openEditOrderInfoModal(${ord.id}, 'history')">📝 資訊</button>
-                     <button class="header-btn" style="background:#8b5a00; padding:4px 8px; font-size:12px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
-                     <button class="header-btn" style="background:#8b1e0f; padding:4px 8px; font-size:12px;" onclick="deleteHistoryOrder(${ord.id})">✕ 刪除</button>
-                 </td>
              `;
              tbody.appendChild(tr);
          });
