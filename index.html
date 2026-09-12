@@ -245,17 +245,10 @@
   <div class="modal" id="prepTimeModal">
       <div class="modal-content" style="width:360px; text-align:center; resize:none;">
           <h3 style="color:var(--primary-gold); margin-bottom:12px;">🟡 設定備料時間</h3>
-          <p style="font-size:13px; color:#d6c29a; margin-bottom:14px;">請選擇預計備料多久（30分鐘為單位）：</p>
+          <p style="font-size:13px; color:#d6c29a; margin-bottom:14px;">請選擇預計備料解除的時間（30分鐘為單位，最晚至凌晨02:00）：</p>
           
           <div style="margin-bottom:16px; text-align:left;">
-              <select id="prepMinutesSelect" class="input-field" style="width:100%; font-size:15px; padding:8px;">
-                  <option value="30">30 分鐘</option>
-                  <option value="60" selected>1 小時</option>
-                  <option value="90">1 小時 30 分鐘</option>
-                  <option value="120">2 小時</option>
-                  <option value="150">2 小時 30 分鐘</option>
-                  <option value="180">3 小時</option>
-              </select>
+              <select id="prepTimeSelect" class="input-field" style="width:100%; font-size:15px; padding:8px;"></select>
           </div>
 
           <div style="display:flex; gap:8px;">
@@ -710,6 +703,7 @@
       function handleStoreStatusChange(val) {
           if (val === "備料中") {
               pendingPrepStatusVal = val;
+              populatePrepTimeSelect();
               document.getElementById('prepTimeModal').style.display = 'flex';
           } else {
               cachedStoreStatus = val;
@@ -721,10 +715,66 @@
           }
       }
 
+      function populatePrepTimeSelect() {
+          const select = document.getElementById('prepTimeSelect');
+          select.innerHTML = '';
+          
+          let now = new Date();
+          let currentMs = now.getTime();
+          
+          // 計算當天凌晨 02:00 作為極限時間
+          let maxLimitDate = new Date(now);
+          if (now.getHours() < 5) {
+              // 如果本來就在半夜，極限就是當天 02:00
+              maxLimitDate.setHours(2, 0, 0, 0);
+          } else {
+              // 否則極限是隔日凌晨 02:00
+              maxLimitDate.setDate(maxLimitDate.getDate() + 1);
+              maxLimitDate.setHours(2, 0, 0, 0);
+          }
+          let maxLimitMs = maxLimitDate.getTime();
+
+          // 以 30 分鐘 (1800000 毫秒) 為單位遞增
+          let stepMs = 30 * 60 * 1000;
+          let nextSlotMs = Math.ceil(currentMs / stepMs) * stepMs;
+          if (nextSlotMs <= currentMs) nextSlotMs += stepMs;
+
+          let count = 0;
+          while (nextSlotMs <= maxLimitMs && count < 30) {
+              let slotDate = new Date(nextSlotMs);
+              let h = slotDate.getHours();
+              let m = slotDate.getMinutes();
+              let hStr = String(h).padStart(2, '0');
+              let mStr = String(m).padStart(2, '0');
+              
+              let isNextDay = slotDate.getDate() !== now.getDate() || h < 5;
+              let label = `${isNextDay ? '隔日 ' : ''}${hStr}:${mStr}`;
+              
+              let opt = document.createElement('option');
+              opt.value = nextSlotMs;
+              opt.text = label;
+              select.appendChild(opt);
+
+              nextSlotMs += stepMs;
+              count++;
+          }
+
+          if (select.options.length === 0) {
+              let opt = document.createElement('option');
+              let fallbackMs = currentMs + (30 * 60 * 1000);
+              opt.value = fallbackMs;
+              opt.text = "30分鐘後";
+              select.appendChild(opt);
+          }
+      }
+
       function confirmPrepTimeModal() {
-          let minutes = parseInt(document.getElementById('prepMinutesSelect').value) || 60;
+          let select = document.getElementById('prepTimeSelect');
+          let targetMs = parseInt(select.value);
+          if (!targetMs) return;
+
           cachedStoreStatus = pendingPrepStatusVal;
-          cachedPrepUntil = Date.now() + (minutes * 60 * 1000);
+          cachedPrepUntil = targetMs;
           
           localStorage.setItem('pos_store_status', cachedStoreStatus);
           localStorage.setItem('pos_prep_until', cachedPrepUntil.toString());
@@ -736,7 +786,6 @@
 
       function cancelPrepTimeModal() {
           document.getElementById('prepTimeModal').style.display = 'none';
-          // 恢復原本的選單選項值
           document.getElementById('storeStatusSelect').value = cachedStoreStatus;
       }
 
@@ -764,7 +813,11 @@
           } else if (cachedStoreStatus === '備料中') {
               let remainingMin = Math.ceil((cachedPrepUntil - Date.now()) / (60 * 1000));
               if (remainingMin < 0) remainingMin = 0;
-              submitBtn.innerText = `目前備料中 (約 ${remainingMin} 分鐘後營業)`;
+              
+              let targetDate = new Date(cachedPrepUntil);
+              let targetTimeStr = `${String(targetDate.getHours()).padStart(2, '0')}:${String(targetDate.getMinutes()).padStart(2, '0')}`;
+              
+              submitBtn.innerText = `目前備料中 (預計 ${targetTimeStr} 自動營業，剩 ${remainingMin} 分鐘)`;
               submitBtn.style.opacity = '0.6';
           } else {
               submitBtn.innerText = "下一步 (填寫取餐資訊)";
@@ -1453,9 +1506,11 @@
               return;
           }
           if (cachedStoreStatus === '備料中') {
+              let targetDate = new Date(cachedPrepUntil);
+              let targetTimeStr = `${String(targetDate.getHours()).padStart(2, '0')}:${String(targetDate.getMinutes()).padStart(2, '0')}`;
               let remainingMin = Math.ceil((cachedPrepUntil - Date.now()) / (60 * 1000));
               if (remainingMin < 0) remainingMin = 0;
-              alert(`目前店家正在備料中（預計 ${remainingMin} 分鐘後自動營業），暫停接受點餐！`);
+              alert(`目前店家正在備料中（預計 ${targetTimeStr} 自動恢復營業，剩餘 ${remainingMin} 分鐘），暫停接受點餐！`);
               return;
           }
 
@@ -1814,9 +1869,11 @@
               return;
           }
           if (cachedStoreStatus === '備料中') {
+              let targetDate = new Date(cachedPrepUntil);
+              let targetTimeStr = `${String(targetDate.getHours()).padStart(2, '0')}:${String(targetDate.getMinutes()).padStart(2, '0')}`;
               let remainingMin = Math.ceil((cachedPrepUntil - Date.now()) / (60 * 1000));
               if (remainingMin < 0) remainingMin = 0;
-              alert(`目前店家正在備料中（預計 ${remainingMin} 分鐘後自動營業），暫停接受點餐！`);
+              alert(`目前店家正在備料中（預計 ${targetTimeStr} 自動恢復營業，剩餘 ${remainingMin} 分鐘），暫停接受點餐！`);
               return;
           }
           if (currentCart.length === 0) {
