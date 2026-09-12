@@ -301,7 +301,7 @@
           <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
           <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">填寫取餐資訊</h3>
 
-          <!-- 新增訂單類型選擇：外帶自取 / 現場點餐 -->
+          <!-- 訂單類型選擇：外帶自取 / 現場點餐 -->
           <div style="margin-bottom:10px; display:flex; gap:10px;">
               <button type="button" class="btn" id="orderTypeTakeoutBtn" style="background:var(--gold-gradient); color:#1a0c00;" onclick="switchOrderType('外帶自取')">外帶自取</button>
               <button type="button" class="btn" id="orderTypeOnsiteBtn" style="background:#170f09; color:#d1bd97; border:1px solid #543f24;" onclick="switchOrderType('現場點餐')">現場點餐</button>
@@ -316,14 +316,20 @@
                     <span class="input-label" id="phoneLable">電話*:</span>
                     <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
               </div>
-              <div class="input-row">
-                    <span class="input-label">取餐時間*:</span>
-                    <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
-                    <!-- 現場點餐專用即時勾選框 -->
-                    <label id="instantCheckLabel" style="display:none; align-items:center; gap:4px; font-size:13px; color:var(--primary-gold); white-space:nowrap; cursor:pointer;">
-                        <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer;"> 即時
-                    </label>
-                    <span id="weekdayBadge" class="weekday-badge">星期--</span>
+              <!-- 取餐時間與即時勾選框排版調整 -->
+              <div class="input-row" style="align-items:flex-start;">
+                    <span class="input-label" style="padding-top:6px;">取餐時間*:</span>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
+                            <label id="instantCheckLabel" style="display:none; align-items:center; gap:4px; font-size:13px; color:var(--primary-gold); white-space:nowrap; cursor:pointer;">
+                                <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer;"> 即時
+                            </label>
+                        </div>
+                        <div>
+                            <span id="weekdayBadge" class="weekday-badge">星期--</span>
+                        </div>
+                    </div>
               </div>
               <div class="input-row">
                     <span class="input-label">顧客備註:</span>
@@ -600,7 +606,7 @@
       let cachedPrepUntil = 0; 
       let cachedLiveOrders = [];
       let pendingPrepStatusVal = "備料中";
-      let currentOrderType = "外帶自取"; // 預設類型
+      let currentOrderType = "外帶自取";
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -1158,7 +1164,6 @@
           if (currentOrderType === '現場點餐' && document.getElementById('isInstantOrder').checked) return;
 
           const now = new Date();
-          // 外帶自取：當下時間 + 15 分鐘起算，之後以 5 分鐘為單位對齊
           let addMinutes = (currentOrderType === '外帶自取') ? 15 : 0;
           let targetTimeMs = now.getTime() + (addMinutes * 60 * 1000);
           let stepMs = 5 * 60 * 1000;
@@ -1192,13 +1197,11 @@
           const selectElem = document.getElementById('modalPickupTimeSelect');
           selectElem.innerHTML = '';
 
-          // 產生 24 小時制時間選項（以 5 分鐘為單位）
           for (let h = 0; h < 27; h++) {
               let actualH = h % 24;
               for (let m = 0; m < 60; m += 5) {
                   if (h >= 24 && m > 0) break;
                   
-                  // 組合出完整時間戳記來驗證是否小於限制時間
                   let checkDate = new Date(`${yyyy}-${mm}-${dd} ${String(actualH).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
                   if (h >= 24) checkDate.setDate(checkDate.getDate() + 1);
 
@@ -1992,7 +1995,6 @@
           const pickupTimeRaw = document.getElementById('pickupTime').value;
           const custNotes = document.getElementById('custNotes').value.trim();
 
-          // 現場點餐不需要填寫訂購人資訊
           if (currentOrderType === '外帶自取') {
               if (!custName) {
                   alert("請填寫【訂購人】才可繼續！");
@@ -2065,7 +2067,7 @@
 
           pendingOrderPayloadForConfirm = {
               id: Date.now(),
-              orderType: currentOrderType, // 儲存訂單類型
+              orderType: currentOrderType,
               status: "等待接單",
               date: dateStr,
               weekDay: weekDayStr,
