@@ -907,37 +907,54 @@
           }).catch(err => console.error('同步至伺服器失敗:', err));
       }
 
+      // 【優化核心】改進的背景同步機制：優先讀取本機、增加間隔並只在內容真正有變動時才局部更新畫面
       function fetchFromServer() {
           fetch(GAS_URL + "?action=get_state")
           .then(res => res.json())
           .then(data => {
               if (data && data.success) {
+                  let needRefreshMenu = false;
+                  let needRefreshOrders = false;
+
                   if (data.menuData) {
-                      cachedMenuData = data.menuData;
-                      localStorage.setItem('pos_menu_data', JSON.stringify(data.menuData));
+                      let newMenuStr = JSON.stringify(data.menuData);
+                      let oldMenuStr = localStorage.getItem('pos_menu_data');
+                      if (newMenuStr !== oldMenuStr) {
+                          cachedMenuData = data.menuData;
+                          localStorage.setItem('pos_menu_data', newMenuStr);
+                          needRefreshMenu = true;
+                      }
                   }
-                  if (data.storeStatus) {
+
+                  if (data.storeStatus && data.storeStatus !== cachedStoreStatus) {
                       cachedStoreStatus = data.storeStatus;
                       localStorage.setItem('pos_store_status', data.storeStatus);
                       syncStoreStatusUI();
                   }
+
                   if (data.liveOrders) {
-                      cachedLiveOrders = data.liveOrders;
-                      localStorage.setItem('pos_live_orders', JSON.stringify(data.liveOrders));
-                      updateOrderBadge();
+                      let newOrdersStr = JSON.stringify(data.liveOrders);
+                      let oldOrdersStr = localStorage.getItem('pos_live_orders');
+                      if (newOrdersStr !== oldOrdersStr) {
+                          cachedLiveOrders = data.liveOrders;
+                          localStorage.setItem('pos_live_orders', newOrdersStr);
+                          updateOrderBadge();
+                          needRefreshOrders = true;
+                      }
                   }
-                  refreshMenuTabs();
-                  refreshActiveGrid();
-                  if (document.getElementById('orderSystemModal').style.display === 'flex') {
+
+                  if (needRefreshMenu) {
+                      refreshMenuTabs();
+                      refreshActiveGrid();
+                  }
+
+                  if (needRefreshOrders && document.getElementById('orderSystemModal').style.display === 'flex') {
                       renderLiveOrders();
                   }
               }
           })
           .catch(err => {
-              let savedMenu = localStorage.getItem('pos_menu_data');
-              if (savedMenu) cachedMenuData = JSON.parse(savedMenu);
-              cachedStoreStatus = localStorage.getItem('pos_store_status') || '營業中';
-              cachedLiveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+              console.warn("背景同步暫時無法連線，使用本機快取");
           });
       }
 
@@ -1200,10 +1217,19 @@
 
       function initPOS() {
           checkModeAndAuth();
-          fetchFromServer();
-          setDefaultPickupTime();
+          
+          // 【優化核心】立即從本機 localStorage 渲染畫面，達到「秒開」無延遲
+          cachedMenuData = getMenuData();
+          cachedStoreStatus = localStorage.getItem('pos_store_status') || '營業中';
+          cachedLiveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          
+          syncStoreStatusUI();
+          refreshMenuTabs();
           updateCartUI();
           updateOrderBadge();
+
+          // 啟動後立刻在背景靜默向伺服器同步一次最新狀態
+          fetchFromServer();
           
           let savedSize = localStorage.getItem('pos_history_modal_size');
           if (savedSize) {
@@ -1215,7 +1241,8 @@
               } catch(e) {}
           }
 
-          setInterval(fetchFromServer, 3000);
+          // 【優化核心】將輪詢頻率由 3 秒調整為 6 秒，並透過內容比對避免無意義的畫面重新渲染，大幅降低伺服器負荷與效能消耗
+          setInterval(fetchFromServer, 6000);
       }
 
       function refreshMenuTabs() {
