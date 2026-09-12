@@ -2725,6 +2725,11 @@
              return ord.date === formattedFilterDate;
          });
 
+         // 同步控制表頭 th 的顯示狀態
+         document.querySelectorAll('.history-select-th').forEach(th => {
+             th.style.display = isHistorySelectMode ? 'table-cell' : 'none';
+         });
+
          if (filtered.length === 0) {
              tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding:30px; color:#8a7356;">無符合條件的歷史訂單紀錄📊</td></tr>`;
              return;
