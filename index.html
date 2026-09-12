@@ -145,9 +145,9 @@
  
      .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
      
-     /* 方法一：讓彈出視窗採用內部捲動與固定結構 */
+     /* 方法三：取餐資訊 Modal 與懸浮底部按鈕設計 */
      .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 24px 20px 20px 20px; border-radius: 10px; width: 520px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
-     .modal-scroll-body { flex: 1; overflow-y: auto; padding-right: 4px; margin-bottom: 12px; }
+     .modal-scroll-body { flex: 1; overflow-y: auto; padding-right: 4px; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
      
      .modal-close-x { position: absolute; top: 12px; right: 14px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 34px; height: 34px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; z-index: 10; transition: 0.2s; }
      .modal-close-x:hover { background: #8b1e0f; }
@@ -178,7 +178,11 @@
          .menu-header-title { position: static; transform: none; text-align: center; margin: 4px 0; }
          .header-top-row { flex-direction: column; gap: 8px; align-items: center; }
          .store-info-row { flex-direction: column; gap: 4px; }
-         .modal-content { width: 95vw; padding: 16px; max-height: 90vh; }
+         
+         /* 手機版彈出視窗調整為滿版或安全高度，並確保底部按鈕懸浮固定 */
+         .modal-content { width: 95vw; height: 90vh; max-height: 90vh; padding: 14px 14px 75px 14px; }
+         .modal-scroll-body { height: calc(100vh - 220px); max-height: none; }
+         .action-buttons-sticky { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--paper-bg); padding: 12px 14px; border-top: 1px solid var(--border-gold); border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; box-shadow: 0 -4px 10px rgba(0,0,0,0.6); z-index: 20; }
      }
   </style>
 </head>
@@ -247,7 +251,7 @@
 
  <!-- 備料時間設定 Modal -->
  <div class="modal" id="prepTimeModal">
-     <div class="modal-content" style="width:380px; text-align:center;">
+     <div class="modal-content" style="width:380px; text-align:center; height:auto;">
          <h3 style="color:var(--primary-gold); margin-bottom:12px; font-size:20px;">🟡 設定備料時間</h3>
          <p style="font-size:14px; color:#d6c29a; margin-bottom:14px;">請選擇預計備料解除的時間（30分鐘為單位，最晚至凌晨02:00）：</p>
          
@@ -264,7 +268,7 @@
 
  <!-- 管理模式 Modal -->
  <div class="modal" id="managementModal">
-     <div class="modal-content" style="width:460px;">
+     <div class="modal-content" style="width:460px; height:auto;">
          <button class="modal-close-x" onclick="closeManagementModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:18px; text-align:center; font-size:22px;">⚙️ 管理模式</h3>
          
@@ -277,7 +281,7 @@
 
  <!-- 修改密碼 Modal -->
  <div class="modal" id="changePasswordModal">
-     <div class="modal-content" style="width:420px;">
+     <div class="modal-content" style="width:420px; height:auto;">
          <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center; font-size:20px;">🔑 修改管理密碼</h3>
          
@@ -299,7 +303,7 @@
      </div>
  </div>
 
- <!-- 填寫取餐資訊 Modal (方法一：內部捲動與固定按鈕) -->
+ <!-- 填寫取餐資訊 Modal (方法三：懸浮底部按鈕) -->
  <div class="modal" id="step1Modal">
      <div class="modal-content" style="width:520px;">
          <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
@@ -371,7 +375,7 @@
                   </div>
               </div>
 
-              <div class="summary-box" style="background:#140f0a; border:1px solid var(--border-gold); border-radius:6px; padding:16px;">
+              <div class="summary-box" style="background:#140f0a; border:1px solid var(--border-gold); border-radius:6px; padding:16px; margin-bottom:10px;">
                   <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:15px; color:#d6c29a;">
                       <span>小計金額:</span><span id="step1Subtotal">$0</span>
                   </div>
@@ -388,8 +392,8 @@
               </div>
          </div>
 
-         <!-- 底部固定按鈕區 -->
-         <div class="action-buttons" style="display:flex; gap:10px; flex-shrink:0; border-top:1px solid var(--border-gold); padding-top:12px;">
+         <!-- 底部懸浮按鈕區 -->
+         <div class="action-buttons action-buttons-sticky">
                  <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
                  <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="closeStep1Modal()">上一步</button>
                  <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
@@ -404,7 +408,7 @@
 
  <!-- 客戶訂單查詢結果 Modal -->
  <div class="modal" id="orderQueryModal">
-     <div class="modal-content" style="width:480px;">
+     <div class="modal-content" style="width:480px; height:auto;">
          <button class="modal-close-x" onclick="closeOrderQueryModal()">✕</button>
          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:16px; font-size:22px;">🔍 訂單查詢結果</h3>
          <div id="orderQueryBody" style="font-size:16px; line-height:1.6; color:#eddab2; margin-bottom:20px; display:flex; flex-direction:column; gap:10px;"></div>
@@ -423,7 +427,7 @@
 
  <!-- 接單時選擇時間與確認 Modal -->
  <div class="modal" id="acceptOrderModal">
-     <div class="modal-content" style="width:420px;">
+     <div class="modal-content" style="width:420px; height:auto;">
          <button class="modal-close-x" onclick="closeAcceptOrderModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center; font-size:20px;">⚡ 確認接單與取餐時間</h3>
          
@@ -575,7 +579,7 @@
 
  <!-- 取餐時間選擇 Modal -->
  <div class="modal" id="pickupTimeModal">
-     <div class="modal-content" style="width:380px; text-align:center;">
+     <div class="modal-content" style="width:380px; text-align:center; height:auto;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:16px; font-size:20px;">選擇 24 小時制取餐時間</h3>
          
@@ -594,7 +598,7 @@
  </div>
 
  <div class="modal" id="optModal">
-     <div class="modal-content" id="optModalContent"></div>
+     <div class="modal-content" id="optModalContent" style="height:auto;"></div>
  </div>
 
  <div class="modal" id="soldoutListModal">
