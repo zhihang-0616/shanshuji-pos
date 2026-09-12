@@ -326,7 +326,6 @@
                         <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer; width:18px; height:18px;"> 即時
                     </label>
               </div>
-              <!-- 備註說明：因現場餐點現點現做 實際取餐時間將視情況調整 店家稍後將更新時間 屆時請再行查看 -->
               <div id="takeoutNoticeBox" style="font-size:12px; color:#d6c29a; margin-top:6px; line-height:1.4; background:#181008; padding:6px 10px; border-radius:4px; border:1px dashed #543f24;">
                   (因現場餐點現點現做 實際取餐時間將視情況調整 店家稍後將更新時間 屆時請再行查看)
               </div>
@@ -372,16 +371,6 @@
           <div class="summary-box" style="background:#140f0a; border:1px solid var(--border-gold); border-radius:6px; padding:16px; margin-bottom:16px;">
               <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:15px; color:#d6c29a;">
                   <span>小計金額:</span><span id="step1Subtotal">$0</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:10px;">
-                  <div style="flex:1;">
-                      <label style="font-size:13px; color:#a89269;">折扣 (%數):</label>
-                      <input type="number" id="discountPercent" class="input-field" style="width:100%; padding:6px;" value="100" oninput="updateStep1Total()">
-                  </div>
-                  <div style="flex:1;">
-                      <label style="font-size:13px; color:#a89269;">直接折讓金額 (-$):</label>
-                      <input type="number" id="discountAmount" class="input-field" style="width:100%; padding:6px;" value="0" oninput="updateStep1Total()">
-                  </div>
               </div>
               <div class="total-row" style="margin-bottom:14px; border-top:1px dashed #5c4524; padding-top:10px;">
                     <span>應付總額:</span>
@@ -610,6 +599,7 @@
       let currentOrderType = "外帶自取";
       let isShowingAllHistory = false;
       let targetAcceptOrderId = null;
+      let activeTrackingOrderId = null; 
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -1091,6 +1081,15 @@
                           cachedOrderHistory = data.orderHistory;
                           localStorage.setItem('pos_order_history', newHistoryStr);
                           needRefreshHistory = true;
+                      }
+                  }
+
+                  if (activeTrackingOrderId) {
+                      let trackingOrd = cachedLiveOrders.find(o => o.id === activeTrackingOrderId);
+                      if (trackingOrd) {
+                          if (trackingOrd.status !== "等待接單") {
+                              updateTrackingReceiptModal(trackingOrd);
+                          }
                       }
                   }
 
@@ -1963,8 +1962,6 @@
           document.getElementById('custName').value = '';
           document.getElementById('custPhone').value = '';
           document.getElementById('custNotes').value = '';
-          document.getElementById('discountPercent').value = '100';
-          document.getElementById('discountAmount').value = '0';
           document.getElementById('isInstantOrder').checked = false;
           switchOrderType('外帶自取');
           updateCartUI();
@@ -2002,13 +1999,7 @@
           let subtotal = currentCart.reduce((sum, item) => sum + item.price * item.qty, 0);
           if (orderPrefs.flavor === "泰式+5元") subtotal += 5;
           document.getElementById('step1Subtotal').innerText = `$${subtotal}`;
-          
-          let percent = parseFloat(document.getElementById('discountPercent').value) || 100;
-          let minus = parseFloat(document.getElementById('discountAmount').value) || 0;
-          
-          let finalTotal = Math.round(subtotal * (percent / 100)) - minus;
-          if (finalTotal < 0) finalTotal = 0;
-          document.getElementById('step1TotalAmount').innerText = `$${finalTotal}`;
+          document.getElementById('step1TotalAmount').innerText = `$${subtotal}`;
       }
 
       function goToReceiptPreview() {
@@ -2065,10 +2056,7 @@
 
           let subtotal = currentCart.reduce((sum, item) => sum + item.price * item.qty, 0);
           if (orderPrefs.flavor === "泰式+5元") subtotal += 5;
-          let percent = parseFloat(document.getElementById('discountPercent').value) || 100;
-          let minus = parseFloat(document.getElementById('discountAmount').value) || 0;
-          let finalTotal = Math.round(subtotal * (percent / 100)) - minus;
-          if (finalTotal < 0) finalTotal = 0;
+          let finalTotal = subtotal;
 
           let allNotesParts = [];
           if (orderPrefs.extras.length > 0) {
@@ -2114,6 +2102,7 @@
       }
 
       function showReceiptPreviewModal(orderPayload) {
+          activeTrackingOrderId = null;
           const modal = document.getElementById('receiptModal');
           const content = document.getElementById('receiptContent');
           
@@ -2126,7 +2115,7 @@
 
               ${orderPayload.orderType === '外帶自取' ? '<div style="background:#3d2b1a; border:1px solid var(--primary-gold); color:#f3e5ab; padding:8px 12px; border-radius:6px; font-size:13px; text-align:center; margin-bottom:12px; font-weight:bold;">⚠️ 提醒：店家還未接單，請勿離開畫面，需等待確認取餐時間</div>' : ''}
               
-              <div style="display:flex; gap:10px; margin-bottom:16px;">
+              <div style="display:flex; gap:10px; margin-bottom:16px;" id="previewActionRow">
                   <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:12px;" onclick="closeReceiptModalAndBack()">上一步</button>
                   <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:17px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
               </div>
@@ -2134,7 +2123,7 @@
               <div class="receipt-line"><span>訂單類型:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.orderType}</span></div>
               <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
               <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.phone}</span></div>
-              <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.pickupTime}</span></div>
+              <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);" id="previewPickupTimeText">${orderPayload.pickupTime}</span></div>
               <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:8px;"><span>付款方式:</span> <span>${orderPayload.payment}</span></div>
               
               <div style="margin: 12px 0; font-weight:bold; font-size:15px; color:var(--primary-gold);">【調味/備註配置】</div>
@@ -2176,6 +2165,7 @@
       }
 
       function closeReceiptModalAndBack() {
+          activeTrackingOrderId = null;
           document.getElementById('receiptModal').style.display = 'none';
           document.getElementById('step1Modal').style.display = 'flex';
       }
@@ -2198,10 +2188,50 @@
           syncToServer();
           
           playSound('new_order');
-          document.getElementById('receiptModal').style.display = 'none';
           clearCart();
+
+          activeTrackingOrderId = pendingOrderPayloadForConfirm.id;
           pendingOrderPayloadForConfirm = null;
           updateOrderBadge();
+
+          convertToWaitingStateInModal();
+      }
+
+      function convertToWaitingStateInModal() {
+          const content = document.getElementById('receiptContent');
+          const actionRow = document.getElementById('previewActionRow');
+          if (actionRow) {
+              actionRow.innerHTML = `
+                  <div style="width:100%; text-align:center; background:#2e2213; border:1px solid var(--primary-gold); padding:12px; border-radius:6px; font-weight:bold; color:var(--primary-gold); font-size:15px;">
+                      ⏳ 訂單已送出，正在等待店家確認接單與取餐時間...
+                  </div>
+              `;
+          }
+      }
+
+      function updateTrackingReceiptModal(ord) {
+          const content = document.getElementById('receiptContent');
+          const actionRow = document.getElementById('previewActionRow');
+          const timeSpan = document.getElementById('previewPickupTimeText');
+
+          if (timeSpan) {
+              timeSpan.innerText = ord.pickupTime;
+          }
+
+          if (actionRow) {
+              actionRow.innerHTML = `
+                  <div style="width:100%; display:flex; flex-direction:column; gap:10px; background:#1e7e34; padding:12px; border-radius:6px; border:1px solid #81c784; text-align:center;">
+                      <div style="font-weight:bold; color:#fff; font-size:16px;">✅ 已接單！已取餐</div>
+                      <div style="font-size:14px; color:#e6ffe6;">取餐時間為：${ord.pickupTime}</div>
+                      <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px; margin-top:4px;" onclick="closeTrackingModal()">關閉視窗</button>
+                  </div>
+              `;
+          }
+      }
+
+      function closeTrackingModal() {
+          activeTrackingOrderId = null;
+          document.getElementById('receiptModal').style.display = 'none';
       }
 
       function updateOrderBadge() {
