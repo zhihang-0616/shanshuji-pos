@@ -1043,6 +1043,9 @@
              mode: 'no-cors',
              headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify(payload)
+         }).then(() => {
+             // 優化：發送同步後立即主動抓取一次，提升即時反應速度
+             fetchFromServer();
          }).catch(err => console.error('同步至伺服器失敗:', err));
      }
 
@@ -1480,10 +1483,11 @@
              } catch(e) {}
          }
 
+         // 優化：將輪詢頻率從 4 秒 (4000) 縮短至 2 秒 (2000)
          setInterval(() => {
              checkAutoOpenStatus();
              fetchFromServer();
-         }, 4000);
+         }, 2000);
      }
 
      function refreshMenuTabs() {
@@ -2284,7 +2288,7 @@
                  btnText = "完成";
                  btnBg = "linear-gradient(135deg, #004080, #002040)";
              } else if (ord.status === "待取餐") {
-                 btnText = "結帳"; // 修改處：已取餐(結帳) 改為 結帳
+                 btnText = "結帳";
                  btnBg = "linear-gradient(135deg, #b26a00, #663800)";
              }
 
@@ -2454,7 +2458,7 @@
 
              <div style="display:flex; gap:8px;">
                  <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:8px;" onclick="cancelUniversalCash(${ord.id})">取消</button>
-                 <button class="btn btn-submit" style="flex:1; padding:8px; font-size:15px;" onclick="confirmUniversalCash(${ord.id})">已取餐</button> <!-- 修改處：已取餐(完成結帳) 改為 已取餐 -->
+                 <button class="btn btn-submit" style="flex:1; padding:8px; font-size:15px;" onclick="confirmUniversalCash(${ord.id})">已取餐</button>
              </div>
          `;
      }
