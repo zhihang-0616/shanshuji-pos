@@ -2284,7 +2284,7 @@
                  btnText = "完成";
                  btnBg = "linear-gradient(135deg, #004080, #002040)";
              } else if (ord.status === "待取餐") {
-                 btnText = "已取餐 (結帳)";
+                 btnText = "結帳"; // 修改處：已取餐(結帳) 改為 結帳
                  btnBg = "linear-gradient(135deg, #b26a00, #663800)";
              }
 
@@ -2396,7 +2396,7 @@
          updateOrderBadge();
      }
 
-     // 統一收銀與結帳畫面（新增 折扣% 與 折讓金額 兩個選項）
+     // 統一收銀與結帳畫面
      function showUniversalCashRegister(ord) {
          const panel = document.getElementById(`cash-panel-${ord.id}`);
          if (!panel) return;
@@ -2405,8 +2405,8 @@
          
          if (ord._tempTotal === undefined) ord._tempTotal = ord.total;
          if (ord._tempPayment === undefined) ord._tempPayment = ord.payment;
-         if (ord._discountPct === undefined) ord._discountPct = 100; // 預設 100% (不打折)
-         if (ord._discountVal === undefined) ord._discountVal = 0;   // 預設折讓 0 元
+         if (ord._discountPct === undefined) ord._discountPct = 100;
+         if (ord._discountVal === undefined) ord._discountVal = 0;
 
          panel.innerHTML = `
              <div style="font-size:16px; font-weight:bold; color:#fcedcb; margin-bottom:10px; text-align:center;">
@@ -2454,7 +2454,7 @@
 
              <div style="display:flex; gap:8px;">
                  <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:8px;" onclick="cancelUniversalCash(${ord.id})">取消</button>
-                 <button class="btn btn-submit" style="flex:1; padding:8px; font-size:15px;" onclick="confirmUniversalCash(${ord.id})">已取餐 (完成結帳)</button>
+                 <button class="btn btn-submit" style="flex:1; padding:8px; font-size:15px;" onclick="confirmUniversalCash(${ord.id})">已取餐</button> <!-- 修改處：已取餐(完成結帳) 改為 已取餐 -->
              </div>
          `;
      }
@@ -2490,10 +2490,6 @@
          if (isNaN(val) || val < 0) val = 0;
          ord._discountVal = val;
 
-         // 計算邏輯：先乘上折扣%（例如 90 / 100），再減去折讓金額
-         let originalSubtotal = ord.total; 
-         // 如果需要用「最初點餐原始金額」計算，可以保留。這裡用 ord.total 當基礎。
-         // 為了避免重複計算，我們用一開始的原始總額來算：若還沒記錄原始總額，先記著
          if (ord._originalTotal === undefined) {
              ord._originalTotal = ord.total;
          }
