@@ -144,10 +144,7 @@
      .btn-submit:hover { filter: brightness(1.15); }
  
      .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 100; }
-     
-     /* 方法三：取餐資訊 Modal 與懸浮底部按鈕設計 */
-     .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 24px 20px 20px 20px; border-radius: 10px; width: 520px; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; }
-     .modal-scroll-body { flex: 1; overflow-y: auto; padding-right: 4px; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
+     .modal-content { background: var(--paper-bg); color: var(--text-gold); padding: 32px 28px 28px 28px; border-radius: 10px; width: 520px; max-height: 92vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.8); border: 2px solid var(--border-gold); position: relative; resize: both; }
      
      .modal-close-x { position: absolute; top: 12px; right: 14px; background: #3d2b1a; color: #fff; border: 1px solid var(--border-gold); width: 34px; height: 34px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 17px; z-index: 10; transition: 0.2s; }
      .modal-close-x:hover { background: #8b1e0f; }
@@ -179,10 +176,10 @@
          .header-top-row { flex-direction: column; gap: 8px; align-items: center; }
          .store-info-row { flex-direction: column; gap: 4px; }
          
-         /* 手機版彈出視窗調整為滿版或安全高度，並確保底部按鈕懸浮固定 */
-         .modal-content { width: 95vw; height: 90vh; max-height: 90vh; padding: 14px 14px 75px 14px; }
-         .modal-scroll-body { height: calc(100vh - 220px); max-height: none; }
-         .action-buttons-sticky { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--paper-bg); padding: 12px 14px; border-top: 1px solid var(--border-gold); border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; box-shadow: 0 -4px 10px rgba(0,0,0,0.6); z-index: 20; }
+         /* 方法三：手機版彈出視窗改成滿版，並將底部按鈕列懸浮固定 */
+         .modal { align-items: flex-end; padding: 0; }
+         .modal-content { width: 100vw !important; max-height: 90vh !important; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding: 20px 16px 85px 16px !important; resize: none !important; }
+         .step1-action-buttons-container { position: fixed !important; bottom: 0; left: 0; width: 100vw; background: #1a110a; border-top: 1px solid var(--border-gold); padding: 10px 16px; z-index: 120; box-shadow: 0 -4px 12px rgba(0,0,0,0.8); }
      }
   </style>
 </head>
@@ -251,7 +248,7 @@
 
  <!-- 備料時間設定 Modal -->
  <div class="modal" id="prepTimeModal">
-     <div class="modal-content" style="width:380px; text-align:center; height:auto;">
+     <div class="modal-content" style="width:380px; text-align:center; resize:none;">
          <h3 style="color:var(--primary-gold); margin-bottom:12px; font-size:20px;">🟡 設定備料時間</h3>
          <p style="font-size:14px; color:#d6c29a; margin-bottom:14px;">請選擇預計備料解除的時間（30分鐘為單位，最晚至凌晨02:00）：</p>
          
@@ -268,7 +265,7 @@
 
  <!-- 管理模式 Modal -->
  <div class="modal" id="managementModal">
-     <div class="modal-content" style="width:460px; height:auto;">
+     <div class="modal-content" style="width:460px; resize:none;">
          <button class="modal-close-x" onclick="closeManagementModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:18px; text-align:center; font-size:22px;">⚙️ 管理模式</h3>
          
@@ -281,7 +278,7 @@
 
  <!-- 修改密碼 Modal -->
  <div class="modal" id="changePasswordModal">
-     <div class="modal-content" style="width:420px; height:auto;">
+     <div class="modal-content" style="width:420px; resize:none;">
          <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center; font-size:20px;">🔑 修改管理密碼</h3>
          
@@ -303,97 +300,95 @@
      </div>
  </div>
 
- <!-- 填寫取餐資訊 Modal (方法三：懸浮底部按鈕) -->
+ <!-- 填寫取餐資訊 Modal -->
  <div class="modal" id="step1Modal">
-     <div class="modal-content" style="width:520px;">
+     <div class="modal-content" style="width:520px; resize:none;">
          <button class="modal-close-x" onclick="closeStep1Modal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center; font-size:22px; flex-shrink:0;">填寫取餐資訊</h3>
+         <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center; font-size:22px;">填寫取餐資訊</h3>
 
-         <div class="modal-scroll-body">
-              <!-- 訂單類型選擇 -->
-              <div style="margin-bottom:14px; display:flex; gap:10px;">
-                  <button type="button" class="btn" id="orderTypeTakeoutBtn" style="background:var(--gold-gradient); color:#1a0c00; padding:12px;" onclick="switchOrderType('外帶自取')">外帶自取</button>
-                  <button type="button" class="btn" id="orderTypeOnsiteBtn" style="background:#170f09; color:#d1bd97; border:1px solid #543f24; padding:12px;" onclick="switchOrderType('現場點餐')">現場點餐</button>
-              </div>
-
-              <div class="customer-info-box" style="margin-bottom:14px; border-radius:6px; border:1px solid var(--border-gold);">
-                  <div class="input-row" id="rowCustName">
-                        <span class="input-label" id="labelCustName">訂購人*:</span>
-                        <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
-                  </div>
-                  <div class="input-row" id="rowCustPhone">
-                        <span class="input-label" id="phoneLable">電話*:</span>
-                        <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
-                  </div>
-                  <div class="input-row">
-                        <span class="input-label">取餐時間*:</span>
-                        <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
-                        <span id="weekdayBadge" class="weekday-badge">星期--</span>
-                        <label id="instantCheckLabel" style="display:none; align-items:center; gap:6px; font-size:15px; color:var(--primary-gold); white-space:nowrap; cursor:pointer;">
-                            <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer; width:18px; height:18px;"> 即時
-                        </label>
-                  </div>
-                  <div id="takeoutNoticeBox" style="font-size:12px; color:#d6c29a; margin-top:6px; line-height:1.4; background:#181008; padding:6px 10px; border-radius:4px; border:1px dashed #543f24;">
-                      (因現場餐點現點現做 實際取餐時間將視情況調整 店家稍後將更新時間屆時請再行查看)
-                  </div>
-                  
-                  <div class="input-row" style="margin-top:10px;">
-                        <span class="input-label">顧客備註:</span>
-                        <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如:多蒜、少雞油)">
-                  </div>
-              </div>
-
-              <div class="preferences-box" id="preferencesBoxSection" style="margin-bottom:14px; border-radius:6px; border:1px solid var(--border-gold);">
-                  <div class="pref-header">倉位調整(選取口味)</div>
-                  <div class="pref-group">
-                        <span class="pref-label">口味*:</span>
-                        <button class="pref-btn" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
-                        <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
-                        <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
-                  </div>
-                  <div class="pref-group">
-                        <span class="pref-label">辣度*:</span>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
-                        <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
-                  </div>
-                  <div class="pref-group">
-                        <span class="pref-label">鹹度*:</span>
-                        <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
-                        <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
-                        <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
-                  </div>
-                  <div class="pref-group" style="margin-top:6px; border-top:1px dashed #543f24; padding-top:6px;">
-                        <span class="pref-label">配備:</span>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食分開裝" onclick="handleAddonClick('麵食分開裝', this)">麵食分開裝</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食裝一起" onclick="handleAddonClick('麵食裝一起', this)">麵食裝一起</button>
-                        <button class="pref-btn" data-pref-type="extra" data-pref-val="多數麵分開裝" onclick="handleAddonClick('多數麵分開裝', this)">多數麵分開裝</button>
-                        <div class="eco-notice">🌱 依法不主動提供免洗餐具</div>
-                  </div>
-              </div>
-
-              <div class="summary-box" style="background:#140f0a; border:1px solid var(--border-gold); border-radius:6px; padding:16px; margin-bottom:10px;">
-                  <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:15px; color:#d6c29a;">
-                      <span>小計金額:</span><span id="step1Subtotal">$0</span>
-                  </div>
-                  <div class="total-row" style="margin-bottom:14px; border-top:1px dashed #5c4524; padding-top:10px;">
-                          <span>應付總額:</span>
-                          <span id="step1TotalAmount">$0</span>
-                  </div>
-                  <div class="payment-methods" id="payMethods">
-                          <button class="pay-btn active" onclick="setPayment('現金', this)">現金</button>
-                          <button class="pay-btn" onclick="setPayment('轉帳', this)">轉帳</button>
-                          <button class="pay-btn" onclick="setPayment('Linepay', this)">Linepay</button>
-                          <button class="pay-btn" onclick="setPayment('全支付', this)">全支付</button>
-                  </div>
-              </div>
+         <!-- 訂單類型選擇：外帶自取 / 現場點餐 -->
+         <div style="margin-bottom:14px; display:flex; gap:10px;">
+             <button type="button" class="btn" id="orderTypeTakeoutBtn" style="background:var(--gold-gradient); color:#1a0c00; padding:12px;" onclick="switchOrderType('外帶自取')">外帶自取</button>
+             <button type="button" class="btn" id="orderTypeOnsiteBtn" style="background:#170f09; color:#d1bd97; border:1px solid #543f24; padding:12px;" onclick="switchOrderType('現場點餐')">現場點餐</button>
          </div>
 
-         <!-- 底部懸浮按鈕區 -->
-         <div class="action-buttons action-buttons-sticky">
+         <div class="customer-info-box" style="margin-bottom:14px; border-radius:6px; border:1px solid var(--border-gold);">
+             <div class="input-row" id="rowCustName">
+                   <span class="input-label" id="labelCustName">訂購人*:</span>
+                   <input type="text" id="custName" class="input-field" placeholder="請輸入訂購人姓名 (必填)">
+             </div>
+             <div class="input-row" id="rowCustPhone">
+                   <span class="input-label" id="phoneLable">電話*:</span>
+                   <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
+             </div>
+             <!-- 取餐時間與星期並排 -->
+             <div class="input-row">
+                   <span class="input-label">取餐時間*:</span>
+                   <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
+                   <span id="weekdayBadge" class="weekday-badge">星期--</span>
+                   <label id="instantCheckLabel" style="display:none; align-items:center; gap:6px; font-size:15px; color:var(--primary-gold); white-space:nowrap; cursor:pointer;">
+                       <input type="checkbox" id="isInstantOrder" onchange="toggleInstantOrder(this)" style="cursor:pointer; width:18px; height:18px;"> 即時
+                   </label>
+             </div>
+             <div id="takeoutNoticeBox" style="font-size:12px; color:#d6c29a; margin-top:6px; line-height:1.4; background:#181008; padding:6px 10px; border-radius:4px; border:1px dashed #543f24;">
+                 (因現場餐點現點現做 實際取餐時間將視情況調整 店家稍後將更新時間屆時請再行查看)
+             </div>
+             
+             <div class="input-row" style="margin-top:10px;">
+                   <span class="input-label">顧客備註:</span>
+                   <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如:多蒜、少雞油)">
+             </div>
+         </div>
+
+         <div class="preferences-box" id="preferencesBoxSection" style="margin-bottom:14px; border-radius:6px; border:1px solid var(--border-gold);">
+             <div class="pref-header">倉位調整(選取口味)</div>
+             <div class="pref-group">
+                   <span class="pref-label">口味*:</span>
+                   <button class="pref-btn" data-pref-type="flavor" data-pref-val="原味" onclick="handlePrefClick('flavor', '原味', this)">原味</button>
+                   <button class="pref-btn" data-pref-type="flavor" data-pref-val="蒜味" onclick="handlePrefClick('flavor', '蒜味', this)">蒜味</button>
+                   <button class="pref-btn" data-pref-type="flavor" data-pref-val="泰式+5元" onclick="handlePrefClick('flavor', '泰式+5元', this)">泰式+5元</button>
+             </div>
+             <div class="pref-group">
+                   <span class="pref-label">辣度*:</span>
+                   <button class="pref-btn" data-pref-type="spice" data-pref-val="不辣" onclick="handlePrefClick('spice', '不辣', this)">不辣</button>
+                   <button class="pref-btn" data-pref-type="spice" data-pref-val="小辣" onclick="handlePrefClick('spice', '小辣', this)">小辣</button>
+                   <button class="pref-btn" data-pref-type="spice" data-pref-val="中辣" onclick="handlePrefClick('spice', '中辣', this)">中辣</button>
+                   <button class="pref-btn" data-pref-type="spice" data-pref-val="大辣" onclick="handlePrefClick('spice', '大辣', this)">大辣</button>
+             </div>
+             <div class="pref-group">
+                   <span class="pref-label">鹹度*:</span>
+                   <button class="pref-btn" data-pref-type="salt" data-pref-val="清淡" onclick="handlePrefClick('salt', '清淡', this)">清淡</button>
+                   <button class="pref-btn" data-pref-type="salt" data-pref-val="正常" onclick="handlePrefClick('salt', '正常', this)">正常</button>
+                   <button class="pref-btn" data-pref-type="salt" data-pref-val="重鹹" onclick="handlePrefClick('salt', '重鹹', this)">重鹹</button>
+             </div>
+             <div class="pref-group" style="margin-top:6px; border-top:1px dashed #543f24; padding-top:6px;">
+                   <span class="pref-label">配備:</span>
+                   <button class="pref-btn" data-pref-type="extra" data-pref-val="需熱食" onclick="handleAddonClick('需熱食', this)">需熱食</button>
+                   <button class="pref-btn" data-pref-type="extra" data-pref-val="需餐具" onclick="handleAddonClick('需餐具', this)">需餐具</button>
+                   <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食分開裝" onclick="handleAddonClick('麵食分開裝', this)">麵食分開裝</button>
+                   <button class="pref-btn" data-pref-type="extra" data-pref-val="麵食裝一起" onclick="handleAddonClick('麵食裝一起', this)">麵食裝一起</button>
+                   <button class="pref-btn" data-pref-type="extra" data-pref-val="多數麵分開裝" onclick="handleAddonClick('多數麵分開裝', this)">多數麵分開裝</button>
+                   <div class="eco-notice">🌱 依法不主動提供免洗餐具</div>
+             </div>
+         </div>
+
+         <div class="summary-box" style="background:#140f0a; border:1px solid var(--border-gold); border-radius:6px; padding:16px; margin-bottom:16px;">
+             <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:15px; color:#d6c29a;">
+                 <span>小計金額:</span><span id="step1Subtotal">$0</span>
+             </div>
+             <div class="total-row" style="margin-bottom:14px; border-top:1px dashed #5c4524; padding-top:10px;">
+                     <span>應付總額:</span>
+                     <span id="step1TotalAmount">$0</span>
+             </div>
+             <div class="payment-methods" id="payMethods">
+                     <button class="pay-btn active" onclick="setPayment('現金', this)">現金</button>
+                     <button class="pay-btn" onclick="setPayment('轉帳', this)">轉帳</button>
+                     <button class="pay-btn" onclick="setPayment('Linepay', this)">Linepay</button>
+                     <button class="pay-btn" onclick="setPayment('全支付', this)">全支付</button>
+             </div>
+         </div>
+
+         <div class="action-buttons step1-action-buttons-container" style="display:flex; gap:10px;">
                  <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
                  <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="closeStep1Modal()">上一步</button>
                  <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
@@ -403,12 +398,12 @@
 
  <!-- 收據與確認下單視窗 -->
  <div class="modal" id="receiptModal">
-     <div class="modal-content" id="receiptContent" style="font-family: monospace; width:480px;"></div>
+     <div class="modal-content" id="receiptContent" style="font-family: monospace; width:480px; resize:none;"></div>
  </div>
 
  <!-- 客戶訂單查詢結果 Modal -->
  <div class="modal" id="orderQueryModal">
-     <div class="modal-content" style="width:480px; height:auto;">
+     <div class="modal-content" style="width:480px; resize:none;">
          <button class="modal-close-x" onclick="closeOrderQueryModal()">✕</button>
          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:16px; font-size:22px;">🔍 訂單查詢結果</h3>
          <div id="orderQueryBody" style="font-size:16px; line-height:1.6; color:#eddab2; margin-bottom:20px; display:flex; flex-direction:column; gap:10px;"></div>
@@ -418,7 +413,7 @@
 
  <!-- 接單系統管理 Modal -->
  <div class="modal" id="orderSystemModal">
-     <div class="modal-content" style="width:680px; max-width:95vw;">
+     <div class="modal-content" style="width:680px; max-width:95vw; resize:none;">
          <button class="modal-close-x" onclick="closeOrderSystemModal()">✕</button>
          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:16px; font-size:24px;">📋 接單系統 (即時訂單管理)</h3>
          <div id="liveOrderListContainer" style="max-height:70vh; overflow-y:auto; display:flex; flex-direction:column; gap:14px;"></div>
@@ -427,7 +422,7 @@
 
  <!-- 接單時選擇時間與確認 Modal -->
  <div class="modal" id="acceptOrderModal">
-     <div class="modal-content" style="width:420px; height:auto;">
+     <div class="modal-content" style="width:420px; resize:none;">
          <button class="modal-close-x" onclick="closeAcceptOrderModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:16px; text-align:center; font-size:20px;">⚡ 確認接單與取餐時間</h3>
          
@@ -452,10 +447,10 @@
 
  <!-- 歷史訂單查詢 Modal -->
  <div class="modal" id="historyModal">
-     <div class="modal-content" id="historyModalContent" style="width:1150px; max-width:98vw; height:78vh;">
+     <div class="modal-content" id="historyModalContent" style="width:1150px; max-width:98vw; height:78vh; display:flex; flex-direction:column;">
          <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
          
-         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px; flex-shrink:0;">
+         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
              <h3 style="color:var(--primary-gold); margin:0; font-size:22px;">📊 歷史訂單查詢</h3>
              
              <div style="display:flex; gap:8px; align-items:center;">
@@ -499,87 +494,83 @@
 
  <!-- 歷史訂單資訊全面修改 Modal -->
  <div class="modal" id="editOrderInfoModal">
-     <div class="modal-content" style="width:460px;">
+     <div class="modal-content" style="width:460px; resize:none;">
          <button class="modal-close-x" onclick="closeEditOrderInfoModal()">✕</button>
-         <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px; font-size:20px; flex-shrink:0;">📝 修改訂單資訊</h3>
+         <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px; font-size:20px;">📝 修改訂單資訊</h3>
          
-         <div class="modal-scroll-body">
-              <div style="display:flex; flex-direction:column; gap:10px;">
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">狀態:</span>
-                      <select id="eiStatus" class="input-field">
-                          <option value="等待接單">等待接單</option>
-                          <option value="製作中">製作中</option>
-                          <option value="待取餐">待取餐</option>
-                          <option value="已完成">已完成</option>
-                      </select>
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">日期:</span>
-                      <input type="text" id="eiDate" class="input-field" placeholder="YYYY/MM/DD">
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">時間:</span>
-                      <input type="text" id="eiTime" class="input-field" placeholder="HH:MM">
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">訂購人:</span>
-                      <input type="text" id="eiCustomer" class="input-field">
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">電話:</span>
-                      <input type="text" id="eiPhone" class="input-field">
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">取餐時間:</span>
-                      <input type="text" id="eiPickup" class="input-field">
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">口味綜合:</span>
-                      <input type="text" id="eiFlavorStr" class="input-field" placeholder="(例如:蒜味、不辣、正常)">
-                  </div>
-                  <div class="input-row">
-                      <span class="input-label" style="min-width:100px;">備註/配備:</span>
-                      <input type="text" id="eiNotes" class="input-field">
-                  </div>
-              </div>
+         <div style="display:flex; flex-direction:column; gap:10px;">
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">狀態:</span>
+                 <select id="eiStatus" class="input-field">
+                     <option value="等待接單">等待接單</option>
+                     <option value="製作中">製作中</option>
+                     <option value="待取餐">待取餐</option>
+                     <option value="已完成">已完成</option>
+                 </select>
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">日期:</span>
+                 <input type="text" id="eiDate" class="input-field" placeholder="YYYY/MM/DD">
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">時間:</span>
+                 <input type="text" id="eiTime" class="input-field" placeholder="HH:MM">
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">訂購人:</span>
+                 <input type="text" id="eiCustomer" class="input-field">
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">電話:</span>
+                 <input type="text" id="eiPhone" class="input-field">
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">取餐時間:</span>
+                 <input type="text" id="eiPickup" class="input-field">
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">口味綜合:</span>
+                 <input type="text" id="eiFlavorStr" class="input-field" placeholder="(例如:蒜味、不辣、正常)">
+             </div>
+             <div class="input-row">
+                 <span class="input-label" style="min-width:100px;">備註/配備:</span>
+                 <input type="text" id="eiNotes" class="input-field">
+             </div>
          </div>
-         <button class="btn btn-submit" style="width:100%; margin-top:10px; padding:12px; font-size:16px; flex-shrink:0;" onclick="saveOrderInfoEdit()">💾 儲存修改</button>
+         <button class="btn btn-submit" style="width:100%; margin-top:16px; padding:12px; font-size:16px;" onclick="saveOrderInfoEdit()">💾 儲存修改</button>
      </div>
  </div>
 
  <!-- 編輯訂單品項 Modal -->
  <div class="modal" id="editOrderItemsModal">
-     <div class="modal-content" style="width:480px;">
+     <div class="modal-content" style="width:480px; resize:none;">
          <button class="modal-close-x" onclick="closeEditOrderItemsModal()">✕</button>
-         <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px; font-size:20px; flex-shrink:0;">🍔 修改訂單品項</h3>
+         <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px; font-size:20px;">🍔 修改訂單品項</h3>
          
-         <div class="modal-scroll-body">
-              <div style="margin-bottom:12px;">
-                  <label style="font-size:14px; color:#d6c29a; display:block; margin-bottom:6px;">1. 選擇大選項分類：</label>
-                  <select id="editCatSelect" class="input-field" style="width:100%;" onchange="onEditCategoryChange()"></select>
-              </div>
-              
-              <div style="margin-bottom:16px;">
-                  <label style="font-size:14px; color:#d6c29a; display:block; margin-bottom:6px;">2. 選擇品項：</label>
-                  <select id="editItemSelect" class="input-field" style="width:100%;"></select>
-              </div>
+         <div style="margin-bottom:12px;">
+             <label style="font-size:14px; color:#d6c29a; display:block; margin-bottom:6px;">1. 選擇大選項分類：</label>
+             <select id="editCatSelect" class="input-field" style="width:100%;" onchange="onEditCategoryChange()"></select>
+         </div>
+         
+         <div style="margin-bottom:16px;">
+             <label style="font-size:14px; color:#d6c29a; display:block; margin-bottom:6px;">2. 選擇品項：</label>
+             <select id="editItemSelect" class="input-field" style="width:100%;"></select>
+         </div>
 
-              <div style="display:flex; gap:10px; margin-bottom:18px;">
-                  <button class="btn btn-submit" style="padding:12px; font-size:15px; width:100%;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
-              </div>
+         <div style="display:flex; gap:10px;">
+             <button class="btn btn-submit" style="padding:12px; font-size:15px;" onclick="addSelectedItemToEditingOrder()">＋ 新增此品項</button>
+         </div>
 
-              <div style="border-top:1px dashed var(--border-gold); padding-top:12px;">
-                  <div style="font-weight:bold; margin-bottom:8px; color:var(--text-gold); font-size:15px;">目前訂單品項清單：</div>
-                  <div id="editingItemsContainer" style="max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
-              </div>
+         <div style="margin-top:18px; border-top:1px dashed var(--border-gold); padding-top:12px;">
+             <div style="font-weight:bold; margin-bottom:8px; color:var(--text-gold); font-size:15px;">目前訂單品項清單：</div>
+             <div id="editingItemsContainer" style="max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
          </div>
      </div>
  </div>
 
  <!-- 取餐時間選擇 Modal -->
  <div class="modal" id="pickupTimeModal">
-     <div class="modal-content" style="width:380px; text-align:center; height:auto;">
+     <div class="modal-content" style="width:380px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
          <h3 style="color:var(--primary-gold); margin-bottom:16px; font-size:20px;">選擇 24 小時制取餐時間</h3>
          
@@ -598,11 +589,11 @@
  </div>
 
  <div class="modal" id="optModal">
-     <div class="modal-content" id="optModalContent" style="height:auto;"></div>
+     <div class="modal-content" id="optModalContent" style="resize:none;"></div>
  </div>
 
  <div class="modal" id="soldoutListModal">
-     <div class="modal-content" style="width:480px; max-width:90vw;">
+     <div class="modal-content" style="width:480px; max-width:90vw; resize:none;">
          <button class="modal-close-x" onclick="closeSoldoutListModal()">✕</button>
          <h3 style="text-align:center; color:var(--text-gold); margin-bottom:14px; font-size:20px;">📋 目前售完品項管理</h3>
          <div id="soldoutListContainer" style="max-height:65vh; overflow-y:auto; margin-bottom:10px;"></div>
