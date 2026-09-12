@@ -575,6 +575,7 @@
       let cachedStoreStatus = "營業中";
       let cachedPrepUntil = 0; 
       let cachedLiveOrders = [];
+      let cachedOrderHistory = [];
       let pendingPrepStatusVal = "備料中";
       let currentOrderType = "外帶自取";
 
@@ -1002,7 +1003,8 @@
               menuData: getMenuData(),
               storeStatus: cachedStoreStatus,
               prepUntil: cachedPrepUntil,
-              liveOrders: cachedLiveOrders
+              liveOrders: cachedLiveOrders,
+              orderHistory: cachedOrderHistory
           };
           fetch(GAS_URL, {
               method: 'POST',
@@ -1019,6 +1021,7 @@
               if (data && data.success) {
                   let needRefreshMenu = false;
                   let needRefreshOrders = false;
+                  let needRefreshHistory = false;
 
                   if (data.menuData) {
                       let newMenuStr = JSON.stringify(data.menuData);
@@ -1049,6 +1052,16 @@
                       }
                   }
 
+                  if (data.orderHistory) {
+                      let newHistoryStr = JSON.stringify(data.orderHistory);
+                      let oldHistoryStr = localStorage.getItem('pos_order_history');
+                      if (newHistoryStr !== oldHistoryStr) {
+                          cachedOrderHistory = data.orderHistory;
+                          localStorage.setItem('pos_order_history', newHistoryStr);
+                          needRefreshHistory = true;
+                      }
+                  }
+
                   if (needRefreshMenu) {
                       refreshMenuTabs();
                       refreshActiveGrid();
@@ -1056,6 +1069,10 @@
 
                   if (needRefreshOrders && document.getElementById('orderSystemModal').style.display === 'flex') {
                       renderLiveOrders();
+                  }
+
+                  if (needRefreshHistory && document.getElementById('historyModal').style.display === 'flex') {
+                      renderHistoryOrders();
                   }
               }
           })
@@ -1399,6 +1416,7 @@
           cachedStoreStatus = localStorage.getItem('pos_store_status') || '營業中';
           cachedPrepUntil = parseInt(localStorage.getItem('pos_prep_until') || '0');
           cachedLiveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+          cachedOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           
           checkAutoOpenStatus();
           syncStoreStatusUI();
@@ -1421,7 +1439,7 @@
           setInterval(() => {
               checkAutoOpenStatus();
               fetchFromServer();
-          }, 6000);
+          }, 4000);
       }
 
       function refreshMenuTabs() {
@@ -2331,12 +2349,12 @@
           if (!ord) return;
 
           cachedLiveOrders = cachedLiveOrders.filter(o => o.id !== orderId);
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          cachedOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           ord.status = "已完成";
-          history.push(ord);
+          cachedOrderHistory.push(ord);
           
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           syncToServer();
           playSound('done');
           renderLiveOrders();
@@ -2425,11 +2443,11 @@
           const tbody = document.getElementById('historyTableBody');
           tbody.innerHTML = '';
 
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          cachedOrderHistory = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
           const filterDateVal = document.getElementById('historyDateFilter').value;
           let formattedFilterDate = filterDateVal ? filterDateVal.replace(/-/g, '/') : '';
 
-          let filtered = history.filter(ord => {
+          let filtered = cachedOrderHistory.filter(ord => {
               if (!formattedFilterDate) return true;
               return ord.date === formattedFilterDate;
           });
@@ -2475,9 +2493,9 @@
 
       function deleteHistoryOrder(orderId) {
           if (!confirm("確定要刪除這筆歷史訂單嗎？")) return;
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          history = history.filter(o => o.id !== orderId);
-          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          cachedOrderHistory = cachedOrderHistory.filter(o => o.id !== orderId);
+          localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
+          syncToServer();
           renderHistoryOrders();
       }
 
@@ -2490,9 +2508,9 @@
           if (!confirm(`確定要刪除選取的 ${checkboxes.length} 筆歷史訂單嗎？`)) return;
 
           let idsToDelete = Array.from(checkboxes).map(chk => Number(chk.value));
-          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-          history = history.filter(o => !idsToDelete.includes(o.id));
-          localStorage.setItem('pos_order_history', JSON.stringify(history));
+          cachedOrderHistory = cachedOrderHistory.filter(o => !idsToDelete.includes(o.id));
+          localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
+          syncToServer();
           renderHistoryOrders();
       }
 
@@ -2500,7 +2518,7 @@
           currentEditingOrderId = orderId;
           currentEditingTarget = target;
           
-          let list = (target === 'live') ? cachedLiveOrders : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let list = (target === 'live') ? cachedLiveOrders : cachedOrderHistory;
           let ord = list.find(o => o.id === orderId);
           if (!ord) return;
 
@@ -2523,7 +2541,7 @@
 
       function saveOrderInfoEdit() {
           if (!currentEditingOrderId) return;
-          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : cachedOrderHistory;
           let ord = list.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
@@ -2538,10 +2556,10 @@
 
           if (currentEditingTarget === 'live') {
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-              syncToServer();
           } else {
-              localStorage.setItem('pos_order_history', JSON.stringify(list));
+              localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
+          syncToServer();
 
           closeEditOrderInfoModal();
           alert("訂單資訊修改成功！");
@@ -2590,7 +2608,7 @@
 
       function renderEditingItemsList() {
           if (!currentEditingOrderId) return;
-          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : cachedOrderHistory;
           let ord = list.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
@@ -2618,7 +2636,7 @@
           if (!itemSelect.value) return;
 
           let itemObj = JSON.parse(itemSelect.value);
-          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : cachedOrderHistory;
           let ord = list.find(o => o.id === currentEditingOrderId);
           if (!ord) return;
 
@@ -2636,17 +2654,17 @@
 
           if (currentEditingTarget === 'live') {
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-              syncToServer();
           } else {
-              localStorage.setItem('pos_order_history', JSON.stringify(list));
+              localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
+          syncToServer();
 
           renderEditingItemsList();
       }
 
       function changeEditingItemQty(index, delta) {
           if (!currentEditingOrderId) return;
-          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : cachedOrderHistory;
           let ord = list.find(o => o.id === currentEditingOrderId);
           if (!ord || !ord.items[index]) return;
 
@@ -2662,17 +2680,17 @@
 
           if (currentEditingTarget === 'live') {
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-              syncToServer();
           } else {
-              localStorage.setItem('pos_order_history', JSON.stringify(list));
+              localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
+          syncToServer();
 
           renderEditingItemsList();
       }
 
       function removeEditingItem(index) {
           if (!currentEditingOrderId) return;
-          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+          let list = (currentEditingTarget === 'live') ? cachedLiveOrders : cachedOrderHistory;
           let ord = list.find(o => o.id === currentEditingOrderId);
           if (!ord || !ord.items[index]) return;
 
@@ -2684,10 +2702,10 @@
 
           if (currentEditingTarget === 'live') {
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-              syncToServer();
           } else {
-              localStorage.setItem('pos_order_history', JSON.stringify(list));
+              localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
+          syncToServer();
 
           renderEditingItemsList();
       }
