@@ -1044,7 +1044,6 @@
              headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify(payload)
          }).then(() => {
-             // 優化：發送同步後立即主動抓取一次，提升即時反應速度
              fetchFromServer();
          }).catch(err => console.error('同步至伺服器失敗:', err));
      }
@@ -1102,6 +1101,13 @@
                      if (trackingOrd) {
                          if (trackingOrd.status !== "等待接單") {
                              updateTrackingReceiptModal(trackingOrd);
+                         }
+                     } else {
+                         // 如果在 liveOrders 找不到，檢查是否已經被接單移到歷史或完成了
+                         let historyOrd = cachedOrderHistory.find(o => o.id === activeTrackingOrderId);
+                         if (historyOrd || !cachedLiveOrders.some(o => o.id === activeTrackingOrderId)) {
+                             // 若不在 liveOrders 中，視為已處理，更新畫面顯示已接單/製作中
+                             updateTrackingReceiptModalDirectly();
                          }
                      }
                  }
@@ -1483,7 +1489,7 @@
              } catch(e) {}
          }
 
-         // 優化：將輪詢頻率從 4 秒 (4000) 縮短至 2 秒 (2000)
+         // 維持 2 秒輪詢頻率，並在每次輪詢時加強同步檢查
          setInterval(() => {
              checkAutoOpenStatus();
              fetchFromServer();
@@ -2199,6 +2205,8 @@
 
          cachedLiveOrders.push(pendingOrderPayloadForConfirm);
          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
+         
+         // 關鍵優化：下單後立刻強迫向伺服器同步，讓店家端能用最快速度收到通知
          syncToServer();
          
          playSound('new_order');
@@ -2233,8 +2241,20 @@
          if (actionRow) {
              actionRow.innerHTML = `
                  <div style="width:100%; display:flex; flex-direction:column; gap:10px; background:#1e7e34; padding:12px; border-radius:6px; border:1px solid #81c784; text-align:center;">
-                     <div style="font-weight:bold; color:#fff; font-size:16px;">✅ 已接單！已取餐</div>
-                     <div style="font-size:14px; color:#e6ffe6;">取餐時間為：${ord.pickupTime}</div>
+                     <div style="font-weight:bold; color:#fff; font-size:16px;">✅ 店家已接單！</div>
+                     <div style="font-size:14px; color:#e6ffe6;">確認取餐時間為：${ord.pickupTime}</div>
+                     <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px; margin-top:4px;" onclick="closeTrackingModal()">關閉視窗</button>
+                 </div>
+             `;
+         }
+     }
+
+     function updateTrackingReceiptModalDirectly() {
+         const actionRow = document.getElementById('previewActionRow');
+         if (actionRow) {
+             actionRow.innerHTML = `
+                 <div style="width:100%; display:flex; flex-direction:column; gap:10px; background:#1e7e34; padding:12px; border-radius:6px; border:1px solid #81c784; text-align:center;">
+                     <div style="font-weight:bold; color:#fff; font-size:16px;">✅ 店家已接單！</div>
                      <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px; margin-top:4px;" onclick="closeTrackingModal()">關閉視窗</button>
                  </div>
              `;
@@ -2358,8 +2378,11 @@
 
          ord.status = "製作中";
          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-         syncToServer();
          
+         // 關鍵優化：接單後立即同步至伺服器並主動抓取，讓客戶端畫面能以最快速度更新
+         syncToServer();
+         fetchFromServer();
+
          fetch(GAS_URL, {
              method: 'POST',
              mode: 'no-cors',
@@ -2386,7 +2409,10 @@
          ord.pickupTime = newTime;
          ord.status = "製作中";
          localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
+         
+         // 關鍵優化：修改時間接單後立即同步與抓取
          syncToServer();
+         fetchFromServer();
 
          fetch(GAS_URL, {
              method: 'POST',
