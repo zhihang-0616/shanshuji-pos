@@ -424,7 +424,7 @@
                   <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(-1)">◀ 前一日</button>
                   <input type="date" id="historyDateFilter" class="input-field" style="padding:6px 10px; width:150px;" onchange="renderHistoryOrders()">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(1)">後一日 ▶</button>
-                  <button class="header-btn" style="background:#8b5a00;" onclick="showAllHistoryOrders()">全部訂單</button>
+                  <button class="header-btn" id="showAllHistoryBtn" style="background:#8b5a00;" onclick="toggleShowAllHistoryOrders()">全部訂單</button>
                   <button class="header-btn" id="toggleSelectModeBtn" style="background:#5c2c16;" onclick="toggleHistorySelectMode()">選取</button>
                   <button class="header-btn" id="batchDeleteBtn" style="background:#8b1e0f; display:none;" onclick="batchDeleteHistoryOrders()">刪除選取</button>
               </div>
@@ -578,6 +578,7 @@
       let cachedOrderHistory = [];
       let pendingPrepStatusVal = "備料中";
       let currentOrderType = "外帶自取";
+      let isShowingAllHistory = false;
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -2392,6 +2393,11 @@
           let dd = String(today.getDate()).padStart(2, '0');
           document.getElementById('historyDateFilter').value = `${yyyy}-${mm}-${dd}`;
           
+          isShowingAllHistory = false;
+          const showAllBtn = document.getElementById('showAllHistoryBtn');
+          showAllBtn.style.background = "#8b5a00";
+          showAllBtn.innerText = "全部訂單";
+
           isHistorySelectMode = false;
           document.getElementById('batchDeleteBtn').style.display = 'none';
           document.getElementById('toggleSelectModeBtn').innerText = "選取";
@@ -2416,11 +2422,26 @@
           let mm = String(dt.getMonth() + 1).padStart(2, '0');
           let dd = String(dt.getDate()).padStart(2, '0');
           dateInput.value = `${yyyy}-${mm}-${dd}`;
+          
+          isShowingAllHistory = false;
+          const showAllBtn = document.getElementById('showAllHistoryBtn');
+          showAllBtn.style.background = "#8b5a00";
+          showAllBtn.innerText = "全部訂單";
+
           renderHistoryOrders();
       }
 
-      function showAllHistoryOrders() {
-          document.getElementById('historyDateFilter').value = '';
+      function toggleShowAllHistoryOrders() {
+          const showAllBtn = document.getElementById('showAllHistoryBtn');
+          isShowingAllHistory = !isShowingAllHistory;
+
+          if (isShowingAllHistory) {
+              showAllBtn.style.background = "#1e7e34";
+              showAllBtn.innerText = "取消全部";
+          } else {
+              showAllBtn.style.background = "#8b5a00";
+              showAllBtn.innerText = "全部訂單";
+          }
           renderHistoryOrders();
       }
 
@@ -2448,6 +2469,7 @@
           let formattedFilterDate = filterDateVal ? filterDateVal.replace(/-/g, '/') : '';
 
           let filtered = cachedOrderHistory.filter(ord => {
+              if (isShowingAllHistory) return true;
               if (!formattedFilterDate) return true;
               return ord.date === formattedFilterDate;
           });
