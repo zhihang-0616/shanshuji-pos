@@ -178,33 +178,6 @@
           .modal-content { width: 95vw; padding: 20px; }
       }
    </style>
-   <!-- Firebase SDKs 專用設定 -->
-   <script type="module">
-       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-       import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-       const firebaseConfig = {
-           apiKey: "AIzaSyAYlYDJ_ohj47PlimxpnlZRXbi7EhpOvFE",
-           authDomain: "center-pos.firebaseapp.com",
-           databaseURL: "https://center-pos-default-rtdb.asia-southeast1.firebasedatabase.app",
-           projectId: "center-pos",
-           storageBucket: "center-pos.firebasestorage.app",
-           messagingSenderId: "668185293741",
-           appId: "1:668185293741:web:36b16063b17d349a576724"
-       };
-
-       const app = initializeApp(firebaseConfig);
-       const db = getDatabase(app);
-       window.FB_DB = db;
-       window.FB_Ref = ref;
-       window.FB_Set = set;
-       window.FB_OnValue = onValue;
-
-       // 觸發初始化
-       if (window.initPOSAfterFirebase) {
-           window.initPOSAfterFirebase();
-       }
-   </script>
 </head>
 <body onload="initPOS()">
 
@@ -759,7 +732,7 @@
               localStorage.setItem('pos_store_status', val);
               localStorage.setItem('pos_prep_until', '0');
               syncStoreStatusUI();
-              syncToFirebase();
+              syncToServer();
           }
       }
 
@@ -825,7 +798,7 @@
           
           document.getElementById('prepTimeModal').style.display = 'none';
           syncStoreStatusUI();
-          syncToFirebase();
+          syncToServer();
       }
 
       function cancelPrepTimeModal() {
@@ -841,18 +814,16 @@
                   localStorage.setItem('pos_store_status', "營業中");
                   localStorage.setItem('pos_prep_until', '0');
                   syncStoreStatusUI();
-                  syncToFirebase();
+                  syncToServer();
               }
           }
       }
 
       function syncStoreStatusUI() {
           const select = document.getElementById('storeStatusSelect');
-          if(select) select.value = cachedStoreStatus;
+          select.value = cachedStoreStatus;
           
           const submitBtn = document.getElementById('submitOrderMainBtn');
-          if (!submitBtn) return;
-
           if (cachedStoreStatus === '休息中') {
               submitBtn.innerText = "目前休息中 (暫停接單)";
               submitBtn.style.opacity = '0.6';
@@ -1037,6 +1008,8 @@
           ]
       };
 
+      const GAS_URL = 'https://script.google.com/macros/s/AKfycbx27ulPzvzHrwQooTcE4yPaNXNq-jWLqtwnKOLGDrMyA7Kj6Xl1rlpTekz_xAbxRRkcdw/exec';
+
       function getMenuData() {
           if (cachedMenuData) return cachedMenuData;
           let saved = localStorage.getItem('pos_menu_data');
@@ -1051,32 +1024,33 @@
       function saveMenuData(data) {
           cachedMenuData = data;
           localStorage.setItem('pos_menu_data', JSON.stringify(data));
-          syncToFirebase();
+          syncToServer();
           refreshMenuTabs();
           refreshActiveGrid();
       }
 
-      // --- Firebase 雲端即時同步核心 ---
-      function syncToFirebase() {
-          if (!window.FB_DB) return;
+      function syncToServer() {
           let payload = {
+              action: "sync_state",
               menuData: getMenuData(),
               storeStatus: cachedStoreStatus,
               prepUntil: cachedPrepUntil,
               liveOrders: cachedLiveOrders,
               orderHistory: cachedOrderHistory
           };
-          window.FB_Set(window.FB_Ref(window.FB_DB, 'pos_state'), payload).catch(err => {
-              console.error('Firebase 同步失敗:', err);
-          });
+          fetch(GAS_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          }).catch(err => console.error('同步至伺服器失敗:', err));
       }
 
-      function initFirebaseListeners() {
-          if (!window.FB_DB) return;
-          const stateRef = window.FB_Ref(window.FB_DB, 'pos_state');
-          window.FB_OnValue(stateRef, (snapshot) => {
-              const data = snapshot.val();
-              if (data) {
+      function fetchFromServer() {
+          fetch(GAS_URL + "?action=get_state")
+          .then(res => res.json())
+          .then(data => {
+              if (data && data.success) {
                   let needRefreshMenu = false;
                   let needRefreshOrders = false;
                   let needRefreshHistory = false;
@@ -1122,8 +1096,10 @@
 
                   if (activeTrackingOrderId) {
                       let trackingOrd = cachedLiveOrders.find(o => o.id === activeTrackingOrderId);
-                      if (trackingOrd && trackingOrd.status !== "等待接單") {
-                          updateTrackingReceiptModal(trackingOrd);
+                      if (trackingOrd) {
+                          if (trackingOrd.status !== "等待接單") {
+                              updateTrackingReceiptModal(trackingOrd);
+                          }
                       }
                   }
 
@@ -1140,12 +1116,11 @@
                       renderHistoryOrders();
                   }
               }
+          })
+          .catch(err => {
+              console.warn("背景同步暫時無法連線，使用本機快取");
           });
       }
-
-      window.initPOSAfterFirebase = function() {
-          initFirebaseListeners();
-      };
 
       let currentCart = [];
       let orderPrefs = { flavor: "", spice: "", salt: "", extras: [] };
@@ -1493,6 +1468,8 @@
           updateCartUI();
           updateOrderBadge();
 
+          fetchFromServer();
+          
           let savedSize = localStorage.getItem('pos_history_modal_size');
           if (savedSize) {
               try {
@@ -1502,6 +1479,11 @@
                   modalContent.style.height = sizeObj.height;
               } catch(e) {}
           }
+
+          setInterval(() => {
+              checkAutoOpenStatus();
+              fetchFromServer();
+          }, 4000);
       }
 
       function refreshMenuTabs() {
@@ -2213,7 +2195,7 @@
 
           cachedLiveOrders.push(pendingOrderPayloadForConfirm);
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-          syncToFirebase();
+          syncToServer();
           
           playSound('new_order');
           clearCart();
@@ -2353,7 +2335,7 @@
           } else if (ord.status === "製作中") {
               ord.status = "待取餐";
               localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-              syncToFirebase();
+              syncToServer();
               renderLiveOrders();
           } else if (ord.status === "待取餐") {
               if (ord.payment === "現金") {
@@ -2376,8 +2358,15 @@
 
           ord.status = "製作中";
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-          syncToFirebase();
+          syncToServer();
           
+          fetch(GAS_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(ord)
+          }).catch(err => console.error('LINE 通知發送異常:', err));
+
           closeAcceptOrderModal();
           renderLiveOrders();
           updateOrderBadge();
@@ -2397,7 +2386,14 @@
           ord.pickupTime = newTime;
           ord.status = "製作中";
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-          syncToFirebase();
+          syncToServer();
+
+          fetch(GAS_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(ord)
+          }).catch(err => console.error('LINE 通知發送異常:', err));
 
           closeAcceptOrderModal();
           renderLiveOrders();
@@ -2479,7 +2475,7 @@
           
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
           localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
-          syncToFirebase();
+          syncToServer();
           playSound('done');
           renderLiveOrders();
           updateOrderBadge();
@@ -2489,7 +2485,7 @@
           if (!confirm("確定要拒絕這筆訂單嗎？(拒單後將徹底刪除)")) return;
           cachedLiveOrders = cachedLiveOrders.filter(o => o.id !== orderId);
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-          syncToFirebase();
+          syncToServer();
           renderLiveOrders();
           updateOrderBadge();
       }
@@ -2505,7 +2501,7 @@
           ord.total = newTotal;
 
           localStorage.setItem('pos_live_orders', JSON.stringify(cachedLiveOrders));
-          syncToFirebase();
+          syncToServer();
           renderLiveOrders();
       }
 
@@ -2640,7 +2636,7 @@
           if (!confirm("確定要刪除這筆歷史訂單嗎？")) return;
           cachedOrderHistory = cachedOrderHistory.filter(o => o.id !== orderId);
           localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
-          syncToFirebase();
+          syncToServer();
           renderHistoryOrders();
       }
 
@@ -2655,7 +2651,7 @@
           let idsToDelete = Array.from(checkboxes).map(chk => Number(chk.value));
           cachedOrderHistory = cachedOrderHistory.filter(o => !idsToDelete.includes(o.id));
           localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
-          syncToFirebase();
+          syncToServer();
           renderHistoryOrders();
       }
 
@@ -2704,7 +2700,7 @@
           } else {
               localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
-          syncToFirebase();
+          syncToServer();
 
           closeEditOrderInfoModal();
           alert("訂單資訊修改成功！");
@@ -2802,7 +2798,7 @@
           } else {
               localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
-          syncToFirebase();
+          syncToServer();
 
           renderEditingItemsList();
       }
@@ -2828,7 +2824,7 @@
           } else {
               localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
-          syncToFirebase();
+          syncToServer();
 
           renderEditingItemsList();
       }
@@ -2850,7 +2846,7 @@
           } else {
               localStorage.setItem('pos_order_history', JSON.stringify(cachedOrderHistory));
           }
-          syncToFirebase();
+          syncToServer();
 
           renderEditingItemsList();
       }
