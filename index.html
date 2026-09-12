@@ -2338,7 +2338,6 @@
              syncToServer();
              renderLiveOrders();
          } else if (ord.status === "待取餐") {
-             // 無論是否為現金，點選「已取餐」一律彈出收銀結帳畫面
              showUniversalCashRegister(ord);
          }
      }
@@ -2397,17 +2396,17 @@
          updateOrderBadge();
      }
 
-     // 統一收銀與結帳畫面（包含四大支付與折扣選項）
+     // 統一收銀與結帳畫面（新增 折扣% 與 折讓金額 兩個選項）
      function showUniversalCashRegister(ord) {
          const panel = document.getElementById(`cash-panel-${ord.id}`);
          if (!panel) return;
 
          panel.style.display = 'block';
          
-         // 暫存此單編輯時的暫時總額與支付方式
          if (ord._tempTotal === undefined) ord._tempTotal = ord.total;
          if (ord._tempPayment === undefined) ord._tempPayment = ord.payment;
-         if (ord._discountVal === undefined) ord._discountVal = 0;
+         if (ord._discountPct === undefined) ord._discountPct = 100; // 預設 100% (不打折)
+         if (ord._discountVal === undefined) ord._discountVal = 0;   // 預設折讓 0 元
 
          panel.innerHTML = `
              <div style="font-size:16px; font-weight:bold; color:#fcedcb; margin-bottom:10px; text-align:center;">
@@ -2425,10 +2424,16 @@
                  </div>
              </div>
 
-             <!-- 折扣折讓選項 -->
-             <div style="margin-bottom:10px;">
-                 <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">折扣折讓 (輸入扣減金額)：</label>
-                 <input type="number" id="regDiscount-${ord.id}" class="input-field" value="${ord._discountVal}" style="width:100%; padding:6px; font-size:14px;" oninput="calcRegTotal(${ord.id})">
+             <!-- 折扣與折讓調整選項 -->
+             <div style="display:flex; gap:8px; margin-bottom:10px;">
+                 <div style="flex:1;">
+                     <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">折扣 % (例如 90=9折)：</label>
+                     <input type="number" id="regDiscountPct-${ord.id}" class="input-field" value="${ord._discountPct}" style="width:100%; padding:6px; font-size:14px;" oninput="calcRegTotal(${ord.id})">
+                 </div>
+                 <div style="flex:1;">
+                     <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">折讓金額 (元)：</label>
+                     <input type="number" id="regDiscountVal-${ord.id}" class="input-field" value="${ord._discountVal}" style="width:100%; padding:6px; font-size:14px;" oninput="calcRegTotal(${ord.id})">
+                 </div>
              </div>
 
              <div style="font-size:15px; font-weight:bold; color:var(--primary-gold); margin-bottom:10px; text-align:center;">
@@ -2475,13 +2480,27 @@
          let ord = cachedLiveOrders.find(o => o.id === orderId);
          if (!ord) return;
 
-         let discount = parseInt(document.getElementById(`regDiscount-${orderId}`).value) || 0;
-         ord._discountVal = discount;
-         
-         // 計算基準總額：原始總額 - 折扣 (最低為0)
-         let baseSub = ord.total - discount;
-         if (baseSub < 0) baseSub = 0;
-         ord._tempTotal = baseSub;
+         let pctInput = document.getElementById(`regDiscountPct-${orderId}`).value;
+         let pct = (pctInput === "" ? 100 : parseFloat(pctInput));
+         if (isNaN(pct) || pct < 0) pct = 100;
+         ord._discountPct = pct;
+
+         let valInput = document.getElementById(`regDiscountVal-${orderId}`).value;
+         let val = (valInput === "" ? 0 : parseInt(valInput));
+         if (isNaN(val) || val < 0) val = 0;
+         ord._discountVal = val;
+
+         // 計算邏輯：先乘上折扣%（例如 90 / 100），再減去折讓金額
+         let originalSubtotal = ord.total; 
+         // 如果需要用「最初點餐原始金額」計算，可以保留。這裡用 ord.total 當基礎。
+         // 為了避免重複計算，我們用一開始的原始總額來算：若還沒記錄原始總額，先記著
+         if (ord._originalTotal === undefined) {
+             ord._originalTotal = ord.total;
+         }
+
+         let calculated = Math.round(ord._originalTotal * (pct / 100)) - val;
+         if (calculated < 0) calculated = 0;
+         ord._tempTotal = calculated;
 
          document.getElementById(`regFinalTotal-${orderId}`).innerText = `$${ord._tempTotal}`;
          if (ord._tempPayment === '現金') {
@@ -2512,7 +2531,9 @@
          if (ord) {
              delete ord._tempTotal;
              delete ord._tempPayment;
+             delete ord._discountPct;
              delete ord._discountVal;
+             delete ord._originalTotal;
          }
          const panel = document.getElementById(`cash-panel-${orderId}`);
          if (panel) {
@@ -2525,7 +2546,6 @@
          let ord = cachedLiveOrders.find(o => o.id === orderId);
          if (!ord) return;
 
-         // 若選現金需驗證實收金額
          if (ord._tempPayment === '現金') {
              let received = parseInt(document.getElementById(`regCashReceived-${orderId}`).value) || 0;
              if (received < ord._tempTotal) {
@@ -2534,16 +2554,25 @@
              }
          }
 
-         // 更新訂單的最終結帳資訊
          ord.total = ord._tempTotal;
          ord.payment = ord._tempPayment;
-         if (ord._discountVal > 0) {
-             ord.custNotes = (ord.custNotes ? ord.custNotes + " / " : "") + `已折讓 $${ord._discountVal}`;
+         
+         let discountNotes = [];
+         if (ord._discountPct !== undefined && ord._discountPct !== 100) {
+             discountNotes.push(`折扣 ${ord._discountPct}%`);
+         }
+         if (ord._discountVal !== undefined && ord._discountVal > 0) {
+             discountNotes.push(`折讓 $${ord._discountVal}`);
+         }
+         if (discountNotes.length > 0) {
+             ord.custNotes = (ord.custNotes ? ord.custNotes + " / " : "") + discountNotes.join(', ');
          }
 
          delete ord._tempTotal;
          delete ord._tempPayment;
+         delete ord._discountPct;
          delete ord._discountVal;
+         delete ord._originalTotal;
 
          completeOrderToHistory(orderId);
      }
