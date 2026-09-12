@@ -184,7 +184,7 @@
       <div class="menu-header">
           <div class="header-top-row" id="headerTopRow">
               <div id="statusToggleWrapper">
-                  <select id="storeStatusSelect" class="input-field" style="padding:4px 8px; background:#1a110a; color:var(--primary-gold); font-weight:bold; width:110px;" onchange="changeStoreStatus(this.value)">
+                  <select id="storeStatusSelect" class="input-field" style="padding:4px 8px; background:#1a110a; color:var(--primary-gold); font-weight:bold; width:130px;" onchange="handleStoreStatusChange(this.value)">
                       <option value="營業中">🟢 營業中</option>
                       <option value="備料中">🟡 備料中</option>
                       <option value="休息中">🔴 休息中</option>
@@ -238,6 +238,30 @@
 
       <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
           <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="openStep1Modal()">下一步 (填寫取餐資訊)</button>
+      </div>
+  </div>
+
+  <!-- 備料時間設定 Modal -->
+  <div class="modal" id="prepTimeModal">
+      <div class="modal-content" style="width:360px; text-align:center; resize:none;">
+          <h3 style="color:var(--primary-gold); margin-bottom:12px;">🟡 設定備料時間</h3>
+          <p style="font-size:13px; color:#d6c29a; margin-bottom:14px;">請選擇預計備料多久（30分鐘為單位）：</p>
+          
+          <div style="margin-bottom:16px; text-align:left;">
+              <select id="prepMinutesSelect" class="input-field" style="width:100%; font-size:15px; padding:8px;">
+                  <option value="30">30 分鐘</option>
+                  <option value="60" selected>1 小時</option>
+                  <option value="90">1 小時 30 分鐘</option>
+                  <option value="120">2 小時</option>
+                  <option value="150">2 小時 30 分鐘</option>
+                  <option value="180">3 小時</option>
+              </select>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+              <button class="btn" style="background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="cancelPrepTimeModal()">取消</button>
+              <button class="btn btn-submit" style="flex:1;" onclick="confirmPrepTimeModal()">確定設定</button>
+          </div>
       </div>
   </div>
 
@@ -569,7 +593,9 @@
       let isLoggedMgr = false;
       let cachedMenuData = null;
       let cachedStoreStatus = "營業中";
+      let cachedPrepUntil = 0; // 備料中自動解鎖的時間戳記
       let cachedLiveOrders = [];
+      let pendingPrepStatusVal = "備料中";
 
       function checkModeAndAuth() {
           const urlParams = new URLSearchParams(window.location.search);
@@ -681,11 +707,50 @@
           document.getElementById('managementModal').style.display = 'flex';
       }
 
-      function changeStoreStatus(val) {
-          cachedStoreStatus = val;
-          localStorage.setItem('pos_store_status', val);
+      function handleStoreStatusChange(val) {
+          if (val === "備料中") {
+              pendingPrepStatusVal = val;
+              document.getElementById('prepTimeModal').style.display = 'flex';
+          } else {
+              cachedStoreStatus = val;
+              cachedPrepUntil = 0;
+              localStorage.setItem('pos_store_status', val);
+              localStorage.setItem('pos_prep_until', '0');
+              syncStoreStatusUI();
+              syncToServer();
+          }
+      }
+
+      function confirmPrepTimeModal() {
+          let minutes = parseInt(document.getElementById('prepMinutesSelect').value) || 60;
+          cachedStoreStatus = pendingPrepStatusVal;
+          cachedPrepUntil = Date.now() + (minutes * 60 * 1000);
+          
+          localStorage.setItem('pos_store_status', cachedStoreStatus);
+          localStorage.setItem('pos_prep_until', cachedPrepUntil.toString());
+          
+          document.getElementById('prepTimeModal').style.display = 'none';
           syncStoreStatusUI();
           syncToServer();
+      }
+
+      function cancelPrepTimeModal() {
+          document.getElementById('prepTimeModal').style.display = 'none';
+          // 恢復原本的選單選項值
+          document.getElementById('storeStatusSelect').value = cachedStoreStatus;
+      }
+
+      function checkAutoOpenStatus() {
+          if (cachedStoreStatus === "備料中" && cachedPrepUntil > 0) {
+              if (Date.now() >= cachedPrepUntil) {
+                  cachedStoreStatus = "營業中";
+                  cachedPrepUntil = 0;
+                  localStorage.setItem('pos_store_status', "營業中");
+                  localStorage.setItem('pos_prep_until', '0');
+                  syncStoreStatusUI();
+                  syncToServer();
+              }
+          }
       }
 
       function syncStoreStatusUI() {
@@ -697,8 +762,10 @@
               submitBtn.innerText = "目前休息中 (暫停接單)";
               submitBtn.style.opacity = '0.6';
           } else if (cachedStoreStatus === '備料中') {
-              submitBtn.innerText = "目前備料中 (可預訂)";
-              submitBtn.style.opacity = '1';
+              let remainingMin = Math.ceil((cachedPrepUntil - Date.now()) / (60 * 1000));
+              if (remainingMin < 0) remainingMin = 0;
+              submitBtn.innerText = `目前備料中 (約 ${remainingMin} 分鐘後營業)`;
+              submitBtn.style.opacity = '0.6';
           } else {
               submitBtn.innerText = "下一步 (填寫取餐資訊)";
               submitBtn.style.opacity = '1';
@@ -897,6 +964,7 @@
               action: "sync_state",
               menuData: getMenuData(),
               storeStatus: cachedStoreStatus,
+              prepUntil: cachedPrepUntil,
               liveOrders: cachedLiveOrders
           };
           fetch(GAS_URL, {
@@ -907,7 +975,6 @@
           }).catch(err => console.error('同步至伺服器失敗:', err));
       }
 
-      // 【優化核心】改進的背景同步機制：優先讀取本機、增加間隔並只在內容真正有變動時才局部更新畫面
       function fetchFromServer() {
           fetch(GAS_URL + "?action=get_state")
           .then(res => res.json())
@@ -926,9 +993,11 @@
                       }
                   }
 
-                  if (data.storeStatus && data.storeStatus !== cachedStoreStatus) {
+                  if (data.storeStatus) {
                       cachedStoreStatus = data.storeStatus;
-                      localStorage.setItem('pos_store_status', data.storeStatus);
+                      cachedPrepUntil = data.prepUntil || 0;
+                      localStorage.setItem('pos_store_status', cachedStoreStatus);
+                      localStorage.setItem('pos_prep_until', cachedPrepUntil.toString());
                       syncStoreStatusUI();
                   }
 
@@ -1218,17 +1287,17 @@
       function initPOS() {
           checkModeAndAuth();
           
-          // 【優化核心】立即從本機 localStorage 渲染畫面，達到「秒開」無延遲
           cachedMenuData = getMenuData();
           cachedStoreStatus = localStorage.getItem('pos_store_status') || '營業中';
+          cachedPrepUntil = parseInt(localStorage.getItem('pos_prep_until') || '0');
           cachedLiveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
           
+          checkAutoOpenStatus();
           syncStoreStatusUI();
           refreshMenuTabs();
           updateCartUI();
           updateOrderBadge();
 
-          // 啟動後立刻在背景靜默向伺服器同步一次最新狀態
           fetchFromServer();
           
           let savedSize = localStorage.getItem('pos_history_modal_size');
@@ -1241,8 +1310,10 @@
               } catch(e) {}
           }
 
-          // 【優化核心】將輪詢頻率由 3 秒調整為 6 秒，並透過內容比對避免無意義的畫面重新渲染，大幅降低伺服器負荷與效能消耗
-          setInterval(fetchFromServer, 6000);
+          setInterval(() => {
+              checkAutoOpenStatus();
+              fetchFromServer();
+          }, 6000);
       }
 
       function refreshMenuTabs() {
@@ -1376,8 +1447,15 @@
       }
 
       function handleItemClick(item, category) {
+          checkAutoOpenStatus();
           if (cachedStoreStatus === '休息中') {
               alert("目前店家休息中，暫停接受點餐！");
+              return;
+          }
+          if (cachedStoreStatus === '備料中') {
+              let remainingMin = Math.ceil((cachedPrepUntil - Date.now()) / (60 * 1000));
+              if (remainingMin < 0) remainingMin = 0;
+              alert(`目前店家正在備料中（預計 ${remainingMin} 分鐘後自動營業），暫停接受點餐！`);
               return;
           }
 
@@ -1730,8 +1808,15 @@
       }
 
       function openStep1Modal() {
+          checkAutoOpenStatus();
           if (cachedStoreStatus === '休息中') {
               alert("目前店家休息中，暫停接受點餐！");
+              return;
+          }
+          if (cachedStoreStatus === '備料中') {
+              let remainingMin = Math.ceil((cachedPrepUntil - Date.now()) / (60 * 1000));
+              if (remainingMin < 0) remainingMin = 0;
+              alert(`目前店家正在備料中（預計 ${remainingMin} 分鐘後自動營業），暫停接受點餐！`);
               return;
           }
           if (currentCart.length === 0) {
