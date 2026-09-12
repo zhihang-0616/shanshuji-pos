@@ -397,6 +397,16 @@
       <div class="modal-content" id="receiptContent" style="font-family: monospace; width:480px; resize:none;"></div>
   </div>
 
+  <!-- 客戶訂單查詢結果 Modal -->
+  <div class="modal" id="orderQueryModal">
+      <div class="modal-content" style="width:480px; resize:none;">
+          <button class="modal-close-x" onclick="closeOrderQueryModal()">✕</button>
+          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:16px; font-size:22px;">🔍 訂單查詢結果</h3>
+          <div id="orderQueryBody" style="font-size:16px; line-height:1.6; color:#eddab2; margin-bottom:20px; display:flex; flex-direction:column; gap:10px;"></div>
+          <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px;" onclick="closeOrderQueryModal()">確定</button>
+      </div>
+  </div>
+
   <!-- 接單系統管理 Modal -->
   <div class="modal" id="orderSystemModal">
       <div class="modal-content" style="width:680px; max-width:95vw; resize:none;">
@@ -2198,7 +2208,6 @@
       }
 
       function convertToWaitingStateInModal() {
-          const content = document.getElementById('receiptContent');
           const actionRow = document.getElementById('previewActionRow');
           if (actionRow) {
               actionRow.innerHTML = `
@@ -2210,7 +2219,6 @@
       }
 
       function updateTrackingReceiptModal(ord) {
-          const content = document.getElementById('receiptContent');
           const actionRow = document.getElementById('previewActionRow');
           const timeSpan = document.getElementById('previewPickupTimeText');
 
@@ -2850,16 +2858,36 @@
 
           let matched = cachedLiveOrders.filter(o => o.phone.includes(phoneInput));
 
+          const queryModal = document.getElementById('orderQueryModal');
+          const queryBody = document.getElementById('orderQueryBody');
+
           if (matched.length === 0) {
-              alert("查無此手機號碼對應的進行中訂單！");
+              queryBody.innerHTML = `<div style="text-align:center; padding:15px; color:#ff9999;">查無此手機號碼對應的進行中訂單！</div>`;
+              queryModal.style.display = 'flex';
               return;
           }
 
-          let msg = "🔍 【您的訂單查詢結果】\n--------------------\n";
+          let html = '';
           matched.forEach(o => {
-              msg += `訂單編號: ${o.orderNo}\n訂購人: ${o.customer}\n目前狀態: ${o.status}\n取餐時間: ${o.pickupTime}\n應付金額: $${o.total}\n--------------------\n`;
+              html += `
+                  <div style="background:#150d07; border:1px solid var(--border-gold); padding:12px 16px; border-radius:6px; margin-bottom:8px;">
+                      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-weight:bold; color:var(--primary-gold);">
+                          <span>訂單編號: ${o.orderNo}</span>
+                          <span>狀態: ${o.status}</span>
+                      </div>
+                      <div>訂購人: ${o.customer}</div>
+                      <div>取餐時間: ${o.pickupTime}</div>
+                      <div style="color:var(--primary-gold); font-weight:bold; margin-top:4px;">應付金額: $${o.total}</div>
+                  </div>
+              `;
           });
-          alert(msg);
+
+          queryBody.innerHTML = html;
+          queryModal.style.display = 'flex';
+      }
+
+      function closeOrderQueryModal() {
+          document.getElementById('orderQueryModal').style.display = 'none';
       }
   </script>
 </body>
