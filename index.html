@@ -331,6 +331,7 @@
          <div class="action-buttons" style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold); display:flex; gap:8px;">
              <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
              <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="switchToCartView()">上一步</button>
+             <!-- 補單按鈕 (僅在店家管理員模式下顯示) -->
              <button class="btn" id="supplementOrderBtn" style="flex:1.2; background:linear-gradient(135deg, #006064, #00363a); color:#e0f7fa; border:1px solid #4dd0e1; display:none;" onclick="submitSupplementOrder()">補單</button>
              <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
          </div>
@@ -343,6 +344,7 @@
              <p style="font-size:13px; color:#a89269;">訂單狀態與明細追蹤</p>
          </div>
 
+         <!-- 即時訂單狀態顯示區 -->
          <div id="customerLiveStatusBox" style="background:#2b1f13; border:2px solid var(--primary-gold); padding:12px; border-radius:6px; margin-bottom:12px; text-align:center;">
               <div style="font-size:12px; color:#a89269; margin-bottom:2px;">目前餐點狀態</div>
               <div id="trackOrderStatus" style="font-size:18px; font-weight:bold; color:var(--primary-gold); margin-bottom:8px;">等待接單</div>
@@ -1012,18 +1014,14 @@
      let isAllHistoryMode = false;
      let pendingCashOrderId = null;
 
-     // 修改：預設只顯示年月日，時間保持空白
+     // 初始載入時取餐時間維持空白
      function setDefaultPickupTime() {
-         const now = new Date();
-         let yyyy = now.getFullYear();
-         let mm = String(now.getMonth() + 1).padStart(2, '0');
-         let dd = String(now.getDate()).padStart(2, '0');
-         
          const pickupElem = document.getElementById('pickupTime');
-         if (pickupElem) pickupElem.value = `${yyyy}/${mm}/${dd} `;
+         if (pickupElem) pickupElem.value = "";
          updateWeekdayBadge();
      }
 
+     // 點擊取餐時間輸入框：彈出視窗，日期預設當天，時間維持空白讓客戶選取
      function openPickupTimeModal() {
          const now = new Date();
          let yyyy = now.getFullYear();
@@ -1034,6 +1032,14 @@
          
          const selectElem = document.getElementById('modalPickupTimeSelect');
          selectElem.innerHTML = '';
+
+         // 加入一個空白預設選項供客人手動選取
+         let defaultOpt = document.createElement('option');
+         defaultOpt.value = "";
+         defaultOpt.text = "-- 請選擇取餐時間 --";
+         defaultOpt.disabled = true;
+         defaultOpt.selected = true;
+         selectElem.appendChild(defaultOpt);
 
          for (let h = 0; h < 27; h++) {
              let actualH = h % 24;
@@ -1051,15 +1057,6 @@
                  selectElem.appendChild(opt);
              }
          }
-
-         let targetH = String(now.getHours()).padStart(2, '0');
-         let targetM = Math.round(now.getMinutes() / 15) * 15;
-         if (targetM >= 60) {
-             targetM = 0;
-             targetH = String((now.getHours() + 1) % 24).padStart(2, '0');
-         }
-         let targetVal = `${targetH}:${String(targetM).padStart(2, '0')}`;
-         selectElem.value = targetVal;
 
          document.getElementById('pickupTimeModal').style.display = 'flex';
      }
@@ -1880,8 +1877,8 @@
              document.getElementById('custPhone').focus();
              return;
          }
-         if (!pickupTimeRaw || !pickupTimeRaw.includes(":")) {
-             alert("請選擇完整的【取餐時間】！");
+         if (!pickupTimeRaw) {
+             alert("請選擇【取餐時間】！");
              return;
          }
 
@@ -1978,8 +1975,8 @@
              document.getElementById('custPhone').focus();
              return;
          }
-         if (!pickupTimeRaw || !pickupTimeRaw.includes(":")) {
-             alert("請選擇完整的【取餐時間】！");
+         if (!pickupTimeRaw) {
+             alert("請選擇【取餐時間】！");
              return;
          }
 
