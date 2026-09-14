@@ -670,7 +670,6 @@
          }
      }
 
-     // 改良版：非同步背景寫入，不阻塞畫面主執行緒
      function saveCloudData(key, value) {
          cloudDataCache[key] = value;
          localStorage.setItem(key + '_cache', typeof value === 'string' ? value : JSON.stringify(value));
@@ -1969,14 +1968,17 @@
          
          activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
 
-         // 瞬間切換畫面並播放音效，完全不卡頓
+         // 建立完成後立即清空購物車與點選狀態，並切換回首頁畫面
+         let tempPayload = pendingOrderPayloadForConfirm;
+         clearCart();
+
          playSound('new_order');
          if (isAdminMode) {
-             triggerInstantStoreNotification(pendingOrderPayloadForConfirm);
+             triggerInstantStoreNotification(tempPayload);
          }
 
          updateOrderBadge();
-         showReceiptPreviewPanel(pendingOrderPayloadForConfirm);
+         showReceiptPreviewPanel(tempPayload);
          pendingOrderPayloadForConfirm = null;
      }
 
