@@ -331,6 +331,8 @@
          <div class="action-buttons" style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold); display:flex; gap:8px;">
              <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
              <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="switchToCartView()">上一步</button>
+             <!-- 補單按鈕 (僅在店家管理員模式下顯示) -->
+             <button class="btn" id="supplementOrderBtn" style="flex:1.2; background:linear-gradient(135deg, #006064, #00363a); color:#e0f7fa; border:1px solid #4dd0e1; display:none;" onclick="submitSupplementOrder()">補單</button>
              <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
          </div>
      </div>
@@ -701,11 +703,13 @@
          const adminActionGroup = document.getElementById('adminActionGroup');
          const authBtnWrapper = document.getElementById('authBtnWrapper');
          const storeStatusSelect = document.getElementById('storeStatusSelect');
+         const supplementBtn = document.getElementById('supplementOrderBtn');
 
          if (isAdminMode) {
              storeInfoContainer.style.display = 'none';
              adminActionGroup.style.display = 'flex';
              authBtnWrapper.style.display = 'block';
+             if (supplementBtn) supplementBtn.style.display = 'block';
 
              let logged = getCloudItem('pos_mgr_logged', 'false') === 'true';
              if (logged) {
@@ -722,6 +726,7 @@
              storeInfoContainer.style.display = 'block';
              adminActionGroup.style.display = 'none';
              authBtnWrapper.style.display = 'none';
+             if (supplementBtn) supplementBtn.style.display = 'none';
              storeStatusSelect.disabled = true;
          }
          syncStoreStatusUI();
@@ -814,10 +819,10 @@
          
          const submitBtn = document.getElementById('submitOrderMainBtn');
          if (!submitBtn) return;
-         if (status === '休息中') {
+         if (status === '休息中' && !isAdminMode) {
              submitBtn.innerText = "目前休息中 (暫停接單)";
              submitBtn.style.opacity = '0.6';
-         } else if (status === '備料中') {
+         } else if (status === '備料中' && !isAdminMode) {
              submitBtn.innerText = "目前備料中 (可預訂)";
              submitBtn.style.opacity = '1';
          } else {
@@ -1006,7 +1011,7 @@
      let currentEditingOrderId = null; 
      let currentEditingTarget = 'live'; 
      let isHistorySelectMode = false;
-     let isAllHistoryMode = false; // 全部訂單模式狀態
+     let isAllHistoryMode = false;
      let pendingCashOrderId = null;
 
      function setDefaultPickupTime() {
@@ -1471,7 +1476,7 @@
 
      function handleItemClick(item, category) {
          let status = getCloudItem('pos_store_status', '營業中');
-         if (status === '休息中') {
+         if (status === '休息中' && !isAdminMode) {
              alert("目前店家休息中，暫停接受點餐！");
              return;
          }
@@ -1837,7 +1842,7 @@
 
      function switchToCheckoutView() {
          let status = getCloudItem('pos_store_status', '營業中');
-         if (status === '休息中') {
+         if (status === '休息中' && !isAdminMode) {
              alert("目前店家休息中，暫停接受點餐！");
              return;
          }
@@ -1869,6 +1874,105 @@
          let finalTotal = Math.round(subtotal * (percent / 100)) - minus;
          if (finalTotal < 0) finalTotal = 0;
          document.getElementById('step1TotalAmount').innerText = `$${finalTotal}`;
+     }
+
+     // 補單功能：直接建立並存入歷史訂單 (狀態為已完成)
+     function submitSupplementOrder() {
+         let custName = document.getElementById('custName').value.trim();
+         let custPhone = document.getElementById('custPhone').value.trim();
+         const pickupTimeRaw = document.getElementById('pickupTime').value;
+         const custNotes = document.getElementById('custNotes').value.trim();
+
+         if (!custName) {
+             alert("請填寫【訂購人】才可補單！");
+             document.getElementById('custName').focus();
+             return;
+         }
+         const phoneRegex = /^09\d{8}$/;
+         if (!phoneRegex.test(custPhone)) {
+             alert("手機號碼格式錯誤！請輸入正確的手機號碼 (共10碼數字)");
+             document.getElementById('custPhone').focus();
+             return;
+         }
+         if (!pickupTimeRaw) {
+             alert("請選擇【取餐時間】！");
+             return;
+         }
+
+         let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
+         const pickupDateObj = new Date(datePart);
+         
+         let bizDateObj = !isNaN(pickupDateObj.getTime()) ? new Date(pickupDateObj) : new Date();
+         if (bizDateObj.getHours() >= 0 && bizDateObj.getHours() < 2) {
+             bizDateObj.setDate(bizDateObj.getDate() - 1);
+         }
+         
+         let dateStr = `${bizDateObj.getFullYear()}/${(bizDateObj.getMonth()+1).toString().padStart(2,'0')}/${bizDateObj.getDate().toString().padStart(2,'0')}`;
+         let timeStr = pickupTimeRaw.split(' ')[1] || "00:00";
+         let weekDayStr = weekDaysArr[bizDateObj.getDay()];
+
+         let subtotal = currentCart.reduce((sum, item) => sum + item.price * item.qty, 0);
+         if (orderPrefs.flavor === "泰式+5元") subtotal += 5;
+         let percent = parseFloat(document.getElementById('discountPercent').value) || 100;
+         let minus = parseFloat(document.getElementById('discountAmount').value) || 0;
+         let finalTotal = Math.round(subtotal * (percent / 100)) - minus;
+         if (finalTotal < 0) finalTotal = 0;
+
+         let allNotesParts = [];
+         if (orderPrefs.extras.length > 0) {
+             allNotesParts.push(orderPrefs.extras.join(', '));
+         }
+         if (custNotes) {
+             allNotesParts.push(custNotes);
+         }
+         let finalCustNotes = allNotesParts.join(' / ');
+
+         let flavorArr = [];
+         if (orderPrefs.flavor) flavorArr.push(orderPrefs.flavor);
+         if (orderPrefs.spice) flavorArr.push(orderPrefs.spice);
+         if (orderPrefs.salt) flavorArr.push(orderPrefs.salt);
+         let flavorString = flavorArr.join('、');
+
+         let bizDateStr = dateStr;
+         let seqObj = getCloudItem('pos_daily_seq', {});
+         if (!seqObj[bizDateStr]) seqObj[bizDateStr] = 0;
+         seqObj[bizDateStr]++;
+         saveCloudData('pos_daily_seq', seqObj);
+
+         let seqNum = seqObj[bizDateStr];
+         let orderNo = `#${String(seqNum).padStart(3, '0')}`;
+         let orderID = bizDateStr.replace(/\//g, '') + String(seqNum).padStart(3, '0');
+
+         let supplementPayload = {
+             id: Date.now(),
+             status: "已完成", // 直接設定為已完成
+             date: dateStr,
+             weekDay: weekDayStr,
+             time: timeStr,
+             customer: custName,
+             phone: custPhone,
+             pickupTime: pickupTimeRaw,
+             custNotes: finalCustNotes,
+             flavorStr: flavorString,
+             total: finalTotal,
+             payment: currentPayment,
+             orderNo: orderNo,
+             orderID: orderID,
+             items: currentCart.map(item => ({
+                 name: item.name,
+                 qty: item.qty,
+                 price: item.price,
+                 subItems: item.subItems ? item.subItems.map(s => ({ name: s.name, price: 0 })) : null
+             }))
+         };
+
+         let history = getCloudItem('pos_order_history', []);
+         history.push(supplementPayload);
+         saveCloudData('pos_order_history', history);
+
+         alert("補單成功！已直接寫入歷史訂單（狀態：已完成）。");
+         clearCart();
+         openHistoryModal();
      }
 
      function goToReceiptPreview() {
@@ -2350,7 +2454,7 @@
      }
 
      function changeHistoryDate(days) {
-         if (isAllHistoryMode) return; // 全部模式下不依賴單日增減
+         if (isAllHistoryMode) return;
          const dateInput = document.getElementById('historyDateFilter');
          if (!dateInput.value) return;
          let dt = new Date(dateInput.value);
@@ -2387,7 +2491,7 @@
          let formattedFilterDate = filterDateVal ? filterDateVal.replace(/-/g, '/') : '';
 
          let filtered = history.filter(ord => {
-             if (isAllHistoryMode) return true; // 全部訂單模式顯示全部
+             if (isAllHistoryMode) return true;
              if (!formattedFilterDate) return true;
              return ord.date === formattedFilterDate;
          });
