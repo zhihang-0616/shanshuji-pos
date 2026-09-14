@@ -418,7 +418,7 @@
      </div>
  </div>
 
- <!-- 接單系統管理 Modal (取消二次彈窗，直接同步於接單系統內) -->
+ <!-- 接單系統管理 Modal -->
  <div class="modal" id="orderSystemModal">
      <div class="modal-content" style="width:620px; max-width:95vw; resize:none;">
          <button class="modal-close-x" onclick="closeOrderSystemModal()">✕</button>
@@ -570,19 +570,6 @@
      </div>
  </div>
 
- <!-- 店家修改希望取餐時間 Modal -->
- <div class="modal" id="storeChangeTimeModal" style="z-index: 210;">
-     <div class="modal-content" style="width:320px; text-align:center; resize:none;">
-         <button class="modal-close-x" onclick="closeStoreChangeTimeModal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px;">⏱️ 修改希望取餐時間</h3>
-         <div style="margin-bottom:14px; text-align:left;">
-              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇新希望取餐時間：</label>
-              <input type="time" id="storeTimeInputModal" class="input-field" style="width:100%; font-size:18px; font-weight:bold; text-align:center; padding:8px;">
-         </div>
-         <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmStoreChangeTime()">確定修改並接單</button>
-     </div>
- </div>
-
  <div class="modal" id="optModal">
      <div class="modal-content" id="optModalContent" style="resize:none;"></div>
  </div>
@@ -603,7 +590,8 @@
      let isLoggedMgr = false;
      let activeTrackedOrderId = null; 
      let lastKnownLiveOrderCount = 0; 
-     let activeCashCheckoutOrderId = null; // 紀錄目前正在內嵌展開收銀結帳的訂單ID
+     let activeCashCheckoutOrderId = null; 
+     let isSyncingFromServer = false; // 防止背景同步與手動點擊衝突的狀態鎖
      
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
@@ -616,10 +604,11 @@
      };
 
      async function fetchCloudData() {
+         if (isSyncingFromServer) return;
          try {
              let res = await fetch(GAS_URL);
              let data = await res.json();
-             if (data) {
+             if (data && !isSyncingFromServer) {
                  for (let key in data) {
                      cloudDataCache[key] = data[key];
                      localStorage.setItem(key + '_cache', typeof data[key] === 'string' ? data[key] : JSON.stringify(data[key]));
@@ -631,6 +620,7 @@
      }
 
      function saveCloudData(key, value) {
+         isSyncingFromServer = true;
          cloudDataCache[key] = value;
          localStorage.setItem(key + '_cache', typeof value === 'string' ? value : JSON.stringify(value));
          
@@ -641,6 +631,8 @@
              body: JSON.stringify({ key: key, value: value })
          }).catch(e => {
              console.error("雲端同步寫入失敗:", e);
+         }).finally(() => {
+             setTimeout(() => { isSyncingFromServer = false; }, 1000);
          });
          
          window.dispatchEvent(new Event('storage_synced'));
@@ -1226,7 +1218,6 @@
              refreshActiveGrid();
              updateOrderBadge();
              
-             // 雲端同步輪詢：若管理員端偵測到新訂單增加，直接在接單系統同步更新並播放提示音效（取消二次彈窗確認）
              if (isAdminMode) {
                  let currentLive = getCloudItem('pos_live_orders', []);
                  if (currentLive.length > lastKnownLiveOrderCount) {
@@ -1241,7 +1232,8 @@
              if (activeTrackedOrderId) {
                  updateCustomerTrackerUI();
              }
-             if (document.getElementById('orderSystemModal').style.display === 'flex') {
+             // 當接單系統打開時，若正在進行內嵌結算或有操作，暫不強刷以免打斷操作
+             if (document.getElementById('orderSystemModal').style.display === 'flex' && !activeCashCheckoutOrderId && !isSyncingFromServer) {
                  renderLiveOrders();
              }
              if (document.getElementById('historyModal').style.display === 'flex') {
@@ -1270,7 +1262,7 @@
          if (activeTrackedOrderId) {
              updateCustomerTrackerUI();
          }
-         if (document.getElementById('orderSystemModal').style.display === 'flex') {
+         if (document.getElementById('orderSystemModal').style.display === 'flex' && !activeCashCheckoutOrderId && !isSyncingFromServer) {
              renderLiveOrders();
          }
          if (document.getElementById('historyModal').style.display === 'flex') {
@@ -2125,8 +2117,7 @@
      function renderLiveOrders() {
          const container = document.getElementById('liveOrderListContainer');
          if (!container) return;
-         container.innerHTML = '';
-
+         
          let liveOrders = getCloudItem('pos_live_orders', []);
 
          if (liveOrders.length === 0) {
@@ -2134,6 +2125,7 @@
              return;
          }
 
+         container.innerHTML = '';
          liveOrders.forEach((ord) => {
              let itemsHtml = ord.items.map((i, idx) => `
                  <div style="display:flex; justify-content:space-between; font-size:13px; color:#eddab2;">
@@ -2152,7 +2144,6 @@
                  btnBg = "linear-gradient(135deg, #b26a00, #663800)";
              }
 
-             // 內嵌結算面板（如果目前這張訂單正在進行現金內嵌收銀）
              let cashInlineHtml = '';
              if (activeCashCheckoutOrderId === ord.id) {
                  cashInlineHtml = `
@@ -2217,7 +2208,6 @@
 
                  ${cashInlineHtml}
 
-                 <!-- 內嵌拒單理由區塊 -->
                  <div id="listRejectBox_${ord.id}" style="display:none; margin-top:6px; background:#1f160d; padding:8px; border-radius:4px; border:1px solid #8b1e0f; flex-direction:column; gap:6px;">
                      <div style="font-size:12px; color:#ff9999; font-weight:bold;">請選擇拒單理由：</div>
                      <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="listRejectReason_${ord.id}" value="商品已售完" checked> 商品已售完</label>
@@ -2291,6 +2281,7 @@
              ord.status = "製作中";
              saveCloudData('pos_live_orders', liveOrders);
              alert("希望取餐時間已更新並接單！");
+             renderLiveOrders();
          }
      }
 
@@ -2302,11 +2293,12 @@
          if (ord.status === "等待接單") {
              ord.status = "製作中";
              saveCloudData('pos_live_orders', liveOrders);
+             renderLiveOrders();
          } else if (ord.status === "製作中") {
              ord.status = "待取餐";
              saveCloudData('pos_live_orders', liveOrders);
+             renderLiveOrders();
          } else if (ord.status === "待取餐") {
-             // 點選已取餐時：檢查付款方式是否為現金。若是現金，直接在下方展開收銀畫面；若為行動支付/轉帳則直接完成歸檔。
              if (ord.payment === "現金") {
                  activeCashCheckoutOrderId = orderId;
                  renderLiveOrders();
@@ -2366,6 +2358,7 @@
          saveCloudData('pos_live_orders', liveOrders);
          saveCloudData('pos_order_history', history);
          playSound('done');
+         renderLiveOrders();
      }
 
      function removeOrderItem(orderId, itemIndex) {
@@ -2380,6 +2373,7 @@
          ord.total = newTotal;
 
          saveCloudData('pos_live_orders', liveOrders);
+         renderLiveOrders();
      }
 
      function checkOrderStatusByPhone() {
