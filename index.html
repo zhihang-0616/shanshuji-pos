@@ -349,6 +349,7 @@
               <div style="font-size:12px; color:#a89269; margin-bottom:2px;">目前餐點狀態</div>
               <div id="trackOrderStatus" style="font-size:18px; font-weight:bold; color:var(--primary-gold); margin-bottom:8px;">等待接單</div>
               <div style="font-size:13px; color:#eddab2;">店家確認希望取餐時間：<span id="trackOrderPickupTime" style="font-weight:bold; color:var(--primary-gold); font-size:15px;"></span></div>
+              <div id="trackOrderRejectReasonBox" style="font-size:13px; color:#ff6666; font-weight:bold; margin-top:6px; display:none;"></div>
          </div>
 
          <div style="background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; margin-bottom:14px; font-size:13px; line-height:1.6;">
@@ -434,6 +435,32 @@
          <div style="display:flex; gap:8px;">
               <button class="btn btn-submit" style="flex:1.5; padding:10px;" onclick="confirmInstantAccept()">確認接單 (套用時間)</button>
               <button class="btn" style="flex:1; background:#8b1e0f; color:white; padding:10px;" onclick="confirmInstantReject()">拒絕訂單</button>
+         </div>
+     </div>
+ </div>
+
+ <!-- 選擇拒單理由 Modal -->
+ <div class="modal" id="rejectReasonModal" style="z-index: 220;">
+     <div class="modal-content" style="width:360px; background:#24190f; border:2px solid #8b1e0f;">
+         <button class="modal-close-x" onclick="closeRejectReasonModal()">✕</button>
+         <h3 style="color:#ff9999; text-align:center; margin-bottom:12px;">❌ 選擇拒單理由</h3>
+         <div style="font-size:13px; color:#eddab2; margin-bottom:10px;">請選擇拒絕此筆訂單的原因：</div>
+         
+         <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+              <label style="display:flex; align-items:center; gap:8px; background:#150d07; padding:8px 10px; border-radius:4px; cursor:pointer; font-size:14px; color:#fcedcb;">
+                  <input type="radio" name="rejectReasonGroup" value="商品已售完" checked> 1. 商品已售完
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; background:#150d07; padding:8px 10px; border-radius:4px; cursor:pointer; font-size:14px; color:#fcedcb;">
+                  <input type="radio" name="rejectReasonGroup" value="營業時間已過/準備打烊"> 2. 營業時間已過/準備打烊
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; background:#150d07; padding:8px 10px; border-radius:4px; cursor:pointer; font-size:14px; color:#fcedcb;">
+                  <input type="radio" name="rejectReasonGroup" value="聯絡不上顧客確認細節"> 3. 聯絡不上顧客確認細節
+              </label>
+         </div>
+
+         <div style="display:flex; gap:8px;">
+              <button class="btn" style="flex:1; background:#8b1e0f; color:white; padding:10px; font-weight:bold;" onclick="confirmRejectWithReason()">確認拒單</button>
+              <button class="btn" style="flex:1; background:#3d2b1a; color:#fff; padding:10px;" onclick="closeRejectReasonModal()">取消</button>
          </div>
      </div>
  </div>
@@ -532,6 +559,7 @@
                       <option value="製作中">製作中</option>
                       <option value="待取餐">待取餐</option>
                       <option value="已完成">已完成</option>
+                      <option value="已拒單">已拒單</option>
                   </select>
               </div>
               <div class="input-row">
@@ -647,6 +675,7 @@
      let isLoggedMgr = false;
      let pendingInstantOrderId = null;
      let activeTrackedOrderId = null; 
+     let orderIdToReject = null; // 記錄準備拒單的訂單ID
      
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
@@ -1273,7 +1302,7 @@
              if (document.getElementById('historyModal').style.display === 'flex') {
                  renderHistoryOrders();
              }
-         }, 4000);
+         }, 3000);
      }
 
      function handleStorageSync() {
@@ -1292,6 +1321,14 @@
          }
          if (currentEditingOrderId && document.getElementById('editOrderItemsModal').style.display === 'flex') {
              renderEditingItemsList();
+         }
+         if (pendingInstantOrderId) {
+             let liveOrders = getCloudItem('pos_live_orders', []);
+             let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
+             if (!ord || ord.status !== "等待接單") {
+                 document.getElementById('instantNewOrderModal').style.display = 'none';
+                 pendingInstantOrderId = null;
+             }
          }
      }
 
@@ -2032,7 +2069,7 @@
          activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
 
          let tempPayload = pendingOrderPayloadForConfirm;
-         currentCart = []; // 清空購物車資料但不重置追蹤畫面
+         currentCart = [];
          updateCartUI();
 
          playSound('new_order');
@@ -2088,20 +2125,33 @@
 
          const statusElem = document.getElementById('trackOrderStatus');
          const pickupElem = document.getElementById('trackOrderPickupTime');
-         if (!statusElem || !pickupElem) return;
+         const rejectReasonBox = document.getElementById('trackOrderRejectReasonBox');
+         if (!statusElem || !pickupElem || !rejectReasonBox) return;
 
          if (ord) {
              statusElem.innerText = ord.status;
              pickupElem.innerText = ord.pickupTime;
+             if (ord.status === "已拒單") {
+                 rejectReasonBox.innerText = `拒單理由：${ord.rejectReason || '未指定'}`;
+                 rejectReasonBox.style.display = 'block';
+             } else {
+                 rejectReasonBox.style.display = 'none';
+             }
          } else {
-             // 若即時訂單已不在 liveOrders 中 (代表已被店家完成或拒單歸檔)，檢查是否轉入歷史或完成
              let history = getCloudItem('pos_order_history', []);
              let histOrd = history.find(o => o.id === activeTrackedOrderId);
              if (histOrd) {
                  statusElem.innerText = histOrd.status;
                  pickupElem.innerText = histOrd.pickupTime;
+                 if (histOrd.status === "已拒單") {
+                     rejectReasonBox.innerText = `拒單理由：${histOrd.rejectReason || '未指定'}`;
+                     rejectReasonBox.style.display = 'block';
+                 } else {
+                     rejectReasonBox.style.display = 'none';
+                 }
              } else {
-                 statusElem.innerText = "訂單已結束/歸檔";
+                 statusElem.innerText = "訂單不存在";
+                 rejectReasonBox.style.display = 'none';
              }
          }
      }
@@ -2174,12 +2224,8 @@
      }
 
      function confirmInstantReject() {
-         if (!confirm("確定要拒絕這筆訂單嗎？")) return;
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         liveOrders = liveOrders.filter(o => o.id !== pendingInstantOrderId);
-         saveCloudData('pos_live_orders', liveOrders);
          document.getElementById('instantNewOrderModal').style.display = 'none';
-         pendingInstantOrderId = null;
+         openRejectReasonModal(pendingInstantOrderId);
      }
 
      function updateOrderBadge() {
@@ -2261,11 +2307,46 @@
 
                  <div style="display:flex; gap:8px; margin-top:4px;">
                      <button class="btn" style="background:${btnBg}; color:white; padding:8px; font-size:14px;" onclick="advanceOrderStatus(${ord.id})">${btnText}</button>
-                     <button class="btn" style="background:linear-gradient(135deg, #8b1e0f, #4a0d05); color:white; padding:8px; font-size:14px;" onclick="rejectOrder(${ord.id})">拒單</button>
+                     <button class="btn" style="background:linear-gradient(135deg, #8b1e0f, #4a0d05); color:white; padding:8px; font-size:14px;" onclick="openRejectReasonModal(${ord.id})">拒單</button>
                  </div>
              `;
              container.appendChild(div);
          });
+     }
+
+     function openRejectReasonModal(orderId) {
+         orderIdToReject = orderId;
+         document.getElementById('rejectReasonModal').style.display = 'flex';
+     }
+
+     function closeRejectReasonModal() {
+         document.getElementById('rejectReasonModal').style.display = 'none';
+         orderIdToReject = null;
+         pendingInstantOrderId = null;
+     }
+
+     function confirmRejectWithReason() {
+         if (!orderIdToReject) return;
+         const selectedRadio = document.querySelector('input[name="rejectReasonGroup"]:checked');
+         let reason = selectedRadio ? selectedRadio.value : "商品已售完";
+
+         let liveOrders = getCloudItem('pos_live_orders', []);
+         let ord = liveOrders.find(o => o.id === orderIdToReject);
+         if (ord) {
+             ord.status = "已拒單";
+             ord.rejectReason = reason;
+
+             // 移至歷史紀錄
+             liveOrders = liveOrders.filter(o => o.id !== orderIdToReject);
+             let history = getCloudItem('pos_order_history', []);
+             history.push(ord);
+
+             saveCloudData('pos_live_orders', liveOrders);
+             saveCloudData('pos_order_history', history);
+         }
+
+         closeRejectReasonModal();
+         alert(`已成功拒單，理由：${reason}`);
      }
 
      function changeOrderPickupTimePrompt(orderId) {
@@ -2366,13 +2447,6 @@
          playSound('done');
      }
 
-     function rejectOrder(orderId) {
-         if (!confirm("確定要拒絕這筆訂單嗎？(拒單後將徹底刪除)")) return;
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         liveOrders = liveOrders.filter(o => o.id !== orderId);
-         saveCloudData('pos_live_orders', liveOrders);
-     }
-
      function removeOrderItem(orderId, itemIndex) {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === orderId);
@@ -2395,7 +2469,13 @@
          let match = liveOrders.find(o => o.phone === phoneInput.trim());
 
          if (!match) {
-             alert("找不到符合此電話號碼的進行中訂單紀錄！(若訂單已完成或被取消將不再提供查詢)");
+             // 也到歷史紀錄尋找（支援已完成或已拒單查詢）
+             let history = getCloudItem('pos_order_history', []);
+             match = history.slice().reverse().find(o => o.phone === phoneInput.trim());
+         }
+
+         if (!match) {
+             alert("找不到符合此電話號碼的訂單紀錄！");
              return;
          }
 
@@ -2488,6 +2568,9 @@
 
          filtered.forEach((ord) => {
              let itemsStr = ord.items.map(i => `${i.name}x${i.qty}`).join('、');
+             if (ord.status === "已拒單" && ord.rejectReason) {
+                 itemsStr += ` [拒單理由：${ord.rejectReason}]`;
+             }
              const tr = document.createElement('tr');
              tr.style.cssText = "border-bottom:1px solid #3d2b1a; color:#eddab2;";
              
