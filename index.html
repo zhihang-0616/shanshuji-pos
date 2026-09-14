@@ -3,7 +3,7 @@
 <head>
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>去中心鹹水雞 X 厝邊溫食 POS 系統 (雲端同步版)</title>
+ <title>去中心鹹水雞 X 厝邊溫食 POS 系統 (雲端極速同步版)</title>
   <style>                                                                                                                                                                                                   
      :root {
          --primary-gold: #d4af37;
@@ -645,18 +645,18 @@
      let pendingInstantOrderId = null;
      let activeTrackedOrderId = null; 
      
-     // 雲端資料暫存快取
+     // 預設本機快取，實現秒開
      let cloudDataCache = {
-         pos_store_status: "營業中",
-         pos_mgr_logged: "false",
-         pos_admin_pwd: "8888",
-         pos_menu_data: null,
-         pos_live_orders: [],
-         pos_order_history: [],
-         pos_daily_seq: {}
+         pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
+         pos_mgr_logged: localStorage.getItem('pos_mgr_logged_cache') || "false",
+         pos_admin_pwd: localStorage.getItem('pos_admin_pwd_cache') || "8888",
+         pos_menu_data: JSON.parse(localStorage.getItem('pos_menu_data_cache') || 'null'),
+         pos_live_orders: JSON.parse(localStorage.getItem('pos_live_orders_cache') || '[]'),
+         pos_order_history: JSON.parse(localStorage.getItem('pos_order_history_cache') || '[]'),
+         pos_daily_seq: JSON.parse(localStorage.getItem('pos_daily_seq_cache') || '{}')
      };
 
-     // 非同步向 GAS 讀取所有資料
+     // 非同步背景從 GAS 抓取最新資料更新快取
      async function fetchCloudData() {
          try {
              let res = await fetch(GAS_URL);
@@ -664,16 +664,19 @@
              if (data) {
                  for (let key in data) {
                      cloudDataCache[key] = data[key];
+                     localStorage.setItem(key + '_cache', typeof data[key] === 'string' ? data[key] : JSON.stringify(data[key]));
                  }
              }
          } catch (e) {
-             console.error("雲端同步讀取失敗:", e);
+             console.error("背景雲端同步讀取失敗:", e);
          }
      }
 
-     // 非同步向 GAS 寫入單一 Key-Value
+     // 非同步寫入 GAS 並立即同步更新本機快取
      async function saveCloudData(key, value) {
          cloudDataCache[key] = value;
+         localStorage.setItem(key + '_cache', typeof value === 'string' ? value : JSON.stringify(value));
+         
          try {
              await fetch(GAS_URL, {
                  method: "POST",
@@ -694,7 +697,6 @@
      }
 
      async function checkModeAndAuth() {
-         await fetchCloudData();
          const urlParams = new URLSearchParams(window.location.search);
          isAdminMode = urlParams.get('mode') === 'admin';
 
@@ -995,10 +997,7 @@
 
      function getMenuData() {
          let saved = cloudDataCache['pos_menu_data'];
-         if (saved) {
-             return saved;
-         }
-         saveCloudData('pos_menu_data', defaultMenuData);
+         if (saved) return saved;
          return defaultMenuData;
      }
 
@@ -1282,16 +1281,25 @@
          openSoldoutListModal();
      }
 
-     async function initPOS() {
-         await checkModeAndAuth();
+     function initPOS() {
+         // 1. 瞬間利用本地快取秒開畫面
+         checkModeAndAuth();
          refreshMenuTabs();
          setDefaultPickupTime();
          updateCartUI();
          updateOrderBadge();
+
+         // 2. 背景靜默非同步向 GAS 抓取最新資料
+         fetchCloudData().then(() => {
+             checkModeAndAuth();
+             refreshMenuTabs();
+             refreshActiveGrid();
+             updateOrderBadge();
+         });
          
          window.addEventListener('storage_synced', handleStorageSync);
 
-         // 背景定期輪詢雲端（每 4 秒自動同步最新訂單狀態與菜單）
+         // 3. 背景定期輪詢雲端（每 4 秒自動同步最新訂單狀態與菜單）
          setInterval(async () => {
              await fetchCloudData();
              syncStoreStatusUI();
@@ -2079,7 +2087,7 @@
      }
 
      async function confirmInstantReject() {
-         if (!confirm("確定要拒絕這訂單嗎？")) return;
+         if (!confirm("確定要拒絕這筆訂單嗎？")) return;
          let liveOrders = getCloudItem('pos_live_orders', []);
          liveOrders = liveOrders.filter(o => o.id !== pendingInstantOrderId);
          await saveCloudData('pos_live_orders', liveOrders);
