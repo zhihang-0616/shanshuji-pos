@@ -2462,9 +2462,6 @@
          const tbody = document.getElementById('historyTableBody');
          if (!tbody) return;
 
-         // 備份目前已勾選的訂單 ID，防止畫面更新時勾選狀態被刷掉
-         let checkedIds = Array.from(document.querySelectorAll('.history-chk:checked')).map(c => Number(c.value));
-
          tbody.innerHTML = '';
 
          let history = getCloudItem('pos_order_history', []);
@@ -2491,7 +2488,6 @@
              tr.style.cssText = "border-bottom:1px solid #3d2b1a; color:#eddab2;";
              
              let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
-             let isChecked = checkedIds.includes(ord.id) ? 'checked' : '';
              
              tr.innerHTML = `
                  <td style="padding:8px; text-align:center; white-space:nowrap;">
@@ -2499,7 +2495,7 @@
                      <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
                      <button class="header-btn" style="background:#7a1c1c; padding:3px 6px; font-size:11px;" onclick="deleteSingleHistoryOrder(${ord.id})">✕</button>
                  </td>
-                 <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}" ${isChecked}></td>
+                 <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}"></td>
                  <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
                  <td style="padding:8px; color:#a89269;">${ord.orderID}</td>
                  <td style="padding:8px;">${ord.status}</td>
@@ -2526,6 +2522,7 @@
          let history = getCloudItem('pos_order_history', []);
          history = history.filter(o => o.id !== orderId);
          saveCloudData('pos_order_history', history);
+         renderHistoryOrders();
      }
 
      function batchDeleteHistoryOrders() {
@@ -2540,6 +2537,7 @@
          let history = getCloudItem('pos_order_history', []);
          history = history.filter(o => !idsToDelete.includes(o.id));
          saveCloudData('pos_order_history', history);
+         renderHistoryOrders();
      }
 
      function openEditOrderInfoModal(orderId, targetType) {
@@ -2585,6 +2583,7 @@
 
          saveCloudData(storageKey, ordersArr);
          closeEditOrderInfoModal();
+         renderHistoryOrders();
      }
 
      function openEditOrderItemsModal(orderId, targetType) {
