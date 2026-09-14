@@ -335,17 +335,24 @@
          </div>
      </div>
 
-     <!-- 檢視模式 3：右側收據預覽與下單確認 -->
+     <!-- 檢視模式 3：右側下單後的訂單狀態追蹤與明細 -->
      <div id="receiptViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a; padding:14px;">
          <div class="receipt-header">
              <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
-             <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
+             <p style="font-size:13px; color:#a89269;">訂單狀態與明細追蹤</p>
+         </div>
+
+         <!-- 即時訂單狀態顯示區 (隨店家接單/改時自動更新) -->
+         <div id="customerLiveStatusBox" style="background:#2b1f13; border:2px solid var(--primary-gold); padding:12px; border-radius:6px; margin-bottom:12px; text-align:center;">
+              <div style="font-size:12px; color:#a89269; margin-bottom:2px;">目前餐點狀態</div>
+              <div id="trackOrderStatus" style="font-size:18px; font-weight:bold; color:var(--primary-gold); margin-bottom:8px;">等待接單</div>
+              <div style="font-size:13px; color:#eddab2;">店家確認取餐時間：<span id="trackOrderPickupTime" style="font-weight:bold; color:var(--primary-gold); font-size:15px;"></span></div>
          </div>
 
          <div style="background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; margin-bottom:14px; font-size:13px; line-height:1.6;">
+              <div class="receipt-line"><span>訂單編號:</span> <span id="rcvOrderNo" style="font-weight:bold; color:var(--primary-gold);"></span></div>
               <div class="receipt-line"><span>訂購人:</span> <span id="rcvCustName" style="font-weight:bold; color:var(--primary-gold);"></span></div>
               <div class="receipt-line"><span>電話:</span> <span id="rcvCustPhone" style="font-weight:bold; color:var(--primary-gold);"></span></div>
-              <div class="receipt-line"><span>預計取餐:</span> <span id="rcvPickupTime" style="font-weight:bold; color:var(--primary-gold);"></span></div>
               <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span id="rcvPayment"></span></div>
               
               <div style="margin: 8px 0; font-weight:bold; color:var(--primary-gold);">【調味/備註配置】</div>
@@ -366,8 +373,7 @@
          </div>
 
          <div style="display:flex; gap:8px; margin-top:auto;">
-              <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:10px;" onclick="switchToCheckoutView()">上一步</button>
-              <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
+              <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px;" onclick="clearCartAndReturnHome()">返回點餐首頁</button>
          </div>
      </div>
  </div>
@@ -416,7 +422,7 @@
          <div id="instantOrderDetails" style="font-size:13px; color:#eddab2; line-height:1.6; margin-bottom:14px; background:#150d07; padding:10px; border-radius:6px;"></div>
          
          <div style="margin-bottom:14px;">
-              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改取餐時間 (接單):</label>
+              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改取餐時間 (接單，以15分鐘為單位)：</label>
               <div style="display:flex; gap:6px;">
                   <input type="text" id="instantNewPickupTime" class="input-field" readonly style="background:#150d07; color:var(--primary-gold); font-weight:bold;">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="openInstantTimePicker()">修改時間</button>
@@ -585,7 +591,7 @@
      </div>
  </div>
 
- <!-- 取餐時間選擇 Modal (至少當下 +15 分鐘) -->
+ <!-- 取餐時間選擇 Modal (年月日自動當下，時間從 +15分起跳，以 15分鐘為單位) -->
  <div class="modal" id="pickupTimeModal">
      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
@@ -597,7 +603,7 @@
                   <input type="date" id="modalPickupDate" class="input-field" style="width:100%;">
             </div>
             <div>
-                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制，最快+15分)：</label>
+                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (每15分鐘一單位)：</label>
                   <select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select>
             </div>
          </div>
@@ -605,14 +611,14 @@
      </div>
  </div>
 
- <!-- 店家修改取餐時間 Modal (支援 10 分鐘為單位) -->
+ <!-- 店家修改取餐時間 Modal (支援 15 分鐘為單位) -->
  <div class="modal" id="storeChangeTimeModal" style="z-index: 210;">
      <div class="modal-content" style="width:320px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closeStoreChangeTimeModal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px;">⏱️ 修改取餐時間 (10分鐘為單位)</h3>
+         <h3 style="color:var(--primary-gold); margin-bottom:14px;">⏱️ 修改取餐時間 (15分鐘為單位)</h3>
          <div style="margin-bottom:14px; text-align:left;">
               <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇新取餐時間：</label>
-              <select id="storeTimeSelect10Min" class="input-field" style="width:100%; font-size:16px;"></select>
+              <select id="storeTimeSelect15Min" class="input-field" style="width:100%; font-size:16px;"></select>
          </div>
          <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmStoreChangeTime()">確定修改並接單</button>
      </div>
@@ -635,6 +641,7 @@
      let isAdminMode = false;
      let isLoggedMgr = false;
      let pendingInstantOrderId = null;
+     let activeTrackedOrderId = null; // 紀錄目前客人追蹤中的訂單 ID
 
      function checkModeAndAuth() {
          const urlParams = new URLSearchParams(window.location.search);
@@ -958,7 +965,7 @@
      let isHistorySelectMode = false;
      let pendingCashOrderId = null;
 
-     // 設定取餐時間預設為當下 +15 分鐘
+     // 設定取餐時間預設為當下 +15 分鐘（年月日直接顯示當下，間隔以15分鐘為單位）
      function setDefaultPickupTime() {
          const now = new Date();
          now.setMinutes(now.getMinutes() + 15);
@@ -967,6 +974,15 @@
          let dd = String(now.getDate()).padStart(2, '0');
          let hh = String(now.getHours()).padStart(2, '0');
          let min = String(now.getMinutes()).padStart(2, '0');
+         // 對齊到最近的 15 分鐘倍數
+         let mNum = parseInt(min);
+         let roundedM = Math.ceil(mNum / 15) * 15;
+         if (roundedM >= 60) {
+             roundedM = 0;
+             now.setHours(now.getHours() + 1);
+             hh = String(now.getHours()).padStart(2, '0');
+         }
+         min = String(roundedM).padStart(2, '0');
          
          document.getElementById('pickupTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
          updateWeekdayBadge();
@@ -984,9 +1000,10 @@
          const selectElem = document.getElementById('modalPickupTimeSelect');
          selectElem.innerHTML = '';
 
+         // 15分鐘為單位產生選項
          for (let h = 0; h < 27; h++) {
              let actualH = h % 24;
-             for (let m of [0, 30]) {
+             for (let m of [0, 15, 30, 45]) {
                  if (h >= 24 && m > 0) break;
                  let hStr = String(actualH).padStart(2, '0');
                  let mStr = String(m).padStart(2, '0');
@@ -997,12 +1014,19 @@
                  if (h >= 24) opt.dataset.nextDay = "true";
                  opt.text = timeStr;
                  
-                 if (actualH === now.getHours() && Math.abs(m - now.getMinutes()) < 30) {
-                     opt.selected = true;
-                 }
                  selectElem.appendChild(opt);
              }
          }
+
+         // 預設選取最接近的當下+15分選項
+         let targetH = String(now.getHours()).padStart(2, '0');
+         let targetM = Math.round(now.getMinutes() / 15) * 15;
+         if (targetM >= 60) {
+             targetM = 0;
+             targetH = String((now.getHours() + 1) % 24).padStart(2, '0');
+         }
+         let targetVal = `${targetH}:${String(targetM).padStart(2, '0')}`;
+         selectElem.value = targetVal;
 
          document.getElementById('pickupTimeModal').style.display = 'flex';
      }
@@ -1238,6 +1262,9 @@
          refreshMenuTabs();
          refreshActiveGrid();
          updateOrderBadge();
+         if (activeTrackedOrderId) {
+             updateCustomerTrackerUI();
+         }
          if (document.getElementById('orderSystemModal').style.display === 'flex') {
              renderLiveOrders();
          }
@@ -1743,6 +1770,11 @@
          switchToCartView();
      }
 
+     function clearCartAndReturnHome() {
+         activeTrackedOrderId = null;
+         clearCart();
+     }
+
      function switchToCheckoutView() {
          let status = localStorage.getItem('pos_store_status') || '營業中';
          if (status === '休息中') {
@@ -1856,20 +1888,56 @@
              }))
          };
 
+         // 自動送出並將右側切換為訂單狀態追蹤與明細畫面
+         confirmFinalOrderSubmitInternal();
+     }
+
+     function confirmFinalOrderSubmitInternal() {
+         if (!pendingOrderPayloadForConfirm) return;
+
+         let bizDateStr = pendingOrderPayloadForConfirm.date;
+         let seqObj = JSON.parse(localStorage.getItem('pos_daily_seq') || '{}');
+         if (!seqObj[bizDateStr]) seqObj[bizDateStr] = 0;
+         seqObj[bizDateStr]++;
+         localStorage.setItem('pos_daily_seq', JSON.stringify(seqObj));
+
+         let seqNum = seqObj[bizDateStr];
+         pendingOrderPayloadForConfirm.orderNo = `#${String(seqNum).padStart(3, '0')}`;
+         pendingOrderPayloadForConfirm.orderID = bizDateStr.replace(/\//g, '') + String(seqNum).padStart(3, '0');
+
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         liveOrders.push(pendingOrderPayloadForConfirm);
+         localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+         
+         activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
+
+         // 觸發音效與管理者即時彈窗通知
+         playSound('new_order');
+         if (isAdminMode) {
+             triggerInstantStoreNotification(pendingOrderPayloadForConfirm);
+         }
+
+         window.dispatchEvent(new Event('storage_synced'));
+         updateOrderBadge();
+         
+         // 顯示右側追蹤畫面
          showReceiptPreviewPanel(pendingOrderPayloadForConfirm);
+         pendingOrderPayloadForConfirm = null;
      }
 
      function showReceiptPreviewPanel(orderPayload) {
          document.getElementById('checkoutViewPanel').style.display = 'none';
          document.getElementById('receiptViewPanel').style.display = 'flex';
 
+         document.getElementById('rcvOrderNo').innerText = orderPayload.orderNo;
          document.getElementById('rcvCustName').innerText = orderPayload.customer;
          document.getElementById('rcvCustPhone').innerText = orderPayload.phone;
-         document.getElementById('rcvPickupTime').innerText = orderPayload.pickupTime;
          document.getElementById('rcvPayment').innerText = orderPayload.payment;
          document.getElementById('rcvFlavor').innerText = orderPayload.flavorStr || '無';
          document.getElementById('rcvNotes').innerText = orderPayload.custNotes || '無';
          document.getElementById('rcvTotal').innerText = `$${orderPayload.total}`;
+
+         updateCustomerTrackerUI();
 
          const itemsContainer = document.getElementById('rcvItemsList');
          itemsContainer.innerHTML = '';
@@ -1892,35 +1960,17 @@
          });
      }
 
-     function confirmFinalOrderSubmit() {
-         if (!pendingOrderPayloadForConfirm) return;
-
-         let bizDateStr = pendingOrderPayloadForConfirm.date;
-         let seqObj = JSON.parse(localStorage.getItem('pos_daily_seq') || '{}');
-         if (!seqObj[bizDateStr]) seqObj[bizDateStr] = 0;
-         seqObj[bizDateStr]++;
-         localStorage.setItem('pos_daily_seq', JSON.stringify(seqObj));
-
-         let seqNum = seqObj[bizDateStr];
-         pendingOrderPayloadForConfirm.orderNo = `#${String(seqNum).padStart(3, '0')}`;
-         pendingOrderPayloadForConfirm.orderID = bizDateStr.replace(/\//g, '') + String(seqNum).padStart(3, '0');
-
+     function updateCustomerTrackerUI() {
+         if (!activeTrackedOrderId) return;
          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-         liveOrders.push(pendingOrderPayloadForConfirm);
-         localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
-         
-         // 觸發音效與管理者即時彈窗通知
-         playSound('new_order');
-         if (isAdminMode) {
-             triggerInstantStoreNotification(pendingOrderPayloadForConfirm);
-         }
+         let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+         let allOrders = [...liveOrders, ...history];
+         let ord = allOrders.find(o => o.id === activeTrackedOrderId);
 
-         window.dispatchEvent(new Event('storage_synced'));
-         clearCart();
-         pendingOrderPayloadForConfirm = null;
-         updateOrderBadge();
-         switchToCartView();
-         alert("訂單已成功送出！等待店家確認接單中。");
+         if (ord) {
+             document.getElementById('trackOrderStatus').innerText = ord.status;
+             document.getElementById('trackOrderPickupTime').innerText = ord.pickupTime;
+         }
      }
 
      function triggerInstantStoreNotification(orderObj) {
@@ -1946,7 +1996,7 @@
          let datePart = currentVal.split(' ')[0] || '';
          let timePart = currentVal.split(' ')[1] || '17:00';
 
-         let selTime = prompt("請修改取餐時間 (格式 HH:MM，以10分鐘為單位，例如 18:10)：", timePart);
+         let selTime = prompt("請修改取餐時間 (格式 HH:MM，以15分鐘為單位，例如 18:15)：", timePart);
          if (selTime !== null && selTime.trim() !== "") {
              let newPickupFull = `${datePart} ${selTime.trim()}`;
              document.getElementById('instantNewPickupTime').value = newPickupFull;
@@ -2074,7 +2124,7 @@
          let datePart = currentVal.split(' ')[0] || '';
          let timePart = currentVal.split(' ')[1] || '17:00';
 
-         let newTime = prompt("請修改取餐時間 (以10分鐘為單位，例如 18:20)：", timePart);
+         let newTime = prompt("請修改取餐時間 (以15分鐘為單位，例如 18:15)：", timePart);
          if (newTime !== null && newTime.trim() !== "") {
              ord.pickupTime = `${datePart} ${newTime.trim()}`;
              ord.status = "製作中";
