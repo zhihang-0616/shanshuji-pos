@@ -369,7 +369,7 @@
          </div>
 
          <div style="background:#2b1f13; border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:14px; font-size:12px; color:#f3e5ab; text-align:center; line-height:1.5;">
-              您的訂單已成功送出！待店家確認接單後，系統將立即通知您正確的取餐時間，謝謝您的耐心等候。
+              您的訂單已成功送出！待店家確認接單後, 系統將立即通知您正確的取餐時間, 謝謝您的耐心等候。
          </div>
 
          <div style="display:flex; gap:8px; margin-top:auto;">
@@ -422,7 +422,7 @@
          <div id="instantOrderDetails" style="font-size:13px; color:#eddab2; line-height:1.6; margin-bottom:14px; background:#150d07; padding:10px; border-radius:6px;"></div>
          
          <div style="margin-bottom:14px;">
-              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改取餐時間 (接單，以15分鐘為單位)：</label>
+              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改取餐時間 (接單, 以15分鐘為單位)：</label>
               <div style="display:flex; gap:6px;">
                   <input type="text" id="instantNewPickupTime" class="input-field" readonly style="background:#150d07; color:var(--primary-gold); font-weight:bold;">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="openInstantTimePicker()">修改時間</button>
@@ -470,15 +470,16 @@
      </div>
  </div>
 
- <!-- 歷史訂單查詢 Modal -->
+ <!-- 歷史訂單 Modal -->
  <div class="modal" id="historyModal">
      <div class="modal-content" id="historyModalContent" style="width:1100px; max-width:98vw; height:75vh; display:flex; flex-direction:column;">
          <button class="modal-close-x" onclick="closeHistoryModal()">✕</button>
          
          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-              <h3 style="color:var(--primary-gold); margin:0;">📊 歷史訂單查詢 (已完成)</h3>
+              <h3 style="color:var(--primary-gold); margin:0;">📊 歷史訂單</h3>
               
               <div style="display:flex; gap:6px; align-items:center;">
+                  <button class="header-btn" id="toggleAllHistoryBtn" style="background:#5c2c16;" onclick="toggleAllHistoryMode()">全部訂單</button>
                   <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(-1)">◀ 前一日</button>
                   <input type="date" id="historyDateFilter" class="input-field" style="padding:4px 8px; width:130px;" onchange="renderHistoryOrders()">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="changeHistoryDate(1)">後一日 ▶</button>
@@ -491,6 +492,7 @@
               <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left; min-width:1300px;">
                   <thead>
                       <tr style="border-bottom:2px solid var(--border-gold); color:var(--primary-gold); background:#1a110a;">
+                          <th style="padding:8px; text-align:center; white-space:nowrap;">操作</th>
                           <th style="padding:8px; display:none; white-space:nowrap;" class="history-select-th">選取</th>
                           <th style="padding:8px; white-space:nowrap;">流水號</th>
                           <th style="padding:8px; white-space:nowrap;">訂單ID</th>
@@ -506,7 +508,6 @@
                           <th style="padding:8px; min-width:200px;">品項內容</th>
                           <th style="padding:8px; min-width:120px;">口味</th>
                           <th style="padding:8px; min-width:150px;">備註</th>
-                          <th style="padding:8px; text-align:center; white-space:nowrap;">操作</th>
                       </tr>
                   </thead>
                   <tbody id="historyTableBody"></tbody>
@@ -1005,6 +1006,7 @@
      let currentEditingOrderId = null; 
      let currentEditingTarget = 'live'; 
      let isHistorySelectMode = false;
+     let isAllHistoryMode = false; // 全部訂單模式狀態
      let pendingCashOrderId = null;
 
      function setDefaultPickupTime() {
@@ -1968,7 +1970,6 @@
          
          activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
 
-         // 建立完成後立即清空購物車與點選狀態，並切換回首頁畫面
          let tempPayload = pendingOrderPayloadForConfirm;
          clearCart();
 
@@ -2321,6 +2322,9 @@
          document.getElementById('historyDateFilter').value = `${yyyy}-${mm}-${dd}`;
          
          isHistorySelectMode = false;
+         isAllHistoryMode = false;
+         document.getElementById('toggleAllHistoryBtn').innerText = "全部訂單";
+         document.getElementById('toggleAllHistoryBtn').style.background = "#5c2c16";
          document.getElementById('batchDeleteBtn').style.display = 'none';
          document.getElementById('toggleSelectModeBtn').innerText = "選取";
 
@@ -2332,7 +2336,21 @@
          document.getElementById('historyModal').style.display = 'none';
      }
 
+     function toggleAllHistoryMode() {
+         isAllHistoryMode = !isAllHistoryMode;
+         const btn = document.getElementById('toggleAllHistoryBtn');
+         if (isAllHistoryMode) {
+             btn.innerText = "取消全部";
+             btn.style.background = "#1b5e20";
+         } else {
+             btn.innerText = "全部訂單";
+             btn.style.background = "#5c2c16";
+         }
+         renderHistoryOrders();
+     }
+
      function changeHistoryDate(days) {
+         if (isAllHistoryMode) return; // 全部模式下不依賴單日增減
          const dateInput = document.getElementById('historyDateFilter');
          if (!dateInput.value) return;
          let dt = new Date(dateInput.value);
@@ -2369,12 +2387,13 @@
          let formattedFilterDate = filterDateVal ? filterDateVal.replace(/-/g, '/') : '';
 
          let filtered = history.filter(ord => {
+             if (isAllHistoryMode) return true; // 全部訂單模式顯示全部
              if (!formattedFilterDate) return true;
              return ord.date === formattedFilterDate;
          });
 
          if (filtered.length === 0) {
-             tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:30px; color:#8a7356;">此日期無歷史訂單紀錄📊</td></tr>`;
+             tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:30px; color:#8a7356;">無歷史訂單紀錄📊</td></tr>`;
              return;
          }
 
@@ -2386,6 +2405,11 @@
              let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
              
              tr.innerHTML = `
+                 <td style="padding:8px; text-align:center; white-space:nowrap;">
+                     <button class="header-btn" style="background:#4a148c; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderInfoModal(${ord.id}, 'history')">📝 資訊</button>
+                     <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
+                     <button class="header-btn" style="background:#7a1c1c; padding:3px 6px; font-size:11px;" onclick="deleteSingleHistoryOrder(${ord.id})">✕</button>
+                 </td>
                  <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}"></td>
                  <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
                  <td style="padding:8px; color:#a89269;">${ord.orderID}</td>
@@ -2401,11 +2425,6 @@
                  <td style="padding:8px; max-width:250px; word-break:break-all;">${itemsStr}</td>
                  <td style="padding:8px;">${ord.flavorStr || ''}</td>
                  <td style="padding:8px;">${ord.custNotes || ''}</td>
-                 <td style="padding:8px; text-align:center; white-space:nowrap;">
-                     <button class="header-btn" style="background:#4a148c; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderInfoModal(${ord.id}, 'history')">📝 資訊</button>
-                     <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
-                     <button class="header-btn" style="background:#7a1c1c; padding:3px 6px; font-size:11px;" onclick="deleteSingleHistoryOrder(${ord.id})">✕</button>
-                 </td>
              `;
              tbody.appendChild(tr);
          });
