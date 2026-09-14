@@ -2032,7 +2032,8 @@
          activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
 
          let tempPayload = pendingOrderPayloadForConfirm;
-         clearCart();
+         currentCart = []; // 清空購物車資料但不重置追蹤畫面
+         updateCartUI();
 
          playSound('new_order');
          if (isAdminMode) {
@@ -2093,8 +2094,15 @@
              statusElem.innerText = ord.status;
              pickupElem.innerText = ord.pickupTime;
          } else {
-             switchToCartView();
-             activeTrackedOrderId = null;
+             // 若即時訂單已不在 liveOrders 中 (代表已被店家完成或拒單歸檔)，檢查是否轉入歷史或完成
+             let history = getCloudItem('pos_order_history', []);
+             let histOrd = history.find(o => o.id === activeTrackedOrderId);
+             if (histOrd) {
+                 statusElem.innerText = histOrd.status;
+                 pickupElem.innerText = histOrd.pickupTime;
+             } else {
+                 statusElem.innerText = "訂單已結束/歸檔";
+             }
          }
      }
 
