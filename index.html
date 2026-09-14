@@ -3,7 +3,7 @@
 <head>
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>去中心鹹水雞 X 厝邊溫食 POS 系統 (雲端極速同步版)</title>
+ <title>去中心鹹水雞 X 厝邊溫食 POS 系統 (防閃爍穩定版)</title>
   <style>                                                                                                                                                                                                   
      :root {
          --primary-gold: #d4af37;
@@ -331,7 +331,6 @@
          <div class="action-buttons" style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold); display:flex; gap:8px;">
              <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
              <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="switchToCartView()">上一步</button>
-             <!-- 補單按鈕 (僅在店家管理員模式下顯示) -->
              <button class="btn" id="supplementOrderBtn" style="flex:1.2; background:linear-gradient(135deg, #006064, #00363a); color:#e0f7fa; border:1px solid #4dd0e1; display:none;" onclick="submitSupplementOrder()">補單</button>
              <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
          </div>
@@ -591,7 +590,7 @@
      let activeTrackedOrderId = null; 
      let lastKnownLiveOrderCount = 0; 
      let activeCashCheckoutOrderId = null; 
-     let isSyncingFromServer = false; // 防止背景同步與手動點擊衝突的狀態鎖
+     let isSyncingFromServer = false; 
      
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
@@ -632,7 +631,7 @@
          }).catch(e => {
              console.error("雲端同步寫入失敗:", e);
          }).finally(() => {
-             setTimeout(() => { isSyncingFromServer = false; }, 1000);
+             setTimeout(() => { isSyncingFromServer = false; }, 1500);
          });
          
          window.dispatchEvent(new Event('storage_synced'));
@@ -1232,14 +1231,13 @@
              if (activeTrackedOrderId) {
                  updateCustomerTrackerUI();
              }
-             // 當接單系統打開時，若正在進行內嵌結算或有操作，暫不強刷以免打斷操作
              if (document.getElementById('orderSystemModal').style.display === 'flex' && !activeCashCheckoutOrderId && !isSyncingFromServer) {
                  renderLiveOrders();
              }
-             if (document.getElementById('historyModal').style.display === 'flex') {
+             if (document.getElementById('historyModal').style.display === 'flex' && !isHistorySelectMode) {
                  renderHistoryOrders();
              }
-         }, 3000);
+         }, 4000);
      }
 
      function handleStorageSync() {
@@ -1265,7 +1263,7 @@
          if (document.getElementById('orderSystemModal').style.display === 'flex' && !activeCashCheckoutOrderId && !isSyncingFromServer) {
              renderLiveOrders();
          }
-         if (document.getElementById('historyModal').style.display === 'flex') {
+         if (document.getElementById('historyModal').style.display === 'flex' && !isHistorySelectMode) {
              renderHistoryOrders();
          }
          if (currentEditingOrderId && document.getElementById('editOrderItemsModal').style.display === 'flex') {
@@ -2463,6 +2461,10 @@
      function renderHistoryOrders() {
          const tbody = document.getElementById('historyTableBody');
          if (!tbody) return;
+
+         // 備份目前已勾選的訂單 ID，防止畫面更新時勾選狀態被刷掉
+         let checkedIds = Array.from(document.querySelectorAll('.history-chk:checked')).map(c => Number(c.value));
+
          tbody.innerHTML = '';
 
          let history = getCloudItem('pos_order_history', []);
@@ -2489,6 +2491,7 @@
              tr.style.cssText = "border-bottom:1px solid #3d2b1a; color:#eddab2;";
              
              let selectTdDisplay = isHistorySelectMode ? 'table-cell' : 'none';
+             let isChecked = checkedIds.includes(ord.id) ? 'checked' : '';
              
              tr.innerHTML = `
                  <td style="padding:8px; text-align:center; white-space:nowrap;">
@@ -2496,7 +2499,7 @@
                      <button class="header-btn" style="background:#8b5a00; padding:3px 6px; font-size:11px; margin-right:4px;" onclick="openEditOrderItemsModal(${ord.id}, 'history')">🍔 品項</button>
                      <button class="header-btn" style="background:#7a1c1c; padding:3px 6px; font-size:11px;" onclick="deleteSingleHistoryOrder(${ord.id})">✕</button>
                  </td>
-                 <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}"></td>
+                 <td style="padding:8px; display:${selectTdDisplay}; text-align:center;" class="history-select-td"><input type="checkbox" class="history-chk" value="${ord.id}" ${isChecked}></td>
                  <td style="padding:8px; font-weight:bold; color:var(--primary-gold);">${ord.orderNo}</td>
                  <td style="padding:8px; color:#a89269;">${ord.orderID}</td>
                  <td style="padding:8px;">${ord.status}</td>
