@@ -232,7 +232,7 @@
          <div class="order-list" id="orderList"></div>
 
          <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
-             <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="switchToCheckoutView()">下一步 (填寫取餐)</button>
+             <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="switchToCheckoutView()">下一步 (填寫取餐資料)</button>
          </div>
      </div>
 
@@ -244,7 +244,7 @@
          <div class="order-list" id="checkoutMiniOrderList" style="max-height: 140px; min-height: 100px; flex: initial;"></div>
 
          <div class="order-title" style="cursor:default; background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); border-top: 2px solid var(--border-gold);">
-             <span>填寫取餐</span>
+             <span>填寫取餐資料</span>
          </div>
 
          <div class="customer-info-box" style="border-bottom: 1px solid var(--border-gold);">
@@ -331,20 +331,18 @@
          <div class="action-buttons" style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold); display:flex; gap:8px;">
              <button class="btn btn-clear" style="flex:1.2;" onclick="clearCart()">清除購物車</button>
              <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold);" onclick="switchToCartView()">上一步</button>
-             <!-- 補單按鈕 (僅在店家管理員模式下顯示) -->
              <button class="btn" id="supplementOrderBtn" style="flex:1.2; background:linear-gradient(135deg, #006064, #00363a); color:#e0f7fa; border:1px solid #4dd0e1; display:none;" onclick="submitSupplementOrder()">補單</button>
              <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
          </div>
      </div>
 
-     <!-- 檢視模式 3：右側下單後的訂單狀態追蹤與明細 (同圖一畫面) -->
+     <!-- 檢視模式 3：右側下單後的訂單狀態追蹤與明細 -->
      <div id="receiptViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a; padding:14px;">
          <div class="receipt-header">
              <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
              <p style="font-size:13px; color:#a89269;">訂單狀態與明細追蹤</p>
          </div>
 
-         <!-- 即時訂單狀態顯示區 (圖一設計) -->
          <div id="customerLiveStatusBox" style="background:#2b1f13; border:2px solid var(--primary-gold); padding:12px; border-radius:6px; margin-bottom:12px; text-align:center;">
               <div style="font-size:12px; color:#a89269; margin-bottom:2px;">目前餐點狀態</div>
               <div id="trackOrderStatus" style="font-size:18px; font-weight:bold; color:var(--primary-gold); margin-bottom:8px;">等待接單</div>
@@ -598,7 +596,7 @@
  <div class="modal" id="pickupTimeModal">
      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px;">選擇 24 小時制取餐時間</h3>
+         <h3 style="color:var(--primary-gold); margin-bottom:14px;">取餐時間</h3>
          
          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:15px; text-align:left;">
             <div>
@@ -826,7 +824,7 @@
              submitBtn.innerText = "目前備料中 (可預訂)";
              submitBtn.style.opacity = '1';
          } else {
-             submitBtn.innerText = "下一步 (填寫取餐)";
+             submitBtn.innerText = "下一步 (填寫取餐資料)";
              submitBtn.style.opacity = '1';
          }
      }
@@ -1014,31 +1012,20 @@
      let isAllHistoryMode = false;
      let pendingCashOrderId = null;
 
+     // 修改：預設只顯示年月日，時間保持空白
      function setDefaultPickupTime() {
          const now = new Date();
-         now.setMinutes(now.getMinutes() + 15);
          let yyyy = now.getFullYear();
          let mm = String(now.getMonth() + 1).padStart(2, '0');
          let dd = String(now.getDate()).padStart(2, '0');
-         let hh = String(now.getHours()).padStart(2, '0');
-         let min = String(now.getMinutes()).padStart(2, '0');
-         let mNum = parseInt(min);
-         let roundedM = Math.ceil(mNum / 15) * 15;
-         if (roundedM >= 60) {
-             roundedM = 0;
-             now.setHours(now.getHours() + 1);
-             hh = String(now.getHours()).padStart(2, '0');
-         }
-         min = String(roundedM).padStart(2, '0');
          
          const pickupElem = document.getElementById('pickupTime');
-         if (pickupElem) pickupElem.value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+         if (pickupElem) pickupElem.value = `${yyyy}/${mm}/${dd} `;
          updateWeekdayBadge();
      }
 
      function openPickupTimeModal() {
          const now = new Date();
-         now.setMinutes(now.getMinutes() + 15);
          let yyyy = now.getFullYear();
          let mm = String(now.getMonth() + 1).padStart(2, '0');
          let dd = String(now.getDate()).padStart(2, '0');
@@ -1876,7 +1863,6 @@
          document.getElementById('step1TotalAmount').innerText = `$${finalTotal}`;
      }
 
-     // 補單功能：直接建立並存入歷史訂單 (狀態為已完成)
      function submitSupplementOrder() {
          let custName = document.getElementById('custName').value.trim();
          let custPhone = document.getElementById('custPhone').value.trim();
@@ -1894,8 +1880,8 @@
              document.getElementById('custPhone').focus();
              return;
          }
-         if (!pickupTimeRaw) {
-             alert("請選擇【取餐時間】！");
+         if (!pickupTimeRaw || !pickupTimeRaw.includes(":")) {
+             alert("請選擇完整的【取餐時間】！");
              return;
          }
 
@@ -1945,7 +1931,7 @@
 
          let supplementPayload = {
              id: Date.now(),
-             status: "已完成", // 直接設定為已完成
+             status: "已完成",
              date: dateStr,
              weekDay: weekDayStr,
              time: timeStr,
@@ -1992,8 +1978,8 @@
              document.getElementById('custPhone').focus();
              return;
          }
-         if (!pickupTimeRaw) {
-             alert("請選擇【取餐時間】！");
+         if (!pickupTimeRaw || !pickupTimeRaw.includes(":")) {
+             alert("請選擇完整的【取餐時間】！");
              return;
          }
 
