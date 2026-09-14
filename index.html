@@ -232,21 +232,19 @@
          <div class="order-list" id="orderList"></div>
 
          <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
-             <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="switchToCheckoutView()">下一步 (填寫取餐資訊)</button>
+             <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="switchToCheckoutView()">下一步 (填寫取餐)</button>
          </div>
      </div>
 
-     <!-- 檢視模式 2：右側填寫取餐資訊與結算面板（保留上方訂單明細區塊給予位置） -->
+     <!-- 檢視模式 2：右側填寫取餐資訊與結算面板 -->
      <div id="checkoutViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a;">
          <div class="order-title" style="background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%);">
              <span>目前訂單明細摘要</span>
          </div>
-         
-         <!-- 保留給用戶隨時檢視的訂單明細小視窗區塊 -->
          <div class="order-list" id="checkoutMiniOrderList" style="max-height: 140px; min-height: 100px; flex: initial;"></div>
 
          <div class="order-title" style="cursor:default; background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); border-top: 2px solid var(--border-gold);">
-             <span>填寫取餐資訊與結算</span>
+             <span>填寫取餐</span>
          </div>
 
          <div class="customer-info-box" style="border-bottom: 1px solid var(--border-gold);">
@@ -262,6 +260,9 @@
                     <span class="input-label">取餐時間*:</span>
                     <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
                     <span id="weekdayBadge" class="weekday-badge">星期--</span>
+              </div>
+              <div style="font-size:11px; color:#d6c29a; margin-top:2px; margin-bottom:6px; line-height:1.4;">
+                  ⚠️ 若遇現場尖峰時段，實際取餐時間將以店家確認後發送之通知為主，敬請見諒。
               </div>
               <div class="input-row">
                     <span class="input-label">顧客備註:</span>
@@ -333,6 +334,42 @@
              <button class="btn btn-submit" style="flex:1.2;" onclick="goToReceiptPreview()">下一步</button>
          </div>
      </div>
+
+     <!-- 檢視模式 3：右側收據預覽與下單確認 -->
+     <div id="receiptViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a; padding:14px;">
+         <div class="receipt-header">
+             <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
+             <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
+         </div>
+
+         <div style="background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; margin-bottom:14px; font-size:13px; line-height:1.6;">
+              <div class="receipt-line"><span>訂購人:</span> <span id="rcvCustName" style="font-weight:bold; color:var(--primary-gold);"></span></div>
+              <div class="receipt-line"><span>電話:</span> <span id="rcvCustPhone" style="font-weight:bold; color:var(--primary-gold);"></span></div>
+              <div class="receipt-line"><span>預計取餐:</span> <span id="rcvPickupTime" style="font-weight:bold; color:var(--primary-gold);"></span></div>
+              <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span id="rcvPayment"></span></div>
+              
+              <div style="margin: 8px 0; font-weight:bold; color:var(--primary-gold);">【調味/備註配置】</div>
+              <div class="receipt-line"><span>口味綜合:</span> <span id="rcvFlavor"></span></div>
+              <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>備註/配備:</span> <span id="rcvNotes"></span></div>
+
+              <div style="margin: 8px 0; font-weight:bold; color:var(--text-gold);">【點購品項】</div>
+              <div id="rcvItemsList" style="display:flex; flex-direction:column; gap:4px; max-height:160px; overflow-y:auto; margin-bottom:6px;"></div>
+
+              <div style="border-top: 1px dashed #5c4524; padding-top:8px; font-weight:bold; font-size:16px; color:var(--primary-gold);" class="receipt-line">
+                  <span>應付總額:</span>
+                  <span id="rcvTotal">$0</span>
+              </div>
+         </div>
+
+         <div style="background:#2b1f13; border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:14px; font-size:12px; color:#f3e5ab; text-align:center; line-height:1.5;">
+              您的訂單已成功送出！待店家確認接單後，系統將立即通知您正確的取餐時間，謝謝您的耐心等候。
+         </div>
+
+         <div style="display:flex; gap:8px; margin-top:auto;">
+              <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:10px;" onclick="switchToCheckoutView()">上一步</button>
+              <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
+         </div>
+     </div>
  </div>
 
  <!-- 管理模式 Modal -->
@@ -348,7 +385,7 @@
      </div>
  </div>
 
- <!-- 修改密碼 Modal (需輸入舊密碼與新密碼) -->
+ <!-- 修改密碼 Modal -->
  <div class="modal" id="changePasswordModal">
      <div class="modal-content" style="width:380px; resize:none;">
          <button class="modal-close-x" onclick="closeChangePasswordModal()">✕</button>
@@ -372,14 +409,30 @@
      </div>
  </div>
 
- <!-- 收據與確認下單視窗 -->
- <div class="modal" id="receiptModal">
-     <div class="modal-content" id="receiptContent" style="font-family: monospace; width:400px; resize:none;"></div>
+ <!-- 店家即時新訂單彈出通知 Modal (附帶接單/改時接單/拒單功能) -->
+ <div class="modal" id="instantNewOrderModal" style="z-index: 200;">
+     <div class="modal-content" style="width:440px; border:2px solid var(--primary-gold); background:#24190f;">
+         <h3 style="color:var(--primary-gold); text-align:center; margin-bottom:10px;">🔔 新訂單即時通知</h3>
+         <div id="instantOrderDetails" style="font-size:13px; color:#eddab2; line-height:1.6; margin-bottom:14px; background:#150d07; padding:10px; border-radius:6px;"></div>
+         
+         <div style="margin-bottom:14px;">
+              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改取餐時間 (接單):</label>
+              <div style="display:flex; gap:6px;">
+                  <input type="text" id="instantNewPickupTime" class="input-field" readonly style="background:#150d07; color:var(--primary-gold); font-weight:bold;">
+                  <button class="header-btn" style="background:#3d2b1a;" onclick="openInstantTimePicker()">修改時間</button>
+              </div>
+         </div>
+
+         <div style="display:flex; gap:8px;">
+              <button class="btn btn-submit" style="flex:1.5; padding:10px;" onclick="confirmInstantAccept()">確認接單 (套用時間)</button>
+              <button class="btn" style="flex:1; background:#8b1e0f; color:white; padding:10px;" onclick="confirmInstantReject()">拒絕訂單</button>
+         </div>
+     </div>
  </div>
 
  <!-- 接單系統管理 Modal -->
  <div class="modal" id="orderSystemModal">
-     <div class="modal-content" style="width:550px; max-width:95vw; resize:none;">
+     <div class="modal-content" style="width:580px; max-width:95vw; resize:none;">
          <button class="modal-close-x" onclick="closeOrderSystemModal()">✕</button>
          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📋 接單系統 (即時訂單管理)</h3>
          <div id="liveOrderListContainer" style="max-height:65vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
@@ -532,7 +585,7 @@
      </div>
  </div>
 
- <!-- 取餐時間選擇 Modal -->
+ <!-- 取餐時間選擇 Modal (至少當下 +15 分鐘) -->
  <div class="modal" id="pickupTimeModal">
      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
@@ -544,11 +597,24 @@
                   <input type="date" id="modalPickupDate" class="input-field" style="width:100%;">
             </div>
             <div>
-                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制)：</label>
+                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (24小時制，最快+15分)：</label>
                   <select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select>
             </div>
          </div>
          <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmPickupTimeModal()">確定選擇</button>
+     </div>
+ </div>
+
+ <!-- 店家修改取餐時間 Modal (支援 10 分鐘為單位) -->
+ <div class="modal" id="storeChangeTimeModal" style="z-index: 210;">
+     <div class="modal-content" style="width:320px; text-align:center; resize:none;">
+         <button class="modal-close-x" onclick="closeStoreChangeTimeModal()">✕</button>
+         <h3 style="color:var(--primary-gold); margin-bottom:14px;">⏱️ 修改取餐時間 (10分鐘為單位)</h3>
+         <div style="margin-bottom:14px; text-align:left;">
+              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇新取餐時間：</label>
+              <select id="storeTimeSelect10Min" class="input-field" style="width:100%; font-size:16px;"></select>
+         </div>
+         <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmStoreChangeTime()">確定修改並接單</button>
      </div>
  </div>
 
@@ -568,6 +634,7 @@
      const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
      let isAdminMode = false;
      let isLoggedMgr = false;
+     let pendingInstantOrderId = null;
 
      function checkModeAndAuth() {
          const urlParams = new URLSearchParams(window.location.search);
@@ -697,7 +764,7 @@
              submitBtn.innerText = "目前備料中 (可預訂)";
              submitBtn.style.opacity = '1';
          } else {
-             submitBtn.innerText = "下一步 (填寫取餐資訊)";
+             submitBtn.innerText = "下一步 (填寫取餐)";
              submitBtn.style.opacity = '1';
          }
      }
@@ -891,8 +958,10 @@
      let isHistorySelectMode = false;
      let pendingCashOrderId = null;
 
+     // 設定取餐時間預設為當下 +15 分鐘
      function setDefaultPickupTime() {
          const now = new Date();
+         now.setMinutes(now.getMinutes() + 15);
          let yyyy = now.getFullYear();
          let mm = String(now.getMonth() + 1).padStart(2, '0');
          let dd = String(now.getDate()).padStart(2, '0');
@@ -905,6 +974,7 @@
 
      function openPickupTimeModal() {
          const now = new Date();
+         now.setMinutes(now.getMinutes() + 15);
          let yyyy = now.getFullYear();
          let mm = String(now.getMonth() + 1).padStart(2, '0');
          let dd = String(now.getDate()).padStart(2, '0');
@@ -1574,16 +1644,12 @@
      }
 
      function updateCartUI() {
-         // 更新主畫面購物車列表
          const listContainer = document.getElementById('orderList');
          listContainer.innerHTML = '';
-
-         // 同步更新結算面板中的迷你訂單明細列表
          const miniListContainer = document.getElementById('checkoutMiniOrderList');
          if (miniListContainer) miniListContainer.innerHTML = '';
          
          currentCart.forEach((item, idx) => {
-             // 產生主畫面明細 HTML
              const div = document.createElement('div');
              div.className = 'order-item';
              div.innerHTML = `
@@ -1601,7 +1667,6 @@
              `;
              listContainer.appendChild(div);
 
-             // 產生結算面板中的迷你明細 HTML
              if (miniListContainer) {
                  const miniDiv = document.createElement('div');
                  miniDiv.className = 'order-item';
@@ -1688,6 +1753,7 @@
              alert("購物車是空的，請先選擇餐點！");
              return;
          }
+         document.getElementById('receiptViewPanel').style.display = 'none';
          document.getElementById('cartViewPanel').style.display = 'none';
          document.getElementById('checkoutViewPanel').style.display = 'flex';
          updateCartUI();
@@ -1695,6 +1761,7 @@
      }
 
      function switchToCartView() {
+         document.getElementById('receiptViewPanel').style.display = 'none';
          document.getElementById('checkoutViewPanel').style.display = 'none';
          document.getElementById('cartViewPanel').style.display = 'flex';
      }
@@ -1789,70 +1856,40 @@
              }))
          };
 
-         showReceiptPreviewModal(pendingOrderPayloadForConfirm);
+         showReceiptPreviewPanel(pendingOrderPayloadForConfirm);
      }
 
-     function showReceiptPreviewModal(orderPayload) {
-         const modal = document.getElementById('receiptModal');
-         const content = document.getElementById('receiptContent');
-         
-         let receiptHtml = `
-             <button class="modal-close-x" onclick="closeReceiptModalAndBack()">✕</button>
-             <div class="receipt-header">
-                 <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
-                 <p style="font-size:13px; color:#a89269;">點單明細收據預覽</p>
-             </div>
-             
-             <div style="display:flex; gap:8px; margin-bottom:14px;">
-                 <button class="btn" style="flex:1; background:#3d2b1a; color:var(--text-gold); border:1px solid var(--border-gold); padding:10px;" onclick="closeReceiptModalAndBack()">上一步</button>
-                 <button class="btn btn-submit" style="flex:1.5; padding:12px; font-size:16px;" onclick="confirmFinalOrderSubmit()">確認下單</button>
-             </div>
-             
-             <div class="receipt-line"><span>訂購人:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.customer}</span></div>
-             <div class="receipt-line"><span>電話:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.phone}</span></div>
-             <div class="receipt-line"><span>預計取餐:</span> <span style="font-weight:bold; color:var(--primary-gold);">${orderPayload.pickupTime}</span></div>
-             <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>付款方式:</span> <span>${orderPayload.payment}</span></div>
-             
-             <div style="margin: 10px 0; font-weight:bold; font-size:14px; color:var(--primary-gold);">【調味/備註配置】</div>
-             <div class="receipt-line"><span>口味綜合:</span> <span>${orderPayload.flavorStr || '無'}</span></div>
-             <div class="receipt-line" style="border-bottom: 1px dashed #5c4524; padding-bottom:6px;"><span>備註/配備:</span> <span>${orderPayload.custNotes || '無'}</span></div>
-             
-             <div style="margin: 10px 0; font-weight:bold; font-size:15px; color:var(--text-gold);">【點購品項】</div>
-         `;
+     function showReceiptPreviewPanel(orderPayload) {
+         document.getElementById('checkoutViewPanel').style.display = 'none';
+         document.getElementById('receiptViewPanel').style.display = 'flex';
 
+         document.getElementById('rcvCustName').innerText = orderPayload.customer;
+         document.getElementById('rcvCustPhone').innerText = orderPayload.phone;
+         document.getElementById('rcvPickupTime').innerText = orderPayload.pickupTime;
+         document.getElementById('rcvPayment').innerText = orderPayload.payment;
+         document.getElementById('rcvFlavor').innerText = orderPayload.flavorStr || '無';
+         document.getElementById('rcvNotes').innerText = orderPayload.custNotes || '無';
+         document.getElementById('rcvTotal').innerText = `$${orderPayload.total}`;
+
+         const itemsContainer = document.getElementById('rcvItemsList');
+         itemsContainer.innerHTML = '';
          orderPayload.items.forEach(item => {
              let itemCost = item.price * item.qty;
-             receiptHtml += `
-                 <div class="receipt-line">
-                     <span>${item.name} x ${item.qty}</span>
-                     <span>$${itemCost}</span>
-                 </div>
-             `;
+             let div = document.createElement('div');
+             div.className = 'receipt-line';
+             div.innerHTML = `<span>${item.name} x ${item.qty}</span><span>$${itemCost}</span>`;
+             itemsContainer.appendChild(div);
+
              if (item.subItems) {
                  item.subItems.forEach(sub => {
-                     receiptHtml += `
-                         <div class="receipt-line" style="padding-left:15px; font-size:13px; color:#a89269;">
-                             <span>└ ${sub.name}</span>
-                             <span>$0</span>
-                         </div>
-                     `;
+                     let subDiv = document.createElement('div');
+                     subDiv.className = 'receipt-line';
+                     subDiv.style.cssText = "padding-left:15px; font-size:12px; color:#a89269;";
+                     subDiv.innerHTML = `<span>└ ${sub.name}</span><span>$0</span>`;
+                     itemsContainer.appendChild(subDiv);
                  });
              }
          });
-
-         receiptHtml += `
-             <div style="border-top: 1px dashed #5c4524; margin-top: 10px; padding-top: 10px; font-weight:bold; font-size:17px; color:var(--primary-gold);" class="receipt-line">
-                 <span>應付總額:</span>
-                 <span>$${orderPayload.total}</span>
-             </div>
-         `;
-
-         content.innerHTML = receiptHtml;
-         modal.style.display = 'flex';
-     }
-
-     function closeReceiptModalAndBack() {
-         document.getElementById('receiptModal').style.display = 'none';
      }
 
      function confirmFinalOrderSubmit() {
@@ -1872,13 +1909,76 @@
          liveOrders.push(pendingOrderPayloadForConfirm);
          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
          
-         window.dispatchEvent(new Event('storage_synced'));
+         // 觸發音效與管理者即時彈窗通知
          playSound('new_order');
-         document.getElementById('receiptModal').style.display = 'none';
+         if (isAdminMode) {
+             triggerInstantStoreNotification(pendingOrderPayloadForConfirm);
+         }
+
+         window.dispatchEvent(new Event('storage_synced'));
          clearCart();
          pendingOrderPayloadForConfirm = null;
          updateOrderBadge();
          switchToCartView();
+         alert("訂單已成功送出！等待店家確認接單中。");
+     }
+
+     function triggerInstantStoreNotification(orderObj) {
+         pendingInstantOrderId = orderObj.id;
+         document.getElementById('instantNewPickupTime').value = orderObj.pickupTime;
+         
+         let html = `
+             <div><strong>訂單編號：</strong>${orderObj.orderNo} (${orderObj.orderID})</div>
+             <div><strong>訂購人：</strong>${orderObj.customer} (${orderObj.phone})</div>
+             <div><strong>預計取餐：</strong>${orderObj.pickupTime}</div>
+             <div><strong>應收金額：</strong>$${orderObj.total} (${orderObj.payment})</div>
+         `;
+         document.getElementById('instantOrderDetails').innerHTML = html;
+         document.getElementById('instantNewOrderModal').style.display = 'flex';
+     }
+
+     function openInstantTimePicker() {
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
+         if (!ord) return;
+
+         let currentVal = ord.pickupTime;
+         let datePart = currentVal.split(' ')[0] || '';
+         let timePart = currentVal.split(' ')[1] || '17:00';
+
+         let selTime = prompt("請修改取餐時間 (格式 HH:MM，以10分鐘為單位，例如 18:10)：", timePart);
+         if (selTime !== null && selTime.trim() !== "") {
+             let newPickupFull = `${datePart} ${selTime.trim()}`;
+             document.getElementById('instantNewPickupTime').value = newPickupFull;
+             ord.pickupTime = newPickupFull;
+             localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+         }
+     }
+
+     function confirmInstantAccept() {
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
+         if (!ord) return;
+
+         ord.status = "製作中";
+         let newTime = document.getElementById('instantNewPickupTime').value;
+         if (newTime) ord.pickupTime = newTime;
+
+         localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+         window.dispatchEvent(new Event('storage_synced'));
+         document.getElementById('instantNewOrderModal').style.display = 'none';
+         pendingInstantOrderId = null;
+         alert("已成功接單並更新時間！");
+     }
+
+     function confirmInstantReject() {
+         if (!confirm("確定要拒絕這筆訂單嗎？")) return;
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         liveOrders = liveOrders.filter(o => o.id !== pendingInstantOrderId);
+         localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+         window.dispatchEvent(new Event('storage_synced'));
+         document.getElementById('instantNewOrderModal').style.display = 'none';
+         pendingInstantOrderId = null;
      }
 
      function updateOrderBadge() {
@@ -1937,8 +2037,11 @@
                      <span style="font-weight:bold; color:var(--primary-gold);">${ord.orderNo} - ${ord.customer} (${ord.phone})</span>
                      <span style="font-size:12px; background:#3d2b1a; padding:2px 8px; border-radius:4px; color:#f3e5ab;">狀態: ${ord.status}</span>
                  </div>
-                 <div style="font-size:12px; color:#c4ae85;">取餐時間：${ord.pickupTime} | 付款：${ord.payment}</div>
-                 <div style="font-size:12px; color:#c4ae85;">口味：${ord.flavorStr || '無'}</div>
+                 <div style="display:flex; justify-content:space-between; align-items:center;">
+                     <div style="font-size:12px; color:#c4ae85;">取餐時間：<strong>${ord.pickupTime}</strong></div>
+                     <button class="header-btn" style="background:#8b5a00; padding:2px 8px; font-size:11px;" onclick="changeOrderPickupTimePrompt(${ord.id})">⏱️ 改時接單</button>
+                 </div>
+                 <div style="font-size:12px; color:#c4ae85;">付款：${ord.payment} | 口味：${ord.flavorStr || '無'}</div>
                  <div style="font-size:12px; color:#c4ae85;">備註：${ord.custNotes || '無'}</div>
                  
                  <div style="background:#1f160d; padding:8px; border-radius:4px; margin-top:4px;">
@@ -1960,6 +2063,25 @@
              `;
              container.appendChild(div);
          });
+     }
+
+     function changeOrderPickupTimePrompt(orderId) {
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         let ord = liveOrders.find(o => o.id === orderId);
+         if (!ord) return;
+
+         let currentVal = ord.pickupTime;
+         let datePart = currentVal.split(' ')[0] || '';
+         let timePart = currentVal.split(' ')[1] || '17:00';
+
+         let newTime = prompt("請修改取餐時間 (以10分鐘為單位，例如 18:20)：", timePart);
+         if (newTime !== null && newTime.trim() !== "") {
+             ord.pickupTime = `${datePart} ${newTime.trim()}`;
+             ord.status = "製作中";
+             localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
+             window.dispatchEvent(new Event('storage_synced'));
+             alert("取餐時間已更新並接單！");
+         }
      }
 
      function advanceOrderStatus(orderId) {
@@ -2065,6 +2187,27 @@
 
          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
          window.dispatchEvent(new Event('storage_synced'));
+     }
+
+     function checkOrderStatusByPhone() {
+         let phoneInput = prompt("請輸入您的訂購手機號碼查詢訂單進度：");
+         if (!phoneInput) return;
+
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
+         let allOrders = [...liveOrders, ...history];
+
+         let matches = allOrders.filter(o => o.phone === phoneInput.trim());
+         if (matches.length === 0) {
+             alert("找不到符合此電話號碼的訂單紀錄！");
+             return;
+         }
+
+         let msg = "🔍 您的訂單查詢結果：\n\n";
+         matches.forEach(m => {
+             msg += `• 訂單編號：${m.orderNo}\n• 訂購人：${m.customer}\n• 目前狀態：${m.status}\n• 預計取餐：${m.pickupTime}\n• 應付金額：$${m.total}\n------------------------\n`;
+         });
+         alert(msg);
      }
 
      function openHistoryModal() {
