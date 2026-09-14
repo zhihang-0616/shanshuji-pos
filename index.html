@@ -658,6 +658,7 @@
      let isLoggedMgr = false;
      let pendingInstantOrderId = null;
      let activeTrackedOrderId = null; 
+     let lastKnownLiveOrderCount = 0; // 用於監控新訂單自動彈窗
      
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
@@ -1260,11 +1261,16 @@
          updateCartUI();
          updateOrderBadge();
 
+         let initialLive = getCloudItem('pos_live_orders', []);
+         lastKnownLiveOrderCount = initialLive.length;
+
          fetchCloudData().then(() => {
              checkModeAndAuth();
              refreshMenuTabs();
              refreshActiveGrid();
              updateOrderBadge();
+             let live = getCloudItem('pos_live_orders', []);
+             lastKnownLiveOrderCount = live.length;
          });
          
          window.addEventListener('storage_synced', handleStorageSync);
@@ -1275,6 +1281,20 @@
              refreshMenuTabs();
              refreshActiveGrid();
              updateOrderBadge();
+             
+             // 雲端同步輪詢：若管理員端偵測到新訂單增加，自動觸發彈窗通知
+             if (isAdminMode) {
+                 let currentLive = getCloudItem('pos_live_orders', []);
+                 if (currentLive.length > lastKnownLiveOrderCount) {
+                     let latestOrd = currentLive[currentLive.length - 1];
+                     if (latestOrd && latestOrd.status === "等待接單" && pendingInstantOrderId !== latestOrd.id) {
+                         playSound('new_order');
+                         triggerInstantStoreNotification(latestOrd);
+                     }
+                 }
+                 lastKnownLiveOrderCount = currentLive.length;
+             }
+
              if (activeTrackedOrderId) {
                  updateCustomerTrackerUI();
              }
@@ -1292,6 +1312,19 @@
          refreshMenuTabs();
          refreshActiveGrid();
          updateOrderBadge();
+         
+         if (isAdminMode) {
+             let currentLive = getCloudItem('pos_live_orders', []);
+             if (currentLive.length > lastKnownLiveOrderCount) {
+                 let latestOrd = currentLive[currentLive.length - 1];
+                 if (latestOrd && latestOrd.status === "等待接單" && pendingInstantOrderId !== latestOrd.id) {
+                     playSound('new_order');
+                     triggerInstantStoreNotification(latestOrd);
+                 }
+             }
+             lastKnownLiveOrderCount = currentLive.length;
+         }
+
          if (activeTrackedOrderId) {
              updateCustomerTrackerUI();
          }
