@@ -236,9 +236,16 @@
          </div>
      </div>
 
-     <!-- 檢視模式 2：右側填寫取餐資訊與結算面板 -->
+     <!-- 檢視模式 2：右側填寫取餐資訊與結算面板（保留上方訂單明細區塊給予位置） -->
      <div id="checkoutViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a;">
-         <div class="order-title" style="cursor:default; background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%);">
+         <div class="order-title" style="background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%);">
+             <span>目前訂單明細摘要</span>
+         </div>
+         
+         <!-- 保留給用戶隨時檢視的訂單明細小視窗區塊 -->
+         <div class="order-list" id="checkoutMiniOrderList" style="max-height: 140px; min-height: 100px; flex: initial;"></div>
+
+         <div class="order-title" style="cursor:default; background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); border-top: 2px solid var(--border-gold);">
              <span>填寫取餐資訊與結算</span>
          </div>
 
@@ -1567,10 +1574,16 @@
      }
 
      function updateCartUI() {
+         // 更新主畫面購物車列表
          const listContainer = document.getElementById('orderList');
          listContainer.innerHTML = '';
+
+         // 同步更新結算面板中的迷你訂單明細列表
+         const miniListContainer = document.getElementById('checkoutMiniOrderList');
+         if (miniListContainer) miniListContainer.innerHTML = '';
          
          currentCart.forEach((item, idx) => {
+             // 產生主畫面明細 HTML
              const div = document.createElement('div');
              div.className = 'order-item';
              div.innerHTML = `
@@ -1588,12 +1601,33 @@
              `;
              listContainer.appendChild(div);
 
+             // 產生結算面板中的迷你明細 HTML
+             if (miniListContainer) {
+                 const miniDiv = document.createElement('div');
+                 miniDiv.className = 'order-item';
+                 miniDiv.innerHTML = `
+                     <div class="order-item-info">
+                         <div><strong>${item.name}</strong></div>
+                         <div style="font-size:12px; color:#a38c62;">$${item.price} × ${item.qty}</div>
+                     </div>
+                     <div class="order-item-price">$${item.price * item.qty}</div>
+                 `;
+                 miniListContainer.appendChild(miniDiv);
+             }
+
              if (item.subItems) {
                  item.subItems.forEach(sub => {
                      const subDiv = document.createElement('div');
                      subDiv.className = 'order-item sub-item';
                      subDiv.innerHTML = `<div>└ ${sub.name}</div><div>$0</div>`;
                      listContainer.appendChild(subDiv);
+
+                     if (miniListContainer) {
+                         const miniSubDiv = document.createElement('div');
+                         miniSubDiv.className = 'order-item sub-item';
+                         miniSubDiv.innerHTML = `<div>└ ${sub.name}</div><div>$0</div>`;
+                         miniListContainer.appendChild(miniSubDiv);
+                     }
                  });
              }
          });
@@ -1656,6 +1690,7 @@
          }
          document.getElementById('cartViewPanel').style.display = 'none';
          document.getElementById('checkoutViewPanel').style.display = 'flex';
+         updateCartUI();
          updateStep1Total();
      }
 
