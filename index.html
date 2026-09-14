@@ -335,14 +335,14 @@
          </div>
      </div>
 
-     <!-- 檢視模式 3：右側下單後的訂單狀態追蹤與明細 -->
+     <!-- 檢視模式 3：右側下單後的訂單狀態追蹤與明細 (同圖一畫面) -->
      <div id="receiptViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a; padding:14px;">
          <div class="receipt-header">
              <h3 style="margin-bottom:6px; color:var(--text-gold);">去中心鹹水雞 X 厝邊溫食</h3>
              <p style="font-size:13px; color:#a89269;">訂單狀態與明細追蹤</p>
          </div>
 
-         <!-- 即時訂單狀態顯示區 (隨店家接單/改時自動更新) -->
+         <!-- 即時訂單狀態顯示區 (圖一設計) -->
          <div id="customerLiveStatusBox" style="background:#2b1f13; border:2px solid var(--primary-gold); padding:12px; border-radius:6px; margin-bottom:12px; text-align:center;">
               <div style="font-size:12px; color:#a89269; margin-bottom:2px;">目前餐點狀態</div>
               <div id="trackOrderStatus" style="font-size:18px; font-weight:bold; color:var(--primary-gold); margin-bottom:8px;">等待接單</div>
@@ -415,7 +415,7 @@
      </div>
  </div>
 
- <!-- 店家即時新訂單彈出通知 Modal (附帶接單/改時接單/拒單功能) -->
+ <!-- 店家即時新訂單彈出通知 Modal -->
  <div class="modal" id="instantNewOrderModal" style="z-index: 200;">
      <div class="modal-content" style="width:440px; border:2px solid var(--primary-gold); background:#24190f;">
          <h3 style="color:var(--primary-gold); text-align:center; margin-bottom:10px;">🔔 新訂單即時通知</h3>
@@ -641,7 +641,7 @@
      let isAdminMode = false;
      let isLoggedMgr = false;
      let pendingInstantOrderId = null;
-     let activeTrackedOrderId = null; // 紀錄目前客人追蹤中的訂單 ID
+     let activeTrackedOrderId = null; 
 
      function checkModeAndAuth() {
          const urlParams = new URLSearchParams(window.location.search);
@@ -974,7 +974,6 @@
          let dd = String(now.getDate()).padStart(2, '0');
          let hh = String(now.getHours()).padStart(2, '0');
          let min = String(now.getMinutes()).padStart(2, '0');
-         // 對齊到最近的 15 分鐘倍數
          let mNum = parseInt(min);
          let roundedM = Math.ceil(mNum / 15) * 15;
          if (roundedM >= 60) {
@@ -1000,7 +999,6 @@
          const selectElem = document.getElementById('modalPickupTimeSelect');
          selectElem.innerHTML = '';
 
-         // 15分鐘為單位產生選項
          for (let h = 0; h < 27; h++) {
              let actualH = h % 24;
              for (let m of [0, 15, 30, 45]) {
@@ -1018,7 +1016,6 @@
              }
          }
 
-         // 預設選取最接近的當下+15分選項
          let targetH = String(now.getHours()).padStart(2, '0');
          let targetM = Math.round(now.getMinutes() / 15) * 15;
          if (targetM >= 60) {
@@ -1888,7 +1885,6 @@
              }))
          };
 
-         // 自動送出並將右側切換為訂單狀態追蹤與明細畫面
          confirmFinalOrderSubmitInternal();
      }
 
@@ -1911,7 +1907,6 @@
          
          activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
 
-         // 觸發音效與管理者即時彈窗通知
          playSound('new_order');
          if (isAdminMode) {
              triggerInstantStoreNotification(pendingOrderPayloadForConfirm);
@@ -1920,13 +1915,13 @@
          window.dispatchEvent(new Event('storage_synced'));
          updateOrderBadge();
          
-         // 顯示右側追蹤畫面
          showReceiptPreviewPanel(pendingOrderPayloadForConfirm);
          pendingOrderPayloadForConfirm = null;
      }
 
      function showReceiptPreviewPanel(orderPayload) {
          document.getElementById('checkoutViewPanel').style.display = 'none';
+         document.getElementById('cartViewPanel').style.display = 'none';
          document.getElementById('receiptViewPanel').style.display = 'flex';
 
          document.getElementById('rcvOrderNo').innerText = orderPayload.orderNo;
@@ -1963,13 +1958,15 @@
      function updateCustomerTrackerUI() {
          if (!activeTrackedOrderId) return;
          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-         let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-         let allOrders = [...liveOrders, ...history];
-         let ord = allOrders.find(o => o.id === activeTrackedOrderId);
+         let ord = liveOrders.find(o => o.id === activeTrackedOrderId);
 
          if (ord) {
              document.getElementById('trackOrderStatus').innerText = ord.status;
              document.getElementById('trackOrderPickupTime').innerText = ord.pickupTime;
+         } else {
+             // 如果訂單已經完成並從即時清單移除，自動切回首頁
+             switchToCartView();
+             activeTrackedOrderId = null;
          }
      }
 
@@ -2205,7 +2202,10 @@
          let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
 
+         // 移除當前進行中清單（已完成就從即時狀態中移除，不再保留查詢）
          liveOrders = liveOrders.filter(o => o.id !== orderId);
+         
+         // 同時寫入歷史供管理員查帳用，但前台搜尋已抓不到
          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
          ord.status = "已完成";
          history.push(ord);
@@ -2239,25 +2239,21 @@
          window.dispatchEvent(new Event('storage_synced'));
      }
 
+     // 客人用電話查詢訂單 -> 直接切換右側為圖一追蹤畫面（不彈跳視窗），且僅查進行中訂單
      function checkOrderStatusByPhone() {
          let phoneInput = prompt("請輸入您的訂購手機號碼查詢訂單進度：");
          if (!phoneInput) return;
 
          let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-         let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
-         let allOrders = [...liveOrders, ...history];
+         let match = liveOrders.find(o => o.phone === phoneInput.trim());
 
-         let matches = allOrders.filter(o => o.phone === phoneInput.trim());
-         if (matches.length === 0) {
-             alert("找不到符合此電話號碼的訂單紀錄！");
+         if (!match) {
+             alert("找不到符合此電話號碼的進行中訂單紀錄！(若訂單已完成或被取消將不再提供查詢)");
              return;
          }
 
-         let msg = "🔍 您的訂單查詢結果：\n\n";
-         matches.forEach(m => {
-             msg += `• 訂單編號：${m.orderNo}\n• 訂購人：${m.customer}\n• 目前狀態：${m.status}\n• 預計取餐：${m.pickupTime}\n• 應付金額：$${m.total}\n------------------------\n`;
-         });
-         alert(msg);
+         activeTrackedOrderId = match.id;
+         showReceiptPreviewPanel(match);
      }
 
      function openHistoryModal() {
