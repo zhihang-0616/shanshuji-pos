@@ -432,35 +432,18 @@
               </div>
          </div>
 
-         <div style="display:flex; gap:8px;">
-              <button class="btn btn-submit" style="flex:1.5; padding:10px;" onclick="confirmInstantAccept()">確認接單 (套用時間)</button>
-              <button class="btn" style="flex:1; background:#8b1e0f; color:white; padding:10px;" onclick="confirmInstantReject()">拒絕訂單</button>
-         </div>
-     </div>
- </div>
-
- <!-- 選擇拒單理由 Modal -->
- <div class="modal" id="rejectReasonModal" style="z-index: 220;">
-     <div class="modal-content" style="width:360px; background:#24190f; border:2px solid #8b1e0f;">
-         <button class="modal-close-x" onclick="closeRejectReasonModal()">✕</button>
-         <h3 style="color:#ff9999; text-align:center; margin-bottom:12px;">❌ 選擇拒單理由</h3>
-         <div style="font-size:13px; color:#eddab2; margin-bottom:10px;">請選擇拒絕此筆訂單的原因：</div>
-         
-         <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
-              <label style="display:flex; align-items:center; gap:8px; background:#150d07; padding:8px 10px; border-radius:4px; cursor:pointer; font-size:14px; color:#fcedcb;">
-                  <input type="radio" name="rejectReasonGroup" value="商品已售完" checked> 1. 商品已售完
-              </label>
-              <label style="display:flex; align-items:center; gap:8px; background:#150d07; padding:8px 10px; border-radius:4px; cursor:pointer; font-size:14px; color:#fcedcb;">
-                  <input type="radio" name="rejectReasonGroup" value="營業時間已過/準備打烊"> 2. 營業時間已過/準備打烊
-              </label>
-              <label style="display:flex; align-items:center; gap:8px; background:#150d07; padding:8px 10px; border-radius:4px; cursor:pointer; font-size:14px; color:#fcedcb;">
-                  <input type="radio" name="rejectReasonGroup" value="聯絡不上顧客確認細節"> 3. 聯絡不上顧客確認細節
-              </label>
+         <div style="margin-bottom:12px;" id="instantRejectBoxContainer">
+              <button class="header-btn" id="instantRejectToggleBtn" style="background:#8b1e0f; width:100%; padding:8px;" onclick="toggleInstantRejectReason()">拒絕訂單</button>
+              <div id="instantRejectOptions" style="display:none; margin-top:8px; background:#150d07; padding:8px; border-radius:4px; border:1px solid #8b1e0f; flex-direction:column; gap:6px;">
+                  <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="instantRejectReason" value="商品已售完" checked> 商品已售完</label>
+                  <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="instantRejectReason" value="營業時間已過/準備打烊"> 營業時間已過/準備打烊</label>
+                  <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="instantRejectReason" value="聯絡不上顧客確認細節"> 聯絡不上顧客確認細節</label>
+                  <button class="btn" style="background:#8b1e0f; color:white; padding:6px; margin-top:4px; font-size:13px;" onclick="confirmInstantRejectWithReason()">確認拒單</button>
+              </div>
          </div>
 
          <div style="display:flex; gap:8px;">
-              <button class="btn" style="flex:1; background:#8b1e0f; color:white; padding:10px; font-weight:bold;" onclick="confirmRejectWithReason()">確認拒單</button>
-              <button class="btn" style="flex:1; background:#3d2b1a; color:#fff; padding:10px;" onclick="closeRejectReasonModal()">取消</button>
+              <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmInstantAccept()">確認接單 (套用時間)</button>
          </div>
      </div>
  </div>
@@ -675,7 +658,6 @@
      let isLoggedMgr = false;
      let pendingInstantOrderId = null;
      let activeTrackedOrderId = null; 
-     let orderIdToReject = null; // 記錄準備拒單的訂單ID
      
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
@@ -2169,7 +2151,46 @@
              <div><strong>應收金額：</strong>$${orderObj.total} (${orderObj.payment})</div>
          `;
          document.getElementById('instantOrderDetails').innerHTML = html;
+         document.getElementById('instantRejectOptions').style.display = 'none';
          document.getElementById('instantNewOrderModal').style.display = 'flex';
+     }
+
+     function toggleInstantRejectReason() {
+         const box = document.getElementById('instantRejectOptions');
+         if (box.style.display === 'none' || box.style.display === '') {
+             box.style.display = 'flex';
+         } else {
+             box.style.display = 'none';
+         }
+     }
+
+     function confirmInstantRejectWithReason() {
+         if (!pendingInstantOrderId) return;
+         const radios = document.getElementsByName('instantRejectReason');
+         let reason = "商品已售完";
+         for (let r of radios) {
+             if (r.checked) {
+                 reason = r.value;
+                 break;
+             }
+         }
+
+         let liveOrders = getCloudItem('pos_live_orders', []);
+         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
+         if (ord) {
+             ord.status = "已拒單";
+             ord.rejectReason = reason;
+
+             liveOrders = liveOrders.filter(o => o.id !== pendingInstantOrderId);
+             let history = getCloudItem('pos_order_history', []);
+             history.push(ord);
+
+             saveCloudData('pos_live_orders', liveOrders);
+             saveCloudData('pos_order_history', history);
+         }
+
+         document.getElementById('instantNewOrderModal').style.display = 'none';
+         pendingInstantOrderId = null;
      }
 
      function openInstantTimePicker() {
@@ -2221,11 +2242,6 @@
          document.getElementById('instantNewOrderModal').style.display = 'none';
          pendingInstantOrderId = null;
          alert("已成功接單並更新時間！");
-     }
-
-     function confirmInstantReject() {
-         document.getElementById('instantNewOrderModal').style.display = 'none';
-         openRejectReasonModal(pendingInstantOrderId);
      }
 
      function updateOrderBadge() {
@@ -2307,46 +2323,57 @@
 
                  <div style="display:flex; gap:8px; margin-top:4px;">
                      <button class="btn" style="background:${btnBg}; color:white; padding:8px; font-size:14px;" onclick="advanceOrderStatus(${ord.id})">${btnText}</button>
-                     <button class="btn" style="background:linear-gradient(135deg, #8b1e0f, #4a0d05); color:white; padding:8px; font-size:14px;" onclick="openRejectReasonModal(${ord.id})">拒單</button>
+                     <button class="btn" style="background:linear-gradient(135deg, #8b1e0f, #4a0d05); color:white; padding:8px; font-size:14px;" onclick="toggleListRejectBox(${ord.id})">拒單</button>
+                 </div>
+
+                 <!-- 內嵌拒單理由區塊 -->
+                 <div id="listRejectBox_${ord.id}" style="display:none; margin-top:6px; background:#1f160d; padding:8px; border-radius:4px; border:1px solid #8b1e0f; flex-direction:column; gap:6px;">
+                     <div style="font-size:12px; color:#ff9999; font-weight:bold;">請選擇拒單理由：</div>
+                     <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="listRejectReason_${ord.id}" value="商品已售完" checked> 商品已售完</label>
+                     <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="listRejectReason_${ord.id}" value="營業時間已過/準備打烊"> 營業時間已過/準備打烊</label>
+                     <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="listRejectReason_${ord.id}" value="聯絡不上顧客確認細節"> 聯絡不上顧客確認細節</label>
+                     <button class="btn" style="background:#8b1e0f; color:white; padding:6px; margin-top:4px; font-size:13px;" onclick="confirmListReject(${ord.id})">確認拒單</button>
                  </div>
              `;
              container.appendChild(div);
          });
      }
 
-     function openRejectReasonModal(orderId) {
-         orderIdToReject = orderId;
-         document.getElementById('rejectReasonModal').style.display = 'flex';
+     function toggleListRejectBox(orderId) {
+         const box = document.getElementById(`listRejectBox_${orderId}`);
+         if (box) {
+             if (box.style.display === 'none' || box.style.display === '') {
+                 box.style.display = 'flex';
+             } else {
+                 box.style.display = 'none';
+             }
+         }
      }
 
-     function closeRejectReasonModal() {
-         document.getElementById('rejectReasonModal').style.display = 'none';
-         orderIdToReject = null;
-         pendingInstantOrderId = null;
-     }
-
-     function confirmRejectWithReason() {
-         if (!orderIdToReject) return;
-         const selectedRadio = document.querySelector('input[name="rejectReasonGroup"]:checked');
-         let reason = selectedRadio ? selectedRadio.value : "商品已售完";
+     function confirmListReject(orderId) {
+         const radios = document.getElementsByName(`listRejectReason_${orderId}`);
+         let reason = "商品已售完";
+         for (let r of radios) {
+             if (r.checked) {
+                 reason = r.value;
+                 break;
+             }
+         }
 
          let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === orderIdToReject);
+         let ord = liveOrders.find(o => o.id === orderId);
          if (ord) {
              ord.status = "已拒單";
              ord.rejectReason = reason;
 
-             // 移至歷史紀錄
-             liveOrders = liveOrders.filter(o => o.id !== orderIdToReject);
+             liveOrders = liveOrders.filter(o => o.id !== orderId);
              let history = getCloudItem('pos_order_history', []);
              history.push(ord);
 
              saveCloudData('pos_live_orders', liveOrders);
              saveCloudData('pos_order_history', history);
          }
-
-         closeRejectReasonModal();
-         alert(`已成功拒單，理由：${reason}`);
+         renderLiveOrders();
      }
 
      function changeOrderPickupTimePrompt(orderId) {
@@ -2469,7 +2496,6 @@
          let match = liveOrders.find(o => o.phone === phoneInput.trim());
 
          if (!match) {
-             // 也到歷史紀錄尋找（支援已完成或已拒單查詢）
              let history = getCloudItem('pos_order_history', []);
              match = history.slice().reverse().find(o => o.phone === phoneInput.trim());
          }
