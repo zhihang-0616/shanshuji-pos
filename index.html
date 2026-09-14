@@ -184,8 +184,8 @@
                   </select>
               </div>
               
-              <div id="authBtnWrapper" style="display:none;">
-                  <button class="header-btn" id="loginLogoutBtn" style="background:#3d2b1a;" onclick="handleLoginLogout()">登入</button>
+              <div id="authBtnWrapper">
+                  <button class="header-btn" id="customerLoginLogoutBtn" style="background:#3d2b1a;" onclick="handleCustomerLoginLogout()">會員登入</button>
               </div>
          </div>
 
@@ -219,7 +219,7 @@
 
  <div class="checkout-container">
      <div class="status-check-box">
-         <button class="header-btn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold); padding:5px 12px; font-size:13px;" onclick="checkOrderStatusByPhone()">🔍 輸入電話查詢訂單接單進度</button>
+         <button class="header-btn" id="queryLiveOrderBtn" style="display:inline-block; background:#3d2b1a; border-color:var(--border-gold); padding:5px 12px; font-size:13px;" onclick="checkOrderStatusByMember()">🔍 查詢我的即時訂單</button>
      </div>
 
      <!-- 檢視模式 1：訂單明細與購物車 -->
@@ -232,11 +232,11 @@
          <div class="order-list" id="orderList"></div>
 
          <div style="padding: 14px; background: #1a110a; border-top: 1px solid var(--border-gold);">
-             <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="switchToCheckoutView()">下一步 (填寫取餐)</button>
+             <button class="btn btn-submit" id="submitOrderMainBtn" style="width:100%; padding:14px; font-size:16px;" onclick="switchToCheckoutView()">下一步 (寫取餐資訊)</button>
          </div>
      </div>
 
-     <!-- 檢視模式 2：右側填寫取餐資訊與結算面板 -->
+     <!-- 檢視模式 2：右側寫取餐資訊與結算面板 -->
      <div id="checkoutViewPanel" style="display:none; flex-direction:column; flex:1; overflow-y:auto; background: #1a110a;">
          <div class="order-title" style="background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%);">
              <span>目前訂單明細摘要</span>
@@ -244,7 +244,7 @@
          <div class="order-list" id="checkoutMiniOrderList" style="max-height: 140px; min-height: 100px; flex: initial;"></div>
 
          <div class="order-title" style="cursor:default; background:linear-gradient(180deg, #3d2b1a 0%, #20150b 100%); border-top: 2px solid var(--border-gold);">
-             <span>填寫取餐</span>
+             <span>寫取餐資訊</span>
          </div>
 
          <div class="customer-info-box" style="border-bottom: 1px solid var(--border-gold);">
@@ -254,7 +254,7 @@
               </div>
               <div class="input-row">
                     <span class="input-label" id="phoneLable">電話*:</span>
-                    <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
+                    <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10" oninput="checkPhoneAutoMember(this.value)">
               </div>
               <div class="input-row">
                     <span class="input-label">取餐時間*:</span>
@@ -267,6 +267,9 @@
               <div class="input-row">
                     <span class="input-label">顧客備註:</span>
                     <input type="text" id="custNotes" class="input-field" placeholder="特殊需求 (例如:多蒜、少雞油)">
+              </div>
+              <div style="font-size:11px; color:var(--primary-gold); margin-top:8px; line-height:1.5; background:#150d07; padding:8px; border-radius:4px; border:1px dashed var(--border-gold);">
+                  💡 填寫取餐資料即自動升級會員！完成後可登入隨時查詢『即時訂單進度』，未來更可享有專屬『會員集點與獨家優惠』喔！
               </div>
          </div>
 
@@ -375,6 +378,26 @@
          <div style="display:flex; gap:8px; margin-top:auto;">
               <button class="btn btn-submit" style="width:100%; padding:12px; font-size:16px;" onclick="clearCartAndReturnHome()">返回點餐首頁</button>
          </div>
+     </div>
+ </div>
+
+ <!-- 會員登入 Modal -->
+ <div class="modal" id="customerLoginModal">
+     <div class="modal-content" style="width:360px; resize:none;">
+         <button class="modal-close-x" onclick="closeCustomerLoginModal()">✕</button>
+         <h3 style="color:var(--primary-gold); margin-bottom:14px; text-align:center;">會員快速登入/註冊</h3>
+         
+         <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+              <div class="input-row">
+                  <span class="input-label" style="min-width:75px;">手機號碼*:</span>
+                  <input type="tel" id="loginPhoneInput" class="input-field" placeholder="請輸入手機號碼" maxlength="10">
+              </div>
+              <div class="input-row">
+                  <span class="input-label" style="min-width:75px;">姓名*:</span>
+                  <input type="text" id="loginNameInput" class="input-field" placeholder="請輸入姓名">
+              </div>
+         </div>
+         <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmCustomerLogin()">立即登入 / 註冊</button>
      </div>
  </div>
 
@@ -591,7 +614,7 @@
      </div>
  </div>
 
- <!-- 取餐時間選擇 Modal (年月日自動當下，時間從 +15分起跳，以 15分鐘為單位) -->
+ <!-- 取餐時間選擇 Modal -->
  <div class="modal" id="pickupTimeModal">
      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
@@ -611,7 +634,7 @@
      </div>
  </div>
 
- <!-- 店家修改取餐時間 Modal (支援 15 分鐘為單位) -->
+ <!-- 店家修改取餐時間 Modal -->
  <div class="modal" id="storeChangeTimeModal" style="z-index: 210;">
      <div class="modal-content" style="width:320px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closeStoreChangeTimeModal()">✕</button>
@@ -655,26 +678,124 @@
          if (isAdminMode) {
              storeInfoContainer.style.display = 'none';
              adminActionGroup.style.display = 'flex';
-             authBtnWrapper.style.display = 'block';
+             authBtnWrapper.innerHTML = `<button class="header-btn" id="loginLogoutBtn" style="background:#3d2b1a;" onclick="handleLoginLogout()">管理登入</button>`;
 
              let logged = localStorage.getItem('pos_mgr_logged') === 'true';
              if (logged) {
                  isLoggedMgr = true;
-                 document.getElementById('loginLogoutBtn').innerText = "登出";
+                 document.getElementById('loginLogoutBtn').innerText = "管理登出";
                  document.getElementById('loginLogoutBtn').style.background = "#8b1e0f";
              } else {
                  isLoggedMgr = false;
-                 document.getElementById('loginLogoutBtn').innerText = "登入";
+                 document.getElementById('loginLogoutBtn').innerText = "管理登入";
                  document.getElementById('loginLogoutBtn').style.background = "#3d2b1a";
              }
              storeStatusSelect.disabled = false;
          } else {
              storeInfoContainer.style.display = 'block';
              adminActionGroup.style.display = 'none';
-             authBtnWrapper.style.display = 'none';
+             authBtnWrapper.innerHTML = `<button class="header-btn" id="customerLoginLogoutBtn" style="background:#3d2b1a;" onclick="handleCustomerLoginLogout()">會員登入</button>`;
              storeStatusSelect.disabled = true;
+             updateCustomerAuthUI();
          }
          syncStoreStatusUI();
+     }
+
+     function updateCustomerAuthUI() {
+         let loggedMember = localStorage.getItem('pos_logged_member');
+         const btn = document.getElementById('customerLoginLogoutBtn');
+         if (!btn) return;
+
+         if (loggedMember) {
+             try {
+                 let mObj = JSON.parse(loggedMember);
+                 btn.innerText = `會員：${mObj.name} (登出)`;
+                 btn.style.background = "#8b1e0f";
+             } catch(e) {
+                 btn.innerText = "會員登入";
+                 btn.style.background = "#3d2b1a";
+             }
+         } else {
+             btn.innerText = "會員登入";
+             btn.style.background = "#3d2b1a";
+         }
+     }
+
+     function handleCustomerLoginLogout() {
+         let loggedMember = localStorage.getItem('pos_logged_member');
+         if (loggedMember) {
+             if (confirm("確定要登出會員嗎？")) {
+                 localStorage.removeItem('pos_logged_member');
+                 updateCustomerAuthUI();
+                 alert("已成功登出會員！");
+             }
+         } else {
+             document.getElementById('loginPhoneInput').value = '';
+             document.getElementById('loginNameInput').value = '';
+             document.getElementById('customerLoginModal').style.display = 'flex';
+         }
+     }
+
+     function closeCustomerLoginModal() {
+         document.getElementById('customerLoginModal').style.display = 'none';
+     }
+
+     function confirmCustomerLogin() {
+         let phone = document.getElementById('loginPhoneInput').value.trim();
+         let name = document.getElementById('loginNameInput').value.trim();
+
+         const phoneRegex = /^09\d{8}$/;
+         if (!phoneRegex.test(phone)) {
+             alert("手機號碼格式錯誤！請輸入有效的手機號碼 (共10碼數字)");
+             return;
+         }
+         if (!name) {
+             alert("請輸入姓名！");
+             return;
+         }
+
+         let memberObj = { phone: phone, name: name };
+         localStorage.setItem('pos_logged_member', JSON.stringify(memberObj));
+         
+         // 同時記錄到總會員資料庫
+         let membersDb = JSON.parse(localStorage.getItem('pos_members_db') || '{}');
+         membersDb[phone] = name;
+         localStorage.setItem('pos_members_db', JSON.stringify(membersDb));
+
+         closeCustomerLoginModal();
+         updateCustomerAuthUI();
+         alert(`歡迎回來，${name} 會員登入成功！`);
+     }
+
+     function checkPhoneAutoMember(phoneVal) {
+         if (phoneVal.length === 10) {
+             let membersDb = JSON.parse(localStorage.getItem('pos_members_db') || '{}');
+             if (membersDb[phoneVal]) {
+                 document.getElementById('custName').value = membersDb[phoneVal];
+             }
+         }
+     }
+
+     function checkOrderStatusByMember() {
+         let loggedMember = localStorage.getItem('pos_logged_member');
+         if (!loggedMember) {
+             alert("尚未登入會員！請先點擊右上角『會員登入』後方可查詢即時訂單。");
+             return;
+         }
+
+         let mObj;
+         try { mObj = JSON.parse(loggedMember); } catch(e) { return; }
+
+         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
+         let match = liveOrders.find(o => o.phone === mObj.phone);
+
+         if (!match) {
+             alert(`會員 ${mObj.name} 目前沒有進行中的即時訂單紀錄！(已完成訂單不在此顯示)`);
+             return;
+         }
+
+         activeTrackedOrderId = match.id;
+         showReceiptPreviewPanel(match);
      }
 
      function handleLoginLogout() {
@@ -771,7 +892,7 @@
              submitBtn.innerText = "目前備料中 (可預訂)";
              submitBtn.style.opacity = '1';
          } else {
-             submitBtn.innerText = "下一步 (填寫取餐)";
+             submitBtn.innerText = "下一步 (寫取餐資訊)";
              submitBtn.style.opacity = '1';
          }
      }
@@ -965,7 +1086,6 @@
      let isHistorySelectMode = false;
      let pendingCashOrderId = null;
 
-     // 設定取餐時間預設為當下 +15 分鐘（年月日直接顯示當下，間隔以15分鐘為單位）
      function setDefaultPickupTime() {
          const now = new Date();
          now.setMinutes(now.getMinutes() + 15);
@@ -1785,6 +1905,17 @@
          document.getElementById('receiptViewPanel').style.display = 'none';
          document.getElementById('cartViewPanel').style.display = 'none';
          document.getElementById('checkoutViewPanel').style.display = 'flex';
+
+         // 自動預設已登入會員的姓名與手機
+         let loggedMember = localStorage.getItem('pos_logged_member');
+         if (loggedMember) {
+             try {
+                 let mObj = JSON.parse(loggedMember);
+                 if (mObj.name) document.getElementById('custName').value = mObj.name;
+                 if (mObj.phone) document.getElementById('custPhone').value = mObj.phone;
+             } catch(e) {}
+         }
+
          updateCartUI();
          updateStep1Total();
      }
@@ -1829,6 +1960,14 @@
              alert("請選擇【取餐時間】！");
              return;
          }
+
+         // 自動註冊會員記憶
+         let memberObj = { phone: custPhone, name: custName };
+         localStorage.setItem('pos_logged_member', JSON.stringify(memberObj));
+         let membersDb = JSON.parse(localStorage.getItem('pos_members_db') || '{}');
+         membersDb[custPhone] = custName;
+         localStorage.setItem('pos_members_db', JSON.stringify(membersDb));
+         updateCustomerAuthUI();
 
          let datePart = pickupTimeRaw.split(' ')[0].replace(/\//g, '-');
          const pickupDateObj = new Date(datePart);
@@ -1964,7 +2103,6 @@
              document.getElementById('trackOrderStatus').innerText = ord.status;
              document.getElementById('trackOrderPickupTime').innerText = ord.pickupTime;
          } else {
-             // 如果訂單已經完成並從即時清單移除，自動切回首頁
              switchToCartView();
              activeTrackedOrderId = null;
          }
@@ -2202,10 +2340,8 @@
          let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
 
-         // 移除當前進行中清單（已完成就從即時狀態中移除，不再保留查詢）
          liveOrders = liveOrders.filter(o => o.id !== orderId);
          
-         // 同時寫入歷史供管理員查帳用，但前台搜尋已抓不到
          let history = JSON.parse(localStorage.getItem('pos_order_history') || '[]');
          ord.status = "已完成";
          history.push(ord);
@@ -2237,23 +2373,6 @@
 
          localStorage.setItem('pos_live_orders', JSON.stringify(liveOrders));
          window.dispatchEvent(new Event('storage_synced'));
-     }
-
-     // 客人用電話查詢訂單 -> 直接切換右側為圖一追蹤畫面（不彈跳視窗），且僅查進行中訂單
-     function checkOrderStatusByPhone() {
-         let phoneInput = prompt("請輸入您的訂購手機號碼查詢訂單進度：");
-         if (!phoneInput) return;
-
-         let liveOrders = JSON.parse(localStorage.getItem('pos_live_orders') || '[]');
-         let match = liveOrders.find(o => o.phone === phoneInput.trim());
-
-         if (!match) {
-             alert("找不到符合此電話號碼的進行中訂單紀錄！(若訂單已完成或被取消將不再提供查詢)");
-             return;
-         }
-
-         activeTrackedOrderId = match.id;
-         showReceiptPreviewPanel(match);
      }
 
      function openHistoryModal() {
