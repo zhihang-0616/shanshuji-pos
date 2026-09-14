@@ -257,8 +257,8 @@
                     <input type="tel" id="custPhone" class="input-field" placeholder="請輸入手機號碼 (例如: 0912345678)" maxlength="10">
               </div>
               <div class="input-row">
-                    <span class="input-label">取餐時間*:</span>
-                    <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇取餐時間">
+                    <span class="input-label">希望取餐時間*:</span>
+                    <input type="text" id="pickupTime" class="input-field" readonly onclick="openPickupTimeModal()" style="cursor:pointer; background:#150d07; color:var(--primary-gold); font-weight:bold;" placeholder="點擊選擇希望取餐時間">
                     <span id="weekdayBadge" class="weekday-badge">星期--</span>
               </div>
               <div style="font-size:11px; color:#d6c29a; margin-top:2px; margin-bottom:6px; line-height:1.4;">
@@ -348,7 +348,7 @@
          <div id="customerLiveStatusBox" style="background:#2b1f13; border:2px solid var(--primary-gold); padding:12px; border-radius:6px; margin-bottom:12px; text-align:center;">
               <div style="font-size:12px; color:#a89269; margin-bottom:2px;">目前餐點狀態</div>
               <div id="trackOrderStatus" style="font-size:18px; font-weight:bold; color:var(--primary-gold); margin-bottom:8px;">等待接單</div>
-              <div style="font-size:13px; color:#eddab2;">店家確認取餐時間：<span id="trackOrderPickupTime" style="font-weight:bold; color:var(--primary-gold); font-size:15px;"></span></div>
+              <div style="font-size:13px; color:#eddab2;">店家確認希望取餐時間：<span id="trackOrderPickupTime" style="font-weight:bold; color:var(--primary-gold); font-size:15px;"></span></div>
          </div>
 
          <div style="background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; margin-bottom:14px; font-size:13px; line-height:1.6;">
@@ -371,7 +371,7 @@
          </div>
 
          <div style="background:#2b1f13; border:1px solid var(--border-gold); padding:10px; border-radius:6px; margin-bottom:14px; font-size:12px; color:#f3e5ab; text-align:center; line-height:1.5;">
-              您的訂單已成功送出！待店家確認接單後, 系統將立即通知您正確的取餐時間, 謝謝您的耐心等候。
+              您的訂單已成功送出！待店家確認接單後, 系統將立即通知您正確的希望取餐時間, 謝謝您的耐心等候。
          </div>
 
          <div style="display:flex; gap:8px; margin-top:auto;">
@@ -424,7 +424,7 @@
          <div id="instantOrderDetails" style="font-size:13px; color:#eddab2; line-height:1.6; margin-bottom:14px; background:#150d07; padding:10px; border-radius:6px;"></div>
          
          <div style="margin-bottom:14px;">
-              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改取餐時間 (接單, 以15分鐘為單位)：</label>
+              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改希望取餐時間 (接單)：</label>
               <div style="display:flex; gap:6px;">
                   <input type="text" id="instantNewPickupTime" class="input-field" readonly style="background:#150d07; color:var(--primary-gold); font-weight:bold;">
                   <button class="header-btn" style="background:#3d2b1a;" onclick="openInstantTimePicker()">修改時間</button>
@@ -504,7 +504,7 @@
                           <th style="padding:8px; white-space:nowrap;">時間</th>
                           <th style="padding:8px; white-space:nowrap;">訂購人</th>
                           <th style="padding:8px; white-space:nowrap;">電話</th>
-                          <th style="padding:8px; white-space:nowrap;">取餐時間</th>
+                          <th style="padding:8px; white-space:nowrap;">希望取餐時間</th>
                           <th style="padding:8px; white-space:nowrap;">付款方式</th>
                           <th style="padding:8px; white-space:nowrap;">總金額</th>
                           <th style="padding:8px; min-width:200px;">品項內容</th>
@@ -551,7 +551,7 @@
                   <input type="text" id="eiPhone" class="input-field">
               </div>
               <div class="input-row">
-                  <span class="input-label">取餐時間:</span>
+                  <span class="input-label">希望取餐時間:</span>
                   <input type="text" id="eiPickup" class="input-field">
               </div>
               <div class="input-row">
@@ -594,11 +594,11 @@
      </div>
  </div>
 
- <!-- 取餐時間選擇 Modal -->
+ <!-- 希望取餐時間選擇 Modal (改用滑動/自由鍵入時間) -->
  <div class="modal" id="pickupTimeModal">
      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px;">取餐時間</h3>
+         <h3 style="color:var(--primary-gold); margin-bottom:14px;">希望取餐時間</h3>
          
          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:15px; text-align:left;">
             <div>
@@ -606,22 +606,22 @@
                   <input type="date" id="modalPickupDate" class="input-field" style="width:100%;">
             </div>
             <div>
-                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (每15分鐘一單位)：</label>
-                  <select id="modalPickupTimeSelect" class="input-field" style="width:100%; font-size:16px;"></select>
+                  <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇時間 (可滑動選取或直接輸入)：</label>
+                  <input type="time" id="modalPickupTimeInput" class="input-field" style="width:100%; font-size:18px; font-weight:bold; text-align:center; padding:8px;">
             </div>
          </div>
          <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmPickupTimeModal()">確定選擇</button>
      </div>
  </div>
 
- <!-- 店家修改取餐時間 Modal -->
+ <!-- 店家修改希望取餐時間 Modal -->
  <div class="modal" id="storeChangeTimeModal" style="z-index: 210;">
      <div class="modal-content" style="width:320px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closeStoreChangeTimeModal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px;">⏱️ 修改取餐時間 (15分鐘為單位)</h3>
+         <h3 style="color:var(--primary-gold); margin-bottom:14px;">⏱️ 修改希望取餐時間</h3>
          <div style="margin-bottom:14px; text-align:left;">
-              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇新取餐時間：</label>
-              <select id="storeTimeSelect15Min" class="input-field" style="width:100%; font-size:16px;"></select>
+              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">選擇新希望取餐時間：</label>
+              <input type="time" id="storeTimeInputModal" class="input-field" style="width:100%; font-size:18px; font-weight:bold; text-align:center; padding:8px;">
          </div>
          <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmStoreChangeTime()">確定修改並接單</button>
      </div>
@@ -1014,14 +1014,12 @@
      let isAllHistoryMode = false;
      let pendingCashOrderId = null;
 
-     // 初始載入時取餐時間維持空白
      function setDefaultPickupTime() {
          const pickupElem = document.getElementById('pickupTime');
          if (pickupElem) pickupElem.value = "";
          updateWeekdayBadge();
      }
 
-     // 點擊取餐時間輸入框：彈出視窗，日期預設當天，時間維持空白讓客戶選取
      function openPickupTimeModal() {
          const now = new Date();
          let yyyy = now.getFullYear();
@@ -1030,33 +1028,9 @@
          
          document.getElementById('modalPickupDate').value = `${yyyy}-${mm}-${dd}`;
          
-         const selectElem = document.getElementById('modalPickupTimeSelect');
-         selectElem.innerHTML = '';
-
-         // 加入一個空白預設選項供客人手動選取
-         let defaultOpt = document.createElement('option');
-         defaultOpt.value = "";
-         defaultOpt.text = "-- 請選擇取餐時間 --";
-         defaultOpt.disabled = true;
-         defaultOpt.selected = true;
-         selectElem.appendChild(defaultOpt);
-
-         for (let h = 0; h < 27; h++) {
-             let actualH = h % 24;
-             for (let m of [0, 15, 30, 45]) {
-                 if (h >= 24 && m > 0) break;
-                 let hStr = String(actualH).padStart(2, '0');
-                 let mStr = String(m).padStart(2, '0');
-                 let timeStr = `${h === 24 ? '隔日 ' : ''}${hStr}:${mStr}`;
-                 
-                 let opt = document.createElement('option');
-                 opt.value = `${hStr}:${mStr}`;
-                 if (h >= 24) opt.dataset.nextDay = "true";
-                 opt.text = timeStr;
-                 
-                 selectElem.appendChild(opt);
-             }
-         }
+         let hh = String(now.getHours()).padStart(2, '0');
+         let min = String(now.getMinutes()).padStart(2, '0');
+         document.getElementById('modalPickupTimeInput').value = `${hh}:${min}`;
 
          document.getElementById('pickupTimeModal').style.display = 'flex';
      }
@@ -1067,7 +1041,7 @@
 
      function confirmPickupTimeModal() {
          const dateVal = document.getElementById('modalPickupDate').value;
-         const timeVal = document.getElementById('modalPickupTimeSelect').value;
+         const timeVal = document.getElementById('modalPickupTimeInput').value;
          
          if (!dateVal || !timeVal) {
              alert("請完整選擇日期與時間！");
@@ -1878,7 +1852,7 @@
              return;
          }
          if (!pickupTimeRaw) {
-             alert("請選擇【取餐時間】！");
+             alert("請選擇【希望取餐時間】！");
              return;
          }
 
@@ -1976,7 +1950,7 @@
              return;
          }
          if (!pickupTimeRaw) {
-             alert("請選擇【取餐時間】！");
+             alert("請選擇【希望取餐時間】！");
              return;
          }
 
@@ -2126,12 +2100,14 @@
 
      function triggerInstantStoreNotification(orderObj) {
          pendingInstantOrderId = orderObj.id;
+         let timePart = orderObj.pickupTime ? (orderObj.pickupTime.split(' ')[1] || '17:00') : '17:00';
          document.getElementById('instantNewPickupTime').value = orderObj.pickupTime;
+         document.getElementById('storeTimeInputModal').value = timePart;
          
          let html = `
              <div><strong>訂單編號：</strong>${orderObj.orderNo} (${orderObj.orderID})</div>
              <div><strong>訂購人：</strong>${orderObj.customer} (${orderObj.phone})</div>
-             <div><strong>預計取餐：</strong>${orderObj.pickupTime}</div>
+             <div><strong>希望取餐：</strong>${orderObj.pickupTime}</div>
              <div><strong>應收金額：</strong>$${orderObj.total} (${orderObj.payment})</div>
          `;
          document.getElementById('instantOrderDetails').innerHTML = html;
@@ -2144,16 +2120,34 @@
          if (!ord) return;
 
          let currentVal = ord.pickupTime;
-         let timePart = currentVal.split(' ')[1] || '17:00';
+         let timePart = currentVal ? (currentVal.split(' ')[1] || '17:00') : '17:00';
+         document.getElementById('storeTimeInputModal').value = timePart;
+         document.getElementById('storeChangeTimeModal').style.display = 'flex';
+     }
 
-         let selTime = prompt("請修改取餐時間 (格式 HH:MM，以15分鐘為單位，例如 18:15)：", timePart);
-         if (selTime !== null && selTime.trim() !== "") {
-             let datePart = currentVal.split(' ')[0] || '';
-             let newPickupFull = `${datePart} ${selTime.trim()}`;
-             document.getElementById('instantNewPickupTime').value = newPickupFull;
-             ord.pickupTime = newPickupFull;
-             saveCloudData('pos_live_orders', liveOrders);
+     function closeStoreChangeTimeModal() {
+         document.getElementById('storeChangeTimeModal').style.display = 'none';
+     }
+
+     function confirmStoreChangeTime() {
+         let liveOrders = getCloudItem('pos_live_orders', []);
+         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
+         if (!ord) return;
+
+         let newTime = document.getElementById('storeTimeInputModal').value;
+         if (!newTime) {
+             alert("請選擇新時間！");
+             return;
          }
+
+         let datePart = ord.pickupTime ? (ord.pickupTime.split(' ')[0] || '') : '';
+         let newPickupFull = `${datePart} ${newTime}`;
+         ord.pickupTime = newPickupFull;
+         document.getElementById('instantNewPickupTime').value = newPickupFull;
+
+         saveCloudData('pos_live_orders', liveOrders);
+         closeStoreChangeTimeModal();
+         alert("希望取餐時間已更新！");
      }
 
      function confirmInstantAccept() {
@@ -2239,7 +2233,7 @@
                      <span style="font-size:12px; background:#3d2b1a; padding:2px 8px; border-radius:4px; color:#f3e5ab;">狀態: ${ord.status}</span>
                  </div>
                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                     <div style="font-size:12px; color:#c4ae85;">取餐時間：<strong>${ord.pickupTime}</strong></div>
+                     <div style="font-size:12px; color:#c4ae85;">希望取餐時間：<strong>${ord.pickupTime}</strong></div>
                      <button class="header-btn" style="background:#8b5a00; padding:2px 8px; font-size:11px;" onclick="changeOrderPickupTimePrompt(${ord.id})">⏱️ 改時接單</button>
                  </div>
                  <div style="font-size:12px; color:#c4ae85;">付款：${ord.payment} | 口味：${ord.flavorStr || '無'}</div>
@@ -2272,15 +2266,15 @@
          if (!ord) return;
 
          let currentVal = ord.pickupTime;
-         let datePart = currentVal.split(' ')[0] || '';
-         let timePart = currentVal.split(' ')[1] || '17:00';
+         let timePart = currentVal ? (currentVal.split(' ')[1] || '17:00') : '17:00';
 
-         let newTime = prompt("請修改取餐時間 (以15分鐘為單位，例如 18:15)：", timePart);
+         let newTime = prompt("請修改希望取餐時間 (格式 HH:MM)：", timePart);
          if (newTime !== null && newTime.trim() !== "") {
+             let datePart = currentVal ? (currentVal.split(' ')[0] || '') : '';
              ord.pickupTime = `${datePart} ${newTime.trim()}`;
              ord.status = "製作中";
              saveCloudData('pos_live_orders', liveOrders);
-             alert("取餐時間已更新並接單！");
+             alert("希望取餐時間已更新並接單！");
          }
      }
 
