@@ -418,67 +418,12 @@
      </div>
  </div>
 
- <!-- 店家即時新訂單彈出通知 Modal -->
- <div class="modal" id="instantNewOrderModal" style="z-index: 200;">
-     <div class="modal-content" style="width:440px; border:2px solid var(--primary-gold); background:#24190f;">
-         <h3 style="color:var(--primary-gold); text-align:center; margin-bottom:10px;">🔔 新訂單即時通知</h3>
-         <div id="instantOrderDetails" style="font-size:13px; color:#eddab2; line-height:1.6; margin-bottom:14px; background:#150d07; padding:10px; border-radius:6px;"></div>
-         
-         <div style="margin-bottom:14px;">
-              <label style="font-size:13px; color:var(--primary-gold); display:block; margin-bottom:4px;">修改希望取餐時間 (接單)：</label>
-              <div style="display:flex; gap:6px;">
-                  <input type="text" id="instantNewPickupTime" class="input-field" readonly style="background:#150d07; color:var(--primary-gold); font-weight:bold;">
-                  <button class="header-btn" style="background:#3d2b1a;" onclick="openInstantTimePicker()">修改時間</button>
-              </div>
-         </div>
-
-         <div style="margin-bottom:12px;" id="instantRejectBoxContainer">
-              <button class="header-btn" id="instantRejectToggleBtn" style="background:#8b1e0f; width:100%; padding:8px;" onclick="toggleInstantRejectReason()">拒絕訂單</button>
-              <div id="instantRejectOptions" style="display:none; margin-top:8px; background:#150d07; padding:8px; border-radius:4px; border:1px solid #8b1e0f; flex-direction:column; gap:6px;">
-                  <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="instantRejectReason" value="商品已售完" checked> 商品已售完</label>
-                  <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="instantRejectReason" value="營業時間已過/準備打烊"> 營業時間已過/準備打烊</label>
-                  <label style="font-size:13px; color:#eddab2; cursor:pointer;"><input type="radio" name="instantRejectReason" value="聯絡不上顧客確認細節"> 聯絡不上顧客確認細節</label>
-                  <button class="btn" style="background:#8b1e0f; color:white; padding:6px; margin-top:4px; font-size:13px;" onclick="confirmInstantRejectWithReason()">確認拒單</button>
-              </div>
-         </div>
-
-         <div style="display:flex; gap:8px;">
-              <button class="btn btn-submit" style="width:100%; padding:10px;" onclick="confirmInstantAccept()">確認接單 (套用時間)</button>
-         </div>
-     </div>
- </div>
-
- <!-- 接單系統管理 Modal -->
+ <!-- 接單系統管理 Modal (取消二次彈窗，直接同步於接單系統內) -->
  <div class="modal" id="orderSystemModal">
-     <div class="modal-content" style="width:580px; max-width:95vw; resize:none;">
+     <div class="modal-content" style="width:620px; max-width:95vw; resize:none;">
          <button class="modal-close-x" onclick="closeOrderSystemModal()">✕</button>
          <h3 style="text-align:center; color:var(--primary-gold); margin-bottom:14px;">📋 接單系統 (即時訂單管理)</h3>
-         <div id="liveOrderListContainer" style="max-height:65vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
-     </div>
- </div>
-
- <!-- 現金收銀 Modal -->
- <div class="modal" id="cashRegisterModal">
-     <div class="modal-content" style="width:340px; text-align:center; resize:none;">
-         <button class="modal-close-x" onclick="closeCashRegisterModal()">✕</button>
-         <h3 style="color:var(--primary-gold); margin-bottom:14px;">💵 現金結帳</h3>
-         
-         <div style="font-size:18px; font-weight:bold; color:#fcedcb; margin-bottom:12px;">
-              應收金額：<span id="crTotal" style="color:var(--primary-gold);">$0</span>
-         </div>
-         
-         <div style="margin-bottom:15px; text-align:left;">
-              <label style="font-size:13px; color:#d6c29a; display:block; margin-bottom:4px;">實收金額：</label>
-              <input type="number" id="cashReceived" class="input-field" style="width:100%; font-size:18px; font-weight:bold; padding:8px;" oninput="calcCashChange()">
-         </div>
-
-         <div style="font-size:18px; font-weight:bold; color:#fcedcb; margin-bottom:15px;">
-              找零：<span id="crChange" style="color:#ff9999;">$0</span>
-         </div>
-
-         <div id="cashErrorMsg" style="color:#ff6666; font-size:13px; font-weight:bold; margin-bottom:10px; display:none;"></div>
-
-         <button class="btn btn-submit" style="width:100%; padding:10px; font-size:15px;" onclick="confirmCashRegister()">結帳完成</button>
+         <div id="liveOrderListContainer" style="max-height:68vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px;"></div>
      </div>
  </div>
 
@@ -605,7 +550,7 @@
      </div>
  </div>
 
- <!-- 希望取餐時間選擇 Modal (改用滑動/自由鍵入時間) -->
+ <!-- 希望取餐時間選擇 Modal -->
  <div class="modal" id="pickupTimeModal">
      <div class="modal-content" style="width:340px; text-align:center; resize:none;">
          <button class="modal-close-x" onclick="closePickupTimeModal()">✕</button>
@@ -656,9 +601,9 @@
      const weekDaysArr = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
      let isAdminMode = false;
      let isLoggedMgr = false;
-     let pendingInstantOrderId = null;
      let activeTrackedOrderId = null; 
-     let lastKnownLiveOrderCount = 0; // 用於監控新訂單自動彈窗
+     let lastKnownLiveOrderCount = 0; 
+     let activeCashCheckoutOrderId = null; // 紀錄目前正在內嵌展開收銀結帳的訂單ID
      
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
@@ -1024,7 +969,6 @@
      let currentEditingTarget = 'live'; 
      let isHistorySelectMode = false;
      let isAllHistoryMode = false;
-     let pendingCashOrderId = null;
 
      function setDefaultPickupTime() {
          const pickupElem = document.getElementById('pickupTime');
@@ -1282,14 +1226,13 @@
              refreshActiveGrid();
              updateOrderBadge();
              
-             // 雲端同步輪詢：若管理員端偵測到新訂單增加，自動觸發彈窗通知
+             // 雲端同步輪詢：若管理員端偵測到新訂單增加，直接在接單系統同步更新並播放提示音效（取消二次彈窗確認）
              if (isAdminMode) {
                  let currentLive = getCloudItem('pos_live_orders', []);
                  if (currentLive.length > lastKnownLiveOrderCount) {
                      let latestOrd = currentLive[currentLive.length - 1];
-                     if (latestOrd && latestOrd.status === "等待接單" && pendingInstantOrderId !== latestOrd.id) {
+                     if (latestOrd && latestOrd.status === "等待接單") {
                          playSound('new_order');
-                         triggerInstantStoreNotification(latestOrd);
                      }
                  }
                  lastKnownLiveOrderCount = currentLive.length;
@@ -1317,9 +1260,8 @@
              let currentLive = getCloudItem('pos_live_orders', []);
              if (currentLive.length > lastKnownLiveOrderCount) {
                  let latestOrd = currentLive[currentLive.length - 1];
-                 if (latestOrd && latestOrd.status === "等待接單" && pendingInstantOrderId !== latestOrd.id) {
+                 if (latestOrd && latestOrd.status === "等待接單") {
                      playSound('new_order');
-                     triggerInstantStoreNotification(latestOrd);
                  }
              }
              lastKnownLiveOrderCount = currentLive.length;
@@ -1336,14 +1278,6 @@
          }
          if (currentEditingOrderId && document.getElementById('editOrderItemsModal').style.display === 'flex') {
              renderEditingItemsList();
-         }
-         if (pendingInstantOrderId) {
-             let liveOrders = getCloudItem('pos_live_orders', []);
-             let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
-             if (!ord || ord.status !== "等待接單") {
-                 document.getElementById('instantNewOrderModal').style.display = 'none';
-                 pendingInstantOrderId = null;
-             }
          }
      }
 
@@ -2088,10 +2022,6 @@
          updateCartUI();
 
          playSound('new_order');
-         if (isAdminMode) {
-             triggerInstantStoreNotification(tempPayload);
-         }
-
          updateOrderBadge();
          showReceiptPreviewPanel(tempPayload);
          pendingOrderPayloadForConfirm = null;
@@ -2171,112 +2101,6 @@
          }
      }
 
-     function triggerInstantStoreNotification(orderObj) {
-         pendingInstantOrderId = orderObj.id;
-         let timePart = orderObj.pickupTime ? (orderObj.pickupTime.split(' ')[1] || '17:00') : '17:00';
-         document.getElementById('instantNewPickupTime').value = orderObj.pickupTime;
-         document.getElementById('storeTimeInputModal').value = timePart;
-         
-         let html = `
-             <div><strong>訂單編號：</strong>${orderObj.orderNo} (${orderObj.orderID})</div>
-             <div><strong>訂購人：</strong>${orderObj.customer} (${orderObj.phone})</div>
-             <div><strong>希望取餐：</strong>${orderObj.pickupTime}</div>
-             <div><strong>應收金額：</strong>$${orderObj.total} (${orderObj.payment})</div>
-         `;
-         document.getElementById('instantOrderDetails').innerHTML = html;
-         document.getElementById('instantRejectOptions').style.display = 'none';
-         document.getElementById('instantNewOrderModal').style.display = 'flex';
-     }
-
-     function toggleInstantRejectReason() {
-         const box = document.getElementById('instantRejectOptions');
-         if (box.style.display === 'none' || box.style.display === '') {
-             box.style.display = 'flex';
-         } else {
-             box.style.display = 'none';
-         }
-     }
-
-     function confirmInstantRejectWithReason() {
-         if (!pendingInstantOrderId) return;
-         const radios = document.getElementsByName('instantRejectReason');
-         let reason = "商品已售完";
-         for (let r of radios) {
-             if (r.checked) {
-                 reason = r.value;
-                 break;
-             }
-         }
-
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
-         if (ord) {
-             ord.status = "已拒單";
-             ord.rejectReason = reason;
-
-             liveOrders = liveOrders.filter(o => o.id !== pendingInstantOrderId);
-             let history = getCloudItem('pos_order_history', []);
-             history.push(ord);
-
-             saveCloudData('pos_live_orders', liveOrders);
-             saveCloudData('pos_order_history', history);
-         }
-
-         document.getElementById('instantNewOrderModal').style.display = 'none';
-         pendingInstantOrderId = null;
-     }
-
-     function openInstantTimePicker() {
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
-         if (!ord) return;
-
-         let currentVal = ord.pickupTime;
-         let timePart = currentVal ? (currentVal.split(' ')[1] || '17:00') : '17:00';
-         document.getElementById('storeTimeInputModal').value = timePart;
-         document.getElementById('storeChangeTimeModal').style.display = 'flex';
-     }
-
-     function closeStoreChangeTimeModal() {
-         document.getElementById('storeChangeTimeModal').style.display = 'none';
-     }
-
-     function confirmStoreChangeTime() {
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
-         if (!ord) return;
-
-         let newTime = document.getElementById('storeTimeInputModal').value;
-         if (!newTime) {
-             alert("請選擇新時間！");
-             return;
-         }
-
-         let datePart = ord.pickupTime ? (ord.pickupTime.split(' ')[0] || '') : '';
-         let newPickupFull = `${datePart} ${newTime}`;
-         ord.pickupTime = newPickupFull;
-         document.getElementById('instantNewPickupTime').value = newPickupFull;
-
-         saveCloudData('pos_live_orders', liveOrders);
-         closeStoreChangeTimeModal();
-         alert("希望取餐時間已更新！");
-     }
-
-     function confirmInstantAccept() {
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
-         if (!ord) return;
-
-         ord.status = "製作中";
-         let newTime = document.getElementById('instantNewPickupTime').value;
-         if (newTime) ord.pickupTime = newTime;
-
-         saveCloudData('pos_live_orders', liveOrders);
-         document.getElementById('instantNewOrderModal').style.display = 'none';
-         pendingInstantOrderId = null;
-         alert("已成功接單並更新時間！");
-     }
-
      function updateOrderBadge() {
          let liveOrders = getCloudItem('pos_live_orders', []);
          const badge = document.getElementById('orderBadgeCount');
@@ -2328,6 +2152,29 @@
                  btnBg = "linear-gradient(135deg, #b26a00, #663800)";
              }
 
+             // 內嵌結算面板（如果目前這張訂單正在進行現金內嵌收銀）
+             let cashInlineHtml = '';
+             if (activeCashCheckoutOrderId === ord.id) {
+                 cashInlineHtml = `
+                     <div style="background:#1f160d; border:1px solid var(--primary-gold); padding:10px; border-radius:6px; margin-top:8px;">
+                         <div style="font-size:15px; font-weight:bold; color:var(--primary-gold); margin-bottom:6px; text-align:center;">💵 現金收銀結帳</div>
+                         <div style="font-size:14px; color:#fcedcb; margin-bottom:6px;">應收金額：<strong>$${ord.total}</strong></div>
+                         <div style="margin-bottom:6px;">
+                             <label style="font-size:12px; color:#d6c29a; display:block; margin-bottom:2px;">實收金額：</label>
+                             <input type="number" id="inlineCashReceived_${ord.id}" class="input-field" style="width:100%; font-size:16px; font-weight:bold; padding:6px;" placeholder="請輸入實收金額" oninput="calcInlineCashChange(${ord.id}, ${ord.total})">
+                         </div>
+                         <div style="font-size:14px; color:#fcedcb; margin-bottom:8px;">
+                             找零：<span id="inlineCashChange_${ord.id}" style="color:#ff9999; font-weight:bold;">$0</span>
+                         </div>
+                         <div id="inlineCashError_${ord.id}" style="color:#ff6666; font-size:12px; font-weight:bold; margin-bottom:6px; display:none;"></div>
+                         <div style="display:flex; gap:6px;">
+                             <button class="btn btn-submit" style="padding:6px; font-size:13px;" onclick="confirmInlineCashCheckout(${ord.id})">確認完成結帳</button>
+                             <button class="btn" style="background:#5c2c16; color:white; padding:6px; font-size:13px;" onclick="cancelInlineCashCheckout()">取消</button>
+                         </div>
+                     </div>
+                 `;
+             }
+
              let div = document.createElement('div');
              div.style.cssText = "background:#150d07; border:1px solid var(--border-gold); padding:12px; border-radius:6px; display:flex; flex-direction:column; gap:8px;";
              div.innerHTML = `
@@ -2339,7 +2186,16 @@
                      <div style="font-size:12px; color:#c4ae85;">希望取餐時間：<strong>${ord.pickupTime}</strong></div>
                      <button class="header-btn" style="background:#8b5a00; padding:2px 8px; font-size:11px;" onclick="changeOrderPickupTimePrompt(${ord.id})">⏱️ 改時接單</button>
                  </div>
-                 <div style="font-size:12px; color:#c4ae85;">付款：${ord.payment} | 口味：${ord.flavorStr || '無'}</div>
+                 <div style="font-size:12px; color:#c4ae85; display:flex; align-items:center; gap:8px;">
+                     <span>付款方式：</span>
+                     <select class="input-field" style="padding:2px 6px; background:#1a110a; color:var(--primary-gold); width:110px;" onchange="updateOrderPaymentMethod(${ord.id}, this.value)">
+                         <option value="現金" ${ord.payment === '現金' ? 'selected' : ''}>現金</option>
+                         <option value="轉帳" ${ord.payment === '轉帳' ? 'selected' : ''}>轉帳</option>
+                         <option value="Linepay" ${ord.payment === 'Linepay' ? 'selected' : ''}>Linepay</option>
+                         <option value="全支付" ${ord.payment === '全支付' ? 'selected' : ''}>全支付</option>
+                     </select>
+                     <span>| 口味：${ord.flavorStr || '無'}</span>
+                 </div>
                  <div style="font-size:12px; color:#c4ae85;">備註：${ord.custNotes || '無'}</div>
                  
                  <div style="background:#1f160d; padding:8px; border-radius:4px; margin-top:4px;">
@@ -2359,6 +2215,8 @@
                      <button class="btn" style="background:linear-gradient(135deg, #8b1e0f, #4a0d05); color:white; padding:8px; font-size:14px;" onclick="toggleListRejectBox(${ord.id})">拒單</button>
                  </div>
 
+                 ${cashInlineHtml}
+
                  <!-- 內嵌拒單理由區塊 -->
                  <div id="listRejectBox_${ord.id}" style="display:none; margin-top:6px; background:#1f160d; padding:8px; border-radius:4px; border:1px solid #8b1e0f; flex-direction:column; gap:6px;">
                      <div style="font-size:12px; color:#ff9999; font-weight:bold;">請選擇拒單理由：</div>
@@ -2370,6 +2228,15 @@
              `;
              container.appendChild(div);
          });
+     }
+
+     function updateOrderPaymentMethod(orderId, newPayMethod) {
+         let liveOrders = getCloudItem('pos_live_orders', []);
+         let ord = liveOrders.find(o => o.id === orderId);
+         if (ord) {
+             ord.payment = newPayMethod;
+             saveCloudData('pos_live_orders', liveOrders);
+         }
      }
 
      function toggleListRejectBox(orderId) {
@@ -2439,56 +2306,50 @@
              ord.status = "待取餐";
              saveCloudData('pos_live_orders', liveOrders);
          } else if (ord.status === "待取餐") {
+             // 點選已取餐時：檢查付款方式是否為現金。若是現金，直接在下方展開收銀畫面；若為行動支付/轉帳則直接完成歸檔。
              if (ord.payment === "現金") {
-                 pendingCashOrderId = orderId;
-                 document.getElementById('crTotal').innerText = `$${ord.total}`;
-                 document.getElementById('cashReceived').value = '';
-                 document.getElementById('crChange').innerText = `$0`;
-                 document.getElementById('cashErrorMsg').style.display = 'none';
-                 document.getElementById('cashRegisterModal').style.display = 'flex';
+                 activeCashCheckoutOrderId = orderId;
+                 renderLiveOrders();
              } else {
                  completeOrderToHistory(orderId);
              }
          }
      }
 
-     function calcCashChange() {
-         let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === pendingCashOrderId);
-         if (!ord) return;
+     function calcInlineCashChange(orderId, totalAmount) {
+         let received = parseInt(document.getElementById(`inlineCashReceived_${orderId}`).value) || 0;
+         let change = received - totalAmount;
+         const errBox = document.getElementById(`inlineCashError_${orderId}`);
+         const changeSpan = document.getElementById(`inlineCashChange_${orderId}`);
 
-         let received = parseInt(document.getElementById('cashReceived').value) || 0;
-         let change = received - ord.total;
-         const errBox = document.getElementById('cashErrorMsg');
-
-         if (received < ord.total) {
-             document.getElementById('crChange').innerText = `$0`;
-             errBox.innerText = `⚠️ 金額不足！尚差 $${ord.total - received} 元`;
+         if (received < totalAmount) {
+             changeSpan.innerText = `$0`;
+             errBox.innerText = `⚠️ 金額不足！尚差 $${totalAmount - received} 元`;
              errBox.style.display = 'block';
          } else {
-             document.getElementById('crChange').innerText = `$${change}`;
+             changeSpan.innerText = `$${change}`;
              errBox.style.display = 'none';
          }
      }
 
-     function closeCashRegisterModal() {
-         document.getElementById('cashRegisterModal').style.display = 'none';
-         pendingCashOrderId = null;
+     function cancelInlineCashCheckout() {
+         activeCashCheckoutOrderId = null;
+         renderLiveOrders();
      }
 
-     function confirmCashRegister() {
+     function confirmInlineCashCheckout(orderId) {
          let liveOrders = getCloudItem('pos_live_orders', []);
-         let ord = liveOrders.find(o => o.id === pendingCashOrderId);
+         let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
 
-         let received = parseInt(document.getElementById('cashReceived').value) || 0;
+         let received = parseInt(document.getElementById(`inlineCashReceived_${orderId}`).value) || 0;
          if (received < ord.total) {
              alert(`實收金額不足 (應收 $${ord.total} 元)，無法結帳！`);
              return;
          }
 
-         completeOrderToHistory(pendingCashOrderId);
-         closeCashRegisterModal();
+         activeCashCheckoutOrderId = null;
+         completeOrderToHistory(orderId);
      }
 
      function completeOrderToHistory(orderId) {
