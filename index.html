@@ -645,7 +645,6 @@
      let pendingInstantOrderId = null;
      let activeTrackedOrderId = null; 
      
-     // 預設本機快取，實現秒開
      let cloudDataCache = {
          pos_store_status: localStorage.getItem('pos_store_status_cache') || "營業中",
          pos_mgr_logged: localStorage.getItem('pos_mgr_logged_cache') || "false",
@@ -656,7 +655,6 @@
          pos_daily_seq: JSON.parse(localStorage.getItem('pos_daily_seq_cache') || '{}')
      };
 
-     // 非同步背景從 GAS 抓取最新資料更新快取
      async function fetchCloudData() {
          try {
              let res = await fetch(GAS_URL);
@@ -672,21 +670,20 @@
          }
      }
 
-     // 非同步寫入 GAS 並立即同步更新本機快取
-     async function saveCloudData(key, value) {
+     // 改良版：非同步背景寫入，不阻塞畫面主執行緒
+     function saveCloudData(key, value) {
          cloudDataCache[key] = value;
          localStorage.setItem(key + '_cache', typeof value === 'string' ? value : JSON.stringify(value));
          
-         try {
-             await fetch(GAS_URL, {
-                 method: "POST",
-                 mode: "no-cors",
-                 headers: { "Content-Type": "application/json" },
-                 body: JSON.stringify({ key: key, value: value })
-             });
-         } catch (e) {
+         fetch(GAS_URL, {
+             method: "POST",
+             mode: "no-cors",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ key: key, value: value })
+         }).catch(e => {
              console.error("雲端同步寫入失敗:", e);
-         }
+         });
+         
          window.dispatchEvent(new Event('storage_synced'));
      }
 
@@ -732,7 +729,7 @@
 
      async function handleLoginLogout() {
          if (isLoggedMgr) {
-             await saveCloudData('pos_mgr_logged', 'false');
+             saveCloudData('pos_mgr_logged', 'false');
              isLoggedMgr = false;
              checkModeAndAuth();
          } else {
@@ -741,7 +738,7 @@
              
              let currentPwd = getCloudItem('pos_admin_pwd', '8888');
              if (pwd === currentPwd) {
-                 await saveCloudData('pos_mgr_logged', 'true');
+                 saveCloudData('pos_mgr_logged', 'true');
                  isLoggedMgr = true;
                  checkModeAndAuth();
              } else {
@@ -779,7 +776,7 @@
          document.getElementById('changePasswordModal').style.display = 'none';
      }
 
-     async function confirmChangePassword() {
+     function confirmChangePassword() {
          let oldPwd = document.getElementById('oldPwdInput').value.trim();
          let newPwd = document.getElementById('newPwdInput').value.trim();
          let confirmPwd = document.getElementById('confirmPwdInput').value.trim();
@@ -800,14 +797,14 @@
              return;
          }
 
-         await saveCloudData('pos_admin_pwd', newPwd);
+         saveCloudData('pos_admin_pwd', newPwd);
          alert("管理密碼修改成功！");
          closeChangePasswordModal();
          document.getElementById('managementModal').style.display = 'flex';
      }
 
-     async function changeStoreStatus(val) {
-         await saveCloudData('pos_store_status', val);
+     function changeStoreStatus(val) {
+         saveCloudData('pos_store_status', val);
      }
 
      function syncStoreStatusUI() {
@@ -1259,37 +1256,35 @@
          document.getElementById('soldoutListModal').style.display = 'none';
      }
 
-     async function restoreSoldoutItem(category, itemId) {
+     function restoreSoldoutItem(category, itemId) {
          let menuData = getMenuData();
          const item = menuData[category].find(i => i.id === itemId);
          if (item) {
              item.soldOut = false;
              checkInventoryLogic(menuData, item.name, false);
-             await saveCloudData('pos_menu_data', menuData);
+             saveCloudData('pos_menu_data', menuData);
              refreshMenuTabs();
              refreshActiveGrid();
              openSoldoutListModal();
          }
      }
 
-     async function restoreCategory(category) {
+     function restoreCategory(category) {
          let menuData = getMenuData();
          menuData[category].forEach(i => i.soldOut = false);
-         await saveCloudData('pos_menu_data', menuData);
+         saveCloudData('pos_menu_data', menuData);
          refreshMenuTabs();
          refreshActiveGrid();
          openSoldoutListModal();
      }
 
      function initPOS() {
-         // 1. 瞬間利用本地快取秒開畫面
          checkModeAndAuth();
          refreshMenuTabs();
          setDefaultPickupTime();
          updateCartUI();
          updateOrderBadge();
 
-         // 2. 背景靜默非同步向 GAS 抓取最新資料
          fetchCloudData().then(() => {
              checkModeAndAuth();
              refreshMenuTabs();
@@ -1299,7 +1294,6 @@
          
          window.addEventListener('storage_synced', handleStorageSync);
 
-         // 3. 背景定期輪詢雲端（每 4 秒自動同步最新訂單狀態與菜單）
          setInterval(async () => {
              await fetchCloudData();
              syncStoreStatusUI();
@@ -1358,7 +1352,7 @@
              closeBtn.className = 'cat-close-btn';
              closeBtn.innerText = isAllSoldOut ? '✓' : '✕';
              closeBtn.title = isAllSoldOut ? "點擊重新開啟大選項" : "一鍵關閉整大類";
-             closeBtn.onclick = async (e) => {
+             closeBtn.onclick = (e) => {
                  e.stopPropagation();
                  let currentMenu = getMenuData();
                  let shouldOpen = isAllSoldOut;
@@ -1366,7 +1360,7 @@
                      i.soldOut = !shouldOpen;
                      checkInventoryLogic(currentMenu, i.name, !shouldOpen);
                  });
-                 await saveCloudData('pos_menu_data', currentMenu);
+                 saveCloudData('pos_menu_data', currentMenu);
                  refreshMenuTabs();
                  renderGrid(category);
              };
@@ -1407,14 +1401,14 @@
          const card = document.createElement('div');
          card.className = `item-card ${item.soldOut ? 'sold-out' : ''}`;
          
-         card.onclick = async () => {
+         card.onclick = () => {
              if (isEditMode) {
                  let menuData = getMenuData();
                  let targetItem = menuData[category].find(i => i.id === item.id);
                  if (targetItem) {
                      targetItem.soldOut = !targetItem.soldOut;
                      checkInventoryLogic(menuData, targetItem.name, targetItem.soldOut);
-                     await saveCloudData('pos_menu_data', menuData);
+                     saveCloudData('pos_menu_data', menuData);
                  }
                  refreshMenuTabs();
                  renderGrid(category);
@@ -1440,13 +1434,13 @@
          const card = document.createElement('div');
          card.className = `combo-card ${item.soldOut ? 'sold-out' : ''}`;
          
-         card.onclick = async () => {
+         card.onclick = () => {
              if (isEditMode) {
                  let menuData = getMenuData();
                  let targetItem = menuData[category].find(i => i.id === item.id);
                  if (targetItem) {
                      targetItem.soldOut = !targetItem.soldOut;
-                     await saveCloudData('pos_menu_data', menuData);
+                     saveCloudData('pos_menu_data', menuData);
                  }
                  refreshMenuTabs();
                  renderGrid(category);
@@ -1956,14 +1950,14 @@
          confirmFinalOrderSubmitInternal();
      }
 
-     async function confirmFinalOrderSubmitInternal() {
+     function confirmFinalOrderSubmitInternal() {
          if (!pendingOrderPayloadForConfirm) return;
 
          let bizDateStr = pendingOrderPayloadForConfirm.date;
          let seqObj = getCloudItem('pos_daily_seq', {});
          if (!seqObj[bizDateStr]) seqObj[bizDateStr] = 0;
          seqObj[bizDateStr]++;
-         await saveCloudData('pos_daily_seq', seqObj);
+         saveCloudData('pos_daily_seq', seqObj);
 
          let seqNum = seqObj[bizDateStr];
          pendingOrderPayloadForConfirm.orderNo = `#${String(seqNum).padStart(3, '0')}`;
@@ -1971,10 +1965,11 @@
 
          let liveOrders = getCloudItem('pos_live_orders', []);
          liveOrders.push(pendingOrderPayloadForConfirm);
-         await saveCloudData('pos_live_orders', liveOrders);
+         saveCloudData('pos_live_orders', liveOrders);
          
          activeTrackedOrderId = pendingOrderPayloadForConfirm.id;
 
+         // 瞬間切換畫面並播放音效，完全不卡頓
          playSound('new_order');
          if (isAdminMode) {
              triggerInstantStoreNotification(pendingOrderPayloadForConfirm);
@@ -2053,7 +2048,7 @@
          document.getElementById('instantNewOrderModal').style.display = 'flex';
      }
 
-     async function openInstantTimePicker() {
+     function openInstantTimePicker() {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
          if (!ord) return;
@@ -2067,11 +2062,11 @@
              let newPickupFull = `${datePart} ${selTime.trim()}`;
              document.getElementById('instantNewPickupTime').value = newPickupFull;
              ord.pickupTime = newPickupFull;
-             await saveCloudData('pos_live_orders', liveOrders);
+             saveCloudData('pos_live_orders', liveOrders);
          }
      }
 
-     async function confirmInstantAccept() {
+     function confirmInstantAccept() {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === pendingInstantOrderId);
          if (!ord) return;
@@ -2080,17 +2075,17 @@
          let newTime = document.getElementById('instantNewPickupTime').value;
          if (newTime) ord.pickupTime = newTime;
 
-         await saveCloudData('pos_live_orders', liveOrders);
+         saveCloudData('pos_live_orders', liveOrders);
          document.getElementById('instantNewOrderModal').style.display = 'none';
          pendingInstantOrderId = null;
          alert("已成功接單並更新時間！");
      }
 
-     async function confirmInstantReject() {
+     function confirmInstantReject() {
          if (!confirm("確定要拒絕這筆訂單嗎？")) return;
          let liveOrders = getCloudItem('pos_live_orders', []);
          liveOrders = liveOrders.filter(o => o.id !== pendingInstantOrderId);
-         await saveCloudData('pos_live_orders', liveOrders);
+         saveCloudData('pos_live_orders', liveOrders);
          document.getElementById('instantNewOrderModal').style.display = 'none';
          pendingInstantOrderId = null;
      }
@@ -2181,7 +2176,7 @@
          });
      }
 
-     async function changeOrderPickupTimePrompt(orderId) {
+     function changeOrderPickupTimePrompt(orderId) {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
@@ -2194,22 +2189,22 @@
          if (newTime !== null && newTime.trim() !== "") {
              ord.pickupTime = `${datePart} ${newTime.trim()}`;
              ord.status = "製作中";
-             await saveCloudData('pos_live_orders', liveOrders);
+             saveCloudData('pos_live_orders', liveOrders);
              alert("取餐時間已更新並接單！");
          }
      }
 
-     async function advanceOrderStatus(orderId) {
+     function advanceOrderStatus(orderId) {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
 
          if (ord.status === "等待接單") {
              ord.status = "製作中";
-             await saveCloudData('pos_live_orders', liveOrders);
+             saveCloudData('pos_live_orders', liveOrders);
          } else if (ord.status === "製作中") {
              ord.status = "待取餐";
-             await saveCloudData('pos_live_orders', liveOrders);
+             saveCloudData('pos_live_orders', liveOrders);
          } else if (ord.status === "待取餐") {
              if (ord.payment === "現金") {
                  pendingCashOrderId = orderId;
@@ -2219,7 +2214,7 @@
                  document.getElementById('cashErrorMsg').style.display = 'none';
                  document.getElementById('cashRegisterModal').style.display = 'flex';
              } else {
-                 await completeOrderToHistory(orderId);
+                 completeOrderToHistory(orderId);
              }
          }
      }
@@ -2248,7 +2243,7 @@
          pendingCashOrderId = null;
      }
 
-     async function confirmCashRegister() {
+     function confirmCashRegister() {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === pendingCashOrderId);
          if (!ord) return;
@@ -2259,11 +2254,11 @@
              return;
          }
 
-         await completeOrderToHistory(pendingCashOrderId);
+         completeOrderToHistory(pendingCashOrderId);
          closeCashRegisterModal();
      }
 
-     async function completeOrderToHistory(orderId) {
+     function completeOrderToHistory(orderId) {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
@@ -2274,19 +2269,19 @@
          ord.status = "已完成";
          history.push(ord);
          
-         await saveCloudData('pos_live_orders', liveOrders);
-         await saveCloudData('pos_order_history', history);
+         saveCloudData('pos_live_orders', liveOrders);
+         saveCloudData('pos_order_history', history);
          playSound('done');
      }
 
-     async function rejectOrder(orderId) {
+     function rejectOrder(orderId) {
          if (!confirm("確定要拒絕這筆訂單嗎？(拒單後將徹底刪除)")) return;
          let liveOrders = getCloudItem('pos_live_orders', []);
          liveOrders = liveOrders.filter(o => o.id !== orderId);
-         await saveCloudData('pos_live_orders', liveOrders);
+         saveCloudData('pos_live_orders', liveOrders);
      }
 
-     async function removeOrderItem(orderId, itemIndex) {
+     function removeOrderItem(orderId, itemIndex) {
          let liveOrders = getCloudItem('pos_live_orders', []);
          let ord = liveOrders.find(o => o.id === orderId);
          if (!ord) return;
@@ -2297,7 +2292,7 @@
          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
          ord.total = newTotal;
 
-         await saveCloudData('pos_live_orders', liveOrders);
+         saveCloudData('pos_live_orders', liveOrders);
      }
 
      function checkOrderStatusByPhone() {
@@ -2416,14 +2411,14 @@
          document.querySelectorAll('.history-select-th').forEach(el => el.style.display = isHistorySelectMode ? 'table-cell' : 'none');
      }
 
-     async function deleteSingleHistoryOrder(orderId) {
+     function deleteSingleHistoryOrder(orderId) {
          if (!confirm("確定要刪除這筆歷史訂單嗎？")) return;
          let history = getCloudItem('pos_order_history', []);
          history = history.filter(o => o.id !== orderId);
-         await saveCloudData('pos_order_history', history);
+         saveCloudData('pos_order_history', history);
      }
 
-     async function batchDeleteHistoryOrders() {
+     function batchDeleteHistoryOrders() {
          const chks = document.querySelectorAll('.history-chk:checked');
          if (chks.length === 0) {
              alert("請至少勾選一筆歷史訂單！");
@@ -2434,7 +2429,7 @@
          let idsToDelete = Array.from(chks).map(c => Number(c.value));
          let history = getCloudItem('pos_order_history', []);
          history = history.filter(o => !idsToDelete.includes(o.id));
-         await saveCloudData('pos_order_history', history);
+         saveCloudData('pos_order_history', history);
      }
 
      function openEditOrderInfoModal(orderId, targetType) {
@@ -2463,7 +2458,7 @@
          currentEditingOrderId = null;
      }
 
-     async function saveOrderInfoEdit() {
+     function saveOrderInfoEdit() {
          let storageKey = currentEditingTarget === 'live' ? 'pos_live_orders' : 'pos_order_history';
          let ordersArr = getCloudItem(storageKey, []);
          let ord = ordersArr.find(o => o.id === currentEditingOrderId);
@@ -2478,7 +2473,7 @@
          ord.flavorStr = document.getElementById('eiFlavorStr').value;
          ord.custNotes = document.getElementById('eiNotes').value;
 
-         await saveCloudData(storageKey, ordersArr);
+         saveCloudData(storageKey, ordersArr);
          closeEditOrderInfoModal();
      }
 
@@ -2545,7 +2540,7 @@
          });
      }
 
-     async function addSelectedItemToEditingOrder() {
+     function addSelectedItemToEditingOrder() {
          const itemSelect = document.getElementById('editItemSelect');
          if (!itemSelect.value) return;
 
@@ -2567,11 +2562,11 @@
          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
          ord.total = newTotal;
 
-         await saveCloudData(storageKey, ordersArr);
+         saveCloudData(storageKey, ordersArr);
          renderEditingItemsList();
      }
 
-     async function removeEditingItem(itemIdx) {
+     function removeEditingItem(itemIdx) {
          let storageKey = currentEditingTarget === 'live' ? 'pos_live_orders' : 'pos_order_history';
          let ordersArr = getCloudItem(storageKey, []);
          let ord = ordersArr.find(o => o.id === currentEditingOrderId);
@@ -2584,7 +2579,7 @@
          if (ord.flavorStr && ord.flavorStr.includes("泰式+5元")) newTotal += 5;
          ord.total = newTotal;
 
-         await saveCloudData(storageKey, ordersArr);
+         saveCloudData(storageKey, ordersArr);
          renderEditingItemsList();
      }
 
