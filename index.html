@@ -57,17 +57,21 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .go:disabled{background:var(--ln);color:var(--mu);cursor:not-allowed}
 .hint{font-size:12px;color:var(--mu);text-align:center}
 
-/* 彈窗樣式 */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;place-items:center;z-index:999;padding:20px}
+/* 彈跳視窗樣式 */
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:none;place-items:center;z-index:999;padding:20px}
 .modal.open{display:grid}
 .m-box{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);width:100%;max-width:400px;padding:24px;display:flex;flex-direction:column;gap:16px}
-.m-box h3{font-size:18px;color:var(--ac2)}
-.m-box label{font-size:14px;color:var(--mu);display:flex;flex-direction:column;gap:6px}
-.m-box input, .m-box select{padding:10px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:15px}
-.m-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
-.m-btns button{padding:10px 18px;border-radius:10px;font-weight:600}
-.m-btns .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
-.m-btns .btn-confirm{background:var(--ac);color:#1a1204}
+.m-box h3{font-size:20px;color:var(--ac2)}
+.m-box label{font-size:13px;color:var(--mu);display:flex;flex-direction:column;gap:6px}
+.m-box input{padding:12px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:16px}
+.m-box input:focus{border-color:var(--ac);outline:none}
+.m-btns{display:flex;gap:10px;margin-top:4px}
+.m-btns button{flex:1;padding:12px;border-radius:10px;font-weight:700}
+.btn-cancel{background:var(--s2);border:1px solid var(--ln)}
+.btn-confirm{background:var(--ac);color:#1a1204}
+.opt-list{display:flex;flex-direction:column;gap:10px}
+.opt-btn{padding:14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);text-align:left;font-size:16px;font-weight:600;transition:.15s}
+.opt-btn:hover{border-color:var(--ac);background:rgba(232,163,61,.1)}
 
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 
@@ -85,7 +89,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  <div class="logo">🍗</div>
  <div class="brand"><b>去中心鹹水雞 X 厝邊溫食</b><small>POS 點餐系統</small></div>
  <div class="sp"></div>
- <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div>
+ <div class="pill"><span class="dot"></span>營業中</div>
  <div class="clock" id="clock"></div>
  <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 店家</button>
 </header>
@@ -100,41 +104,21 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  </aside>
 </div>
 
-<!-- 店家登入與後台管理彈窗 -->
-<div class="modal" id="adminModal">
- <div class="m-box" id="adminModalContent">
-  <!-- 內容由 JS 動態填入 -->
- </div>
-</div>
-
-<!-- 套餐口味選擇彈窗 -->
-<div class="modal" id="comboModal">
- <div class="m-box">
-  <h3>選擇套餐雞肉口味</h3>
-  <p id="comboModalTitle" style="font-size:14px;color:var(--mu)"></p>
-  <label>請選擇雞肉作法：
-   <select id="comboFlavorSelect">
-    <option value="鹹水">1. 鹹水</option>
-    <option value="煙燻">2. 煙燻</option>
-   </select>
-  </label>
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="$('comboModal').classList.remove('open')">取消</button>
-   <button class="btn-confirm" onclick="confirmComboAdd()">加入訂單</button>
-  </div>
- </div>
+<!-- 互動彈跳視窗：密碼輸入/修改與套餐口味選擇 -->
+<div class="modal" id="modal">
+ <div class="m-box" id="mBox"></div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;n'}[c]));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mk=(p,r)=>r.map(([n,pr],i)=>({id:p+(i+1),name:n,price:pr}));
 const MENU=[
 {k:'信仰雞本位主義 (主食)',ic:'🍗',items:mk('m',[["鹹水雞腿",65],["煙燻雞腿",75],["鹹水雞胸",65],["煙燻雞胸",75],["鹹水半雞",130],["煙燻半雞",150]]),two:true},
 {k:'智能合約 (套餐)',ic:'🍱',combo:true,items:[
- {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"]},
- {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"]},
- {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
+ {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"]},
+ {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"]},
+ {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
  {id:'s4',name:'輕食減醣套餐',price:139,c:'雞肉：鹹水雞胸',d:["冬粉","花椰菜","玉米筍","豆皮","高麗菜"]},
  {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉：鹹水雞胸 × 2',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"]}]},
 {k:'鏈上綠色資產 (蔬菜)',ic:'🥬',items:mk('v',[["娃娃菜",40],["玉米筍",30],["筍片",25],["水蓮",25],["四季豆",25],["龍鬚菜",25],["花椰菜",25],["鴻喜菇",25],["杏鮑菇",20],["金針菇",20],["小黃瓜",20],["高麗菜",20],["白蘿蔔",20],["黑木耳",20],["洋蔥",20],["海帶",20]])},
@@ -146,80 +130,18 @@ const MENU=[
 ];
 MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法指定變更。';
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,''] };
-let cur=0,cart=[],shopStatus='營業中',adminPass=localStorage.getItem('pos_pass')||'8888',pendingCombo=null;
+let cur=0,cart=[];
+let adminPassword = localStorage.getItem('admin_pwd') || '8888';
 
-// 檢查網址是否為 admin 模式
-if(new URLSearchParams(window.location.search).get('mode')==='admin'){
- $('adminBtn').style.display='inline-block';
-}
-
-function updateStatusUI(){
- const dot=$('statusDot'),txt=$('statusText');
- txt.textContent=shopStatus;
- if(shopStatus==='營業中'){dot.style.background='var(--ok)';dot.style.boxShadow='0 0 8px var(--ok)';}
- else if(shopStatus==='備料中'){dot.style.background='var(--ac)';dot.style.boxShadow='0 0 8px var(--ac)';}
- else{dot.style.background='var(--bad)';dot.style.boxShadow='0 0 8px var(--bad)';}
-}
-
-function openAdminLogin(){
- const modal=$('adminModal'),c=$('adminModalContent');
- c.innerHTML=`
-  <h3>店家登入</h3>
-  <label>請輸入管理密碼：<input type="password" id="loginPass" placeholder="預設 8888"></label>
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="$('adminModal').classList.remove('open')">取消</button>
-   <button class="btn-confirm" onclick="verifyAdmin()">登入</button>
-  </div>
- `;
- modal.classList.add('open');
-}
-
-function verifyAdmin(){
- const p=$('loginPass').value;
- if(p===adminPass){
-  openAdminPanel();
- }else{
-  alert('密碼錯誤！');
- }
-}
-
-function openAdminPanel(){
- const modal=$('adminModal'),c=$('adminModalContent');
- c.innerHTML=`
-  <h3>⚙ 店家管理中心</h3>
-  <label>切換營業狀態：
-   <select id="statusSelect">
-    <option value="營業中"${shopStatus==='營業中'?' selected':''}>營業中</option>
-    <option value="備料中"${shopStatus==='備料中'?' selected':''}>備料中</option>
-    <option value="休息中"${shopStatus==='休息中'?' selected':''}>休息中</option>
-   </select>
-  </label>
-  <hr style="border-color:var(--ln)">
-  <label>修改管理密碼：<input type="password" id="newPass" placeholder="輸入新密碼"></label>
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="$('adminModal').classList.remove('open')">關閉</button>
-   <button class="btn-confirm" onclick="saveAdminSettings()">儲存設定</button>
-  </div>
- `;
- modal.classList.add('open');
-}
-
-function saveAdminSettings(){
- shopStatus=$('statusSelect').value;
- updateStatusUI();
- const np=$('newPass').value;
- if(np){
-  adminPass=np;
-  localStorage.setItem('pos_pass',np);
-  alert('狀態已更新，密碼修改成功！');
- }else{
-  alert('狀態已更新！');
- }
- $('adminModal').classList.remove('open');
-}
+// 檢查網址是否帶有 ?mode=admin
+window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('mode') === 'admin') {
+        $('adminBtn').style.display = 'block';
+    }
+});
 
 function renderNav(){$('nav').innerHTML=MENU.map((c,i)=>{const[t,s]=split(c.k);return`<button class="nv${i===cur?' on':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`}).join('')}
-
 function renderGrid(){const c=MENU[cur],[t,s]=split(c.k);
  $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}</p>`;
  $('grid').className='grid'+(c.combo?' wide':'');
@@ -233,29 +155,51 @@ function renderGrid(){const c=MENU[cur],[t,s]=split(c.k);
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
 
 function handleItemClick(id){
- const item=find(id);
- // 檢查是否為散戶、巨鯨、DAO 套餐 (id 為 s1, s2, s3)
- if(['s1','s2','s3'].includes(id)){
-  pendingCombo=item;
-  $('comboModalTitle').textContent=item.name+' ($'+item.price+')';$('comboModal').classList.add('open');
- }else{
-  addCartItem(item.id, item.name, item.price);
+ const item = find(id);
+ // 檢查是否為散戶、巨鯨、DAO 套餐 (s1, s2, s3)
+ if(['s1', 's2', 's3'].includes(id)) {
+  showComboOptions(item);
+ } else {
+  add(item.name, item.price, id);
  }
 }
 
-function confirmComboAdd(){
- const flavor=$('comboFlavorSelect').value;
- if(!pendingCombo)return;
- const customName=`${pendingCombo.name} (${flavor})`;
- addCartItem(pendingCombo.id+'_'+flavor, customName, pendingCombo.price);
- $('comboModal').classList.remove('open');
- pendingCombo=null;
+function showComboOptions(item){
+ let optionsHtml = '';
+ if(item.id === 's3') {
+  optionsHtml = `
+   <div class="opt-list">
+    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞</button>
+    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞</button>
+    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半</button>
+   </div>`;
+ } else {
+  optionsHtml = `
+   <div class="opt-list">
+    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞</button>
+    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞</button>
+   </div>`;
+ }
+
+ $('mBox').innerHTML=`
+  <h3>選擇 ${esc(item.name)} 口味</h3>
+  ${optionsHtml}
+  <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>
+ `;
+ $('modal').classList.add('open');
 }
 
-function addCartItem(id, name, price){
+function addComboWithFlavor(id, name, price, flavor){
+ const fullName = `${name} (${flavor})`;
+ const uniqueId = `${id}_${flavor}`;
+ add(fullName, price, uniqueId);
+ closeModal();
+}
+
+function add(name, price, id){
  const e=cart.find(x=>x.id===id);
  e?e.qty++:cart.push({id,name,price,qty:1});
- renderCart();renderGrid();
+ renderCart();renderGrid()
 }
 
 function qty(id,d){const e=cart.find(x=>x.id===id);if(!e)return;e.qty+=d;if(e.qty<=0)cart=cart.filter(x=>x.id!==id);renderCart();renderGrid()}
@@ -267,6 +211,86 @@ function renderCart(){
  const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
  $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n}
 
+function closeModal(){$('modal').classList.remove('open')}
+
+// 店家密碼與後台管理
+function openAdminLogin(){
+ $('mBox').innerHTML=`
+  <h3>店家後台登入</h3>
+  <label>請輸入管理密碼
+   <input type="password" id="loginPwd" placeholder="請輸入密碼">
+  </label>
+  <div class="m-btns">
+   <button class="btn-cancel" onclick="closeModal()">取消</button>
+   <button class="btn-confirm" onclick="verifyAdmin()">登入</button>
+  </div>
+ `;
+ $('modal').classList.add('open');$('loginPwd').focus();
+}
+
+function verifyAdmin(){
+ const val = $('loginPwd').value;
+ if(val === adminPassword){
+  openAdminPanel();
+ } else {
+  alert('密碼錯誤！');
+  $('loginPwd').value = '';$('loginPwd').focus();
+ }
+}
+
+function openAdminPanel(){
+ $('mBox').innerHTML=`
+  <h3>⚙ 店家管理後台</h3>
+  <div class="opt-list">
+   <button class="opt-btn" onclick="openChangePassword()">🔒 修改密碼</button>
+  </div>
+  <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>
+ `;
+}
+
+function openChangePassword(){
+ $('mBox').innerHTML=`
+  <h3>修改後台密碼</h3>
+  <label>1. 輸入舊密碼
+   <input type="password" id="oldPwd" placeholder="請輸入舊密碼">
+  </label>
+  <label>2. 輸入新密碼
+   <input type="password" id="newPwd" placeholder="請輸入新密碼">
+  </label>
+  <label>3. 再次輸入新密碼
+   <input type="password" id="confirmPwd" placeholder="請再次輸入新密碼">
+  </label>
+  <div class="m-btns">
+   <button class="btn-cancel" onclick="openAdminPanel()">返回</button>
+   <button class="btn-confirm" onclick="submitNewPassword()">確認修改</button>
+  </div>
+ `;
+}
+
+function submitNewPassword(){
+ const oldP = $('oldPwd').value;
+ const newP = $('newPwd').value;
+ const confP = $('confirmPwd').value;
+
+ if(oldP !== adminPassword){
+  alert('舊密碼輸入錯誤！');
+  return;
+ }
+ if(!newP){
+  alert('新密碼不得為空！');
+  return;
+ }
+ if(newP !== confP){
+  alert('兩次輸入的新密碼不一致！');
+  return;
+ }
+
+ adminPassword = newP;
+ localStorage.setItem('admin_pwd', adminPassword);
+ alert('密碼修改成功！');
+ openAdminPanel();
+}
+
 function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
-tick();setInterval(tick,3e4);renderNav();renderGrid();renderCart();updateStatusUI();
+tick();setInterval(tick,3e4);renderNav();renderGrid();renderCart();
 </script></body></html>
