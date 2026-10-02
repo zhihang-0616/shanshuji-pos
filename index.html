@@ -29,7 +29,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .pill.admin-mode:hover{border-color:var(--ac)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
 
-/* 中央：品牌名稱與後台按鈕垂直置中 */
+/* 中央：品牌名稱與按鈕垂直置中 */
 .sp{flex:1}
 .brand-center{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
 .brand-center .brand-row{display:flex;align-items:center;gap:0;white-space:nowrap}
@@ -289,10 +289,15 @@ function toggleItemSoldOut(itemId){
     renderGrid();
 }
 
+// 自動連動邏輯：半雞 (腿+胸皆售完則半雞自動售完)
 function checkHalfChickenAutoSoldOut(){
+    // 鹹水系列：鹹水雞腿(m1), 鹹水雞胸(m3) ➔ 鹹水半雞(m5)
     if(soldOutItems['m1'] && soldOutItems['m3']){
         soldOutItems['m5'] = true;
+    } else if(!soldOutItems['m1'] && !soldOutItems['m3']){
+        // 若其中一者恢復，也可以選擇是否手動解開，此處維持若手動解開則解除，或保持自動
     }
+    // 煙燻系列：煙燻雞腿(m2), 煙燻雞胸(m4) ➔ 煙燻半雞(m6)
     if(soldOutItems['m2'] && soldOutItems['m4']){
         soldOutItems['m6'] = true;
     }
@@ -358,8 +363,10 @@ function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)r
 
 function showComboOptions(item){
     let optionsHtml = '';
-    const saltSold = soldOutItems['m1'] && soldOutItems['m3'];
-    const smokeSold = soldOutItems['m2'] && soldOutItems['m4'];
+    // 檢查鹹水系列或煙燻系列是否售完來決定套餐選項是否自動反黑
+    // 鹹水系列代表：鹹水雞腿(m1) 或 鹹水雞胸(m3) 只要其中一個售完，或者整組售完
+    const saltSold = soldOutItems['m1'] || soldOutItems['m3'] || soldOutCats[0];
+    const smokeSold = soldOutItems['m2'] || soldOutItems['m4'] || soldOutCats[0];
 
     if(item.id === 's3') {
         optionsHtml = `
