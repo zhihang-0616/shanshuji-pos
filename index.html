@@ -42,7 +42,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .top-right{display:flex;align-items:center;gap:10px}
 .clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:14px}
 
-/* 後台按鈕與售完按鈕 */
+/* 按鈕樣式 */
 .ibtn{padding:5px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;display:none;color:var(--ac2);transition:.15s}
 .ibtn:hover{border-color:var(--ac);background:rgba(212,175,55,.15)}
 
@@ -71,10 +71,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .sec{grid-column:1/-1;font-size:13px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:6px 2px;border-bottom:1px dashed var(--ln)}
 .card.wd{flex-direction:row;align-items:center;gap:16px}.card.wd .m{flex:1}
 
-/* 售完模式下的標記徽章 */
-.sold-badge{position:absolute;top:6px;left:6px;width:24px;height:24px;background:var(--bad);color:#fff;border-radius:50%;font-size:13px;font-weight:700;display:none;place-items:center;z-index:5;box-shadow:0 2px 6px rgba(0,0,0,0.5)}
+/* 調整後的售完標記（改至右上角，不擋字） */
+.sold-badge{position:absolute;top:6px;right:6px;width:24px;height:24px;background:var(--bad);color:#fff;border-radius:4px;font-size:14px;font-weight:700;display:none;place-items:center;z-index:5;box-shadow:0 2px 6px rgba(0,0,0,0.5)}
 .sold-mode .sold-badge{display:grid}
-.nv .sold-badge{top:4px;left:4px}
+.nv .sold-badge{top:2px;right:2px;width:18px;height:18px;font-size:11px}
 
 /* 購物車 */
 .cart{background:var(--s1);border-left:2px solid var(--ln);display:flex;flex-direction:column;min-height:0}
@@ -143,7 +143,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
    <b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b>
   </div>
   <div class="brand-actions">
-   <button class="ibtn" id="soldOutBtn" onclick="toggleSoldOutMode()">🔴 售完品項</button>
+   <button class="ibtn" id="soldOutBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
   </div>
  </div>
@@ -292,13 +292,10 @@ function toggleItemSoldOut(itemId, e){
     renderGrid();
 }
 
-// 檢查半雞連動邏輯
 function checkHalfChickenAutoSoldOut(){
-    // 鹹水系列: 鹹水雞腿(m1), 鹹水雞胸(m3) -> 鹹水半雞(m5)
     if(soldOutItems['m1'] && soldOutItems['m3']){
         soldOutItems['m5'] = true;
     }
-    // 煙燻系列: 煙燻雞腿(m2), 煙燻雞胸(m4) -> 煙燻半雞(m6)
     if(soldOutItems['m2'] && soldOutItems['m4']){
         soldOutItems['m6'] = true;
     }
@@ -361,7 +358,6 @@ function handleItemClick(id){
 
 function showComboOptions(item){
     let optionsHtml = '';
-    // 檢查鹹水與煙燻主食是否全部售完來決定套餐選項是否反黑
     const saltSold = soldOutItems['m1'] && soldOutItems['m3'];
     const smokeSold = soldOutItems['m2'] && soldOutItems['m4'];
 
