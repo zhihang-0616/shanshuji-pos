@@ -111,6 +111,27 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .rc-item .nm{flex:1}.rc-item .nm small{color:var(--mu);margin-left:6px}.rc-item .pr{font-weight:700;color:var(--ac)}
 .rc-done{text-align:center;padding:10px 0}.rc-done .ok{font-size:48px}
 .rc-no{font-size:30px;font-weight:800;color:var(--ac);letter-spacing:2px;margin:6px 0}
+/* 訂單列表 / 提示 */
+.m-box.xl{max-width:820px}
+.oh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.oh button{padding:8px 14px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:14px}
+.ofl{display:flex;flex-wrap:wrap;gap:8px}
+.oc{border:1px solid var(--ln);border-left:5px solid var(--ln);border-radius:var(--r);background:var(--s2);padding:14px;display:flex;flex-direction:column;gap:8px}
+.oc.st-new{border-left-color:var(--bad)}.oc.st-making{border-left-color:var(--ac)}.oc.st-done{border-left-color:var(--ok)}
+.oc.st-picked,.oc.st-cancelled{opacity:.6}
+.oc-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.oc-h b{font-size:20px;color:var(--ac)}
+.oc-t{font-weight:700;color:var(--ac2)}
+.oc-s{margin-left:auto;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--ln)}
+.st-new .oc-s{background:var(--bad);color:#fff}.st-making .oc-s{background:var(--ac);color:#1a1204}.st-done .oc-s{background:var(--ok);color:#fff}
+.oc-b{font-size:14px;line-height:1.7}.oc-b .mu{color:var(--mu);font-size:13px}
+.oc-b a{color:var(--ac2)}
+.oc-a{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.oc-a button{padding:9px 16px;border-radius:8px;font-weight:700;font-size:14px}
+.oc-go{background:var(--ac);color:#1a1204}.oc-no{background:var(--s1);border:1px solid var(--ln);color:var(--mu)}
+#toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-140px);background:var(--ac);color:#1a1204;padding:12px 20px;border-radius:10px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.6);z-index:1500;cursor:pointer;transition:transform .3s;max-width:90%}
+#toast.show{transform:translate(-50%,0)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.ibtn.pulse{background:var(--bad);color:#fff;border-color:var(--bad);animation:pulse 1s infinite}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -129,9 +150,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  <div class="brand-center">
   <div class="brand-row"><b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b></div>
   <div class="brand-actions">
+   <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單</button>
    <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
-   <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
+   <button class="ibtn" id="logoutBtn" onclick="doLogout()">🚪 登出</button>
   </div>
  </div>
  <div class="sp"></div>
@@ -147,6 +169,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
    <button class="go" id="go" disabled onclick="openCheckout()">下一步：填寫取餐資訊</button></div>
  </aside>
 </div>
+<div id="toast"></div>
 <div class="modal" id="modal"><div class="m-box" id="mBox"></div></div>
 
 <script>
@@ -171,29 +194,34 @@ const MENU=[
 MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法指定變更。';
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'']};
 let cur=0,cart=[];
-let adminPassword=localStorage.getItem('admin_pwd')||'8888';
+const ADMIN_PARAM=new URLSearchParams(location.search).get('mode')==='admin';
 let isAdmin=false,isSoldOutMode=false;
 let soldOutItems=JSON.parse(localStorage.getItem('sold_out_items')||'{}');
 let soldOutCats=JSON.parse(localStorage.getItem('sold_out_cats')||'{}');
 
 window.addEventListener('DOMContentLoaded',()=>{
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('mode')==='admin'){
-    isAdmin=true;
-    $('soldOutModeBtn').style.display='block';
-    $('soldOutListBtn').style.display='block';$('adminBtn').style.display='block';
-    $('statusPill').classList.add('admin-mode');$('statusPill').onclick=openStatusSelector;
-  }
   updateStatusDisplay();renderNav();renderGrid();renderCart();
+  if(ADMIN_PARAM)setTimeout(()=>{if(!window.FB)alert('雲端元件載入失敗，請檢查網路後重新整理')},8000);
 });
-window.addEventListener('storage',e=>{
-  if(e.key==='shop_status')updateStatusDisplay();
-  if(e.key==='sold_out_items'||e.key==='sold_out_cats'){
-    soldOutItems=JSON.parse(localStorage.getItem('sold_out_items')||'{}');
-    soldOutCats=JSON.parse(localStorage.getItem('sold_out_cats')||'{}');
+document.addEventListener('click',()=>{if(isAdmin)unlockAudio()});
+const norm=v=>v?Object.assign({},v):{};
+const onlyTrue=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v));
+function fbReady(){
+  FB.onValue(FB.ref(FB.db,'shop/status'),sn=>{const v=sn.val();if(v){localStorage.setItem('shop_status',v);updateStatusDisplay()}});
+  FB.onValue(FB.ref(FB.db,'soldOut'),sn=>{
+    const v=sn.val()||{};
+    soldOutItems=norm(v.items);soldOutCats=norm(v.cats);
+    localStorage.setItem('sold_out_items',JSON.stringify(soldOutItems));
+    localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));
     renderNav();renderGrid();
-  }
-});
+  });
+  FB.onAuthStateChanged(FB.auth,onAuth);
+}
+function saveSold(){
+  localStorage.setItem('sold_out_items',JSON.stringify(soldOutItems));
+  localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));
+  if(window.FB&&isAdmin)FB.set(FB.ref(FB.db,'soldOut'),{items:onlyTrue(soldOutItems),cats:onlyTrue(soldOutCats)}).catch(e=>alert('售完狀態同步失敗：'+e.message));
+}
 
 function updateStatusDisplay(){
   const s=localStorage.getItem('shop_status')||'營業中';
@@ -212,7 +240,10 @@ function openStatusSelector(){
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>`;
   $('modal').classList.add('open');
 }
-function setShopStatus(s){localStorage.setItem('shop_status',s);updateStatusDisplay();closeModal()}
+function setShopStatus(s){
+  localStorage.setItem('shop_status',s);updateStatusDisplay();closeModal();
+  if(window.FB)FB.set(FB.ref(FB.db,'shop/status'),s).catch(e=>alert('營業狀態同步失敗：'+e.message));
+}
 
 function toggleSoldOutMode(){
   isSoldOutMode=!isSoldOutMode;
@@ -234,18 +265,18 @@ function openSoldOutListModal(){
   $('mBox').innerHTML=`<h3>📋 售完品項快速管理</h3><div class="sold-list-container">${h}</div><div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
 }
-function restoreCat(i){soldOutCats[i]=false;localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));renderNav();renderGrid();openSoldOutListModal()}
+function restoreCat(i){soldOutCats[i]=false;saveSold();renderNav();renderGrid();openSoldOutListModal()}
 function restoreItem(id){
   soldOutItems[id]=false;
   if(id==='m1'||id==='m3')soldOutItems.m5=false;
   if(id==='m2'||id==='m4')soldOutItems.m6=false;
-  localStorage.setItem('sold_out_items',JSON.stringify(soldOutItems));renderGrid();openSoldOutListModal();
+  saveSold();renderGrid();openSoldOutListModal();
 }
 function toggleCatSoldOut(i,e){
   if(e)e.stopPropagation();
   if(!isSoldOutMode)return;
   soldOutCats[i]=!soldOutCats[i];
-  localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));renderNav();renderGrid();
+  saveSold();renderNav();renderGrid();
 }
 function toggleItemSoldOut(id){
   if(!isSoldOutMode)return;
@@ -255,7 +286,7 @@ function toggleItemSoldOut(id){
   else if(id==='m5'){S.m1=S.m3=S.m5}
   if(id==='m2'||id==='m4')S.m6=!!(S.m2||S.m4);
   else if(id==='m6'){S.m2=S.m4=S.m6}
-  localStorage.setItem('sold_out_items',JSON.stringify(S));renderGrid();
+  saveSold();renderGrid();
 }
 
 function renderNav(){
@@ -360,7 +391,7 @@ function renderCart(){
   const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
   $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n;
 }
-function closeModal(){$('modal').classList.remove('open');$('mBox').className='m-box'}
+function closeModal(){viewingOrders=false;$('modal').classList.remove('open');$('mBox').className='m-box'}
 
 /* ===== 取餐資訊 ===== */
 const NOODLE=['麵食分開裝','麵食裝一起','多數麵分開裝'];
@@ -489,29 +520,36 @@ function renderReceipt(){
     <div class="fm-total"><span>應付總額:</span><b>$${o.total}</b></div>
     ${row('付款方式',o.pay)}
    </div>
-   <div class="m-btns"><button class="btn-cancel" onclick="backToForm()">返回修改</button><button class="btn-confirm" onclick="confirmOrder()">確認送出</button></div>`;
+   <div class="m-btns"><button class="btn-cancel" onclick="backToForm()">返回修改</button><button class="btn-confirm" id="cfBtn" onclick="confirmOrder()">確認送出</button></div>`;
   $('mBox').scrollTop=0;
 }
 
-function confirmOrder(){
-  const o=window.pendingOrder;if(!o)return;
-  const d=new Date(),day=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
-  let seq={date:day,n:0};
-  try{const r=JSON.parse(localStorage.getItem('order_seq')||'null');if(r&&r.date===day)seq=r}catch(e){}
-  seq.n++;
-  o.no=String(seq.n).padStart(3,'0');
-  o.date=day;o.createdAt=d.toISOString();
+let submitting=false;
+async function confirmOrder(){
+  const o=window.pendingOrder;if(!o||submitting)return;
+  if(!window.FB){alert('無法連線到雲端，請檢查網路後重試');return}
+  submitting=true;
+  const btn=$('cfBtn');if(btn){btn.disabled=true;btn.textContent='送出中…'}
   try{
-    localStorage.setItem('order_seq',JSON.stringify(seq));
-    const list=JSON.parse(localStorage.getItem('orders')||'[]');
-    list.push(o);localStorage.setItem('orders',JSON.stringify(list));
-  }catch(e){}
+    const d=new Date(),day=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+    const r=await FB.runTransaction(FB.ref(FB.db,'counters/'+day),n=>(n||0)+1);
+    o.no=String(r.snapshot.val()).padStart(3,'0');
+    o.date=day;o.createdAt=Date.now();o.status='new';
+    await FB.set(FB.push(FB.ref(FB.db,'orders')),JSON.parse(JSON.stringify(o)));
+    showDone(o);
+  }catch(e){
+    alert('訂單送出失敗，請檢查網路後再試一次。\n（'+(e.code||e.message)+'）');
+    if(btn){btn.disabled=false;btn.textContent='確認送出'}
+  }
+  submitting=false;
+}
+function showDone(o){
   $('mBox').innerHTML=`
    <div class="rc-done"><div class="ok">✅</div><h3>訂單已送出</h3>
     <div class="rc-no">#${o.no}</div>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>今日 ${o.time}</span></div>
     <div class="rc-row" style="justify-content:center;gap:8px;margin-top:4px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div>
-    <div class="modal-tip" style="margin-top:14px;text-align:left">請記下您的訂單編號，取餐時向店員出示。謝謝您的光臨！</div>
+    <div class="modal-tip" style="margin-top:14px;text-align:left">店家已收到您的訂單。請記下訂單編號，取餐時向店員出示。謝謝您的光臨！</div>
    </div>
    <div class="m-btns"><button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
@@ -521,36 +559,151 @@ function finishOrder(){
   cart=[];renderCart();renderGrid();closeModal();
 }
 
-/* ===== 後台 ===== */
-function openAdminLogin(){
-  $('mBox').innerHTML=`<h3>後台管理登入</h3>
-   <label>請輸入管理密碼<input type="password" id="loginPwd" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')verifyAdmin()"></label>
-   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" onclick="verifyAdmin()">登入</button></div>`;
-  $('modal').classList.add('open');$('loginPwd').focus();
+/* ===== 店家登入（Firebase Auth）===== */
+function setAdminUI(on){
+  ['ordersBtn','soldOutModeBtn','soldOutListBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
+  $('statusPill').classList.toggle('admin-mode',on);
+  $('statusPill').onclick=on?openStatusSelector:null;
+  if(!on&&isSoldOutMode)toggleSoldOutMode();
 }
-function verifyAdmin(){
-  if($('loginPwd').value===adminPassword)openAdminPanel();
-  else{alert('密碼錯誤！');$('loginPwd').value='';$('loginPwd').focus()}
+function onAuth(user){
+  if(!ADMIN_PARAM)return;
+  if(user){
+    isAdmin=true;setAdminUI(true);startOrders();
+    if(!actx)toast('已登入店家帳號，請點一下畫面以啟用新單提示音');
+  }else{
+    isAdmin=false;setAdminUI(false);stopOrders();openAdminLogin();
+  }
 }
-function openAdminPanel(){
-  $('mBox').innerHTML=`<h3>⚙ 後台管理</h3><div class="opt-list"><button class="opt-btn" onclick="openChangePassword()">🔒 修改密碼</button></div><div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
+function openAdminLogin(msg){
+  $('mBox').className='m-box';
+  $('mBox').innerHTML=`<h3>店家登入</h3>
+   <label>Email<input type="email" id="loginEmail" autocomplete="username" placeholder="請輸入店家 Email"></label>
+   <label>密碼<input type="password" id="loginPwd" autocomplete="current-password" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()"></label>
+   <div id="loginErr" style="color:var(--bad);font-size:13px;min-height:16px">${msg?esc(msg):''}</div>
+   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" id="loginBtn" onclick="doLogin()">登入</button></div>`;
+  $('modal').classList.add('open');$('loginEmail').focus();
 }
-function openChangePassword(){
-  $('mBox').innerHTML=`<h3>修改後台密碼</h3>
-   <label>1. 輸入舊密碼<input type="password" id="oldPwd" placeholder="請輸入舊密碼"></label>
-   <label>2. 輸入新密碼<input type="password" id="newPwd" placeholder="請輸入新密碼"></label>
-   <label>3. 再次輸入新密碼<input type="password" id="confirmPwd" placeholder="請再次輸入新密碼"></label>
-   <div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button><button class="btn-confirm" onclick="submitNewPassword()">確認修改</button></div>`;
+async function doLogin(){
+  unlockAudio();
+  const err=$('loginErr');
+  if(!window.FB){err.textContent='雲端連線失敗，請重新整理頁面';return}
+  const em=$('loginEmail').value.trim(),pw=$('loginPwd').value;
+  if(!em||!pw){err.textContent='請輸入 Email 與密碼';return}
+  const btn=$('loginBtn');btn.disabled=true;btn.textContent='登入中…';
+  try{await FB.signIn(FB.auth,em,pw);closeModal()}
+  catch(e){
+    const c=e.code||'';
+    err.textContent=['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(c)?'帳號或密碼錯誤'
+      :c==='auth/too-many-requests'?'嘗試次數過多，請稍後再試'
+      :c==='auth/network-request-failed'?'網路連線失敗':'登入失敗（'+c+'）';
+    btn.disabled=false;btn.textContent='登入';
+  }
 }
-function submitNewPassword(){
-  const o=$('oldPwd').value,n=$('newPwd').value,c=$('confirmPwd').value;
-  if(o!==adminPassword)return alert('舊密碼輸入錯誤！');
-  if(!n)return alert('新密碼不得為空！');
-  if(n!==c)return alert('兩次輸入的新密碼不一致！');
-  adminPassword=n;localStorage.setItem('admin_pwd',n);
-  alert('密碼修改成功！');openAdminPanel();
+function doLogout(){if(confirm('確定要登出店家帳號？'))FB.signOut(FB.auth)}
+
+/* ===== 提示音 / 通知 ===== */
+let actx=null;
+function unlockAudio(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume()}catch(e){}}
+function beep(){
+  if(!actx)return;
+  [0,.28,.56].forEach(t=>{
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type='sine';o.frequency.value=880;g.gain.value=.3;
+    o.connect(g);g.connect(actx.destination);
+    o.start(actx.currentTime+t);o.stop(actx.currentTime+t+.18);
+  });
 }
+function toast(msg){
+  const t=$('toast');t.textContent=msg;t.classList.add('show');
+  t.onclick=()=>{t.classList.remove('show');openOrders()};
+  clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('show'),8000);
+}
+
+/* ===== 訂單列表（店家）===== */
+let ORDERS={},ordUnsub=null,ordInit=false,viewingOrders=false,ordFilter='active';
+const ST={new:'新單',making:'製作中',done:'已完成',picked:'已取餐',cancelled:'已取消'};
+const NEXT={new:['making','開始製作'],making:['done','製作完成'],done:['picked','已取餐']};
+function startOrders(){
+  stopOrders();
+  const d=new Date();d.setHours(0,0,0,0);
+  const q=FB.query(FB.ref(FB.db,'orders'),FB.orderByChild('createdAt'),FB.startAt(d.getTime()));
+  ordUnsub=FB.onValue(q,sn=>{
+    const v=sn.val()||{};
+    const fresh=Object.keys(v).filter(id=>!ORDERS[id]&&v[id].status==='new');
+    ORDERS=v;
+    if(ordInit&&fresh.length){
+      beep();const o=v[fresh[fresh.length-1]];
+      toast(`🔔 新訂單 #${o.no}　${o.name}　$${o.total}${fresh.length>1?`（共 ${fresh.length} 筆新單）`:''}`);
+    }
+    ordInit=true;updateOrderBadge();renderOrders();
+  },e=>toast('訂單讀取失敗：'+(e.code||e.message)));
+}
+function stopOrders(){if(ordUnsub){ordUnsub();ordUnsub=null}ORDERS={};ordInit=false;updateOrderBadge()}
+function updateOrderBadge(){
+  const n=Object.values(ORDERS).filter(o=>o.status==='new').length;
+  const b=$('ordersBtn');b.textContent='📦 訂單'+(n?` (${n})`:'');b.classList.toggle('pulse',n>0);
+}
+function openOrders(){
+  if(!isAdmin)return;
+  viewingOrders=true;$('mBox').className='m-box xl';renderOrders();$('modal').classList.add('open');
+}
+function setOrdFilter(k){ordFilter=k;renderOrders()}
+function renderOrders(){
+  if(!viewingOrders)return;
+  const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
+  const cnt=k=>all.filter(o=>o.status===k).length;
+  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已取消',cnt('cancelled')],['all','全部',all.length]];
+  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
+    .sort((a,b)=>String(a.time).localeCompare(String(b.time))||a.createdAt-b.createdAt);
+  const cards=list.map(o=>{
+    const items=(o.items||[]).map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>');
+    const opt=[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
+    const gear=(o.gear||[]).join('、');
+    const nx=NEXT[o.status];
+    return `<div class="oc st-${o.status}">
+     <div class="oc-h"><b>#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span><span class="oc-s">${ST[o.status]||esc(o.status)}</span></div>
+     <div class="oc-b">
+      <div>${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
+      <div>${items}</div>
+      <div class="mu">${esc(opt)}${gear?'｜配備：'+esc(gear):''}</div>
+      ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
+      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span></div>
+     </div>
+     <div class="oc-a">
+      ${o.status==='new'||o.status==='making'?`<button class="oc-no" onclick="cancelOrder('${o.id}')">取消訂單</button>`:''}
+      ${nx?`<button class="oc-go" onclick="setOrderStatus('${o.id}','${nx[0]}')">${nx[1]}</button>`:''}
+     </div></div>`;
+  }).join('');
+  const y=$('mBox').scrollTop;
+  $('mBox').innerHTML=`
+   <div class="oh"><h3>📦 今日訂單</h3><button onclick="closeModal()">關閉</button></div>
+   <div class="ofl">${F.map(([k,t,n])=>`<button class="chip${ordFilter===k?' on':''}" onclick="setOrdFilter('${k}')">${t} ${n}</button>`).join('')}</div>
+   ${cards||'<div style="text-align:center;color:var(--mu);padding:30px">目前沒有訂單</div>'}`;
+  $('mBox').scrollTop=y;
+}
+function setOrderStatus(id,st){
+  FB.update(FB.ref(FB.db,'orders/'+id),{status:st,updatedAt:Date.now()}).catch(e=>alert('更新失敗：'+(e.code||e.message)));
+}
+function cancelOrder(id){if(confirm('確定要取消這筆訂單？'))setOrderStatus(id,'cancelled')}
 
 function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
 tick();setInterval(tick,3e4);
-</script></body></html>
+</script>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import{getDatabase,ref,set,push,update,onValue,runTransaction,query,orderByChild,startAt}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+const app=initializeApp({
+  apiKey:"AIzaSyCw9S0F3IfTvsi-2lP4G32A8XCOzTTuCa4",
+  authDomain:"chuobian-pos.firebaseapp.com",
+  databaseURL:"https://chuobian-pos-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"chuobian-pos",
+  storageBucket:"chuobian-pos.firebasestorage.app",
+  messagingSenderId:"149561682889",
+  appId:"1:149561682889:web:99c8ea9a387788c75a1618"
+});
+window.FB={db:getDatabase(app),auth:getAuth(app),ref,set,push,update,onValue,runTransaction,query,orderByChild,startAt,signIn:signInWithEmailAndPassword,signOut,onAuthStateChanged};
+if(typeof fbReady==='function')fbReady();
+</script>
+</body></html>
