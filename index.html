@@ -38,10 +38,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .brand-center small{color:var(--mu);font-size:13px;letter-spacing:1px}
 
 /* 按鈕群組 */
-.brand-btns{display:flex;gap:8px;align-items:center}
+.admin-btns-group{display:flex;gap:6px}
 .ibtn{padding:5px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;display:none;color:var(--ac2);transition:.15s}
 .ibtn:hover{border-color:var(--ac);background:rgba(212,175,55,.15)}
-.ibtn.active-sold{background:var(--bad);color:#fff;border-color:var(--bad)}
+.ibtn.active-mode{background:var(--bad);color:#fff;border-color:var(--bad)}
 
 /* 右側：時鐘 */
 .top-right{display:flex;align-items:center;gap:10px}
@@ -54,17 +54,17 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .nv i{font-style:normal;font-size:24px}.nv b{font-size:14px}.nv small{font-size:11px;opacity:.8;min-height:14px}
 .nv:hover{background:var(--s2);color:var(--tx)}
 .nv.on{background:rgba(212,175,55,.15);border-color:var(--ac);color:var(--ac2)}
-.nv.sold-out{opacity:0.35;filter:grayscale(1);pointer-events:none}
+.nv.sold-out{opacity:0.4;filter:grayscale(100%)}
 
 .pane{display:flex;flex-direction:column;min-height:0;background:radial-gradient(circle at center, #231b14 0%, #17110d 100%)}
 .ph{padding:16px 22px 6px}.ph h2{font-size:22px;color:var(--ac2)}.ph p{color:var(--mu);font-size:13px;margin-top:2px}
 .grid{flex:1;overflow-y:auto;padding:12px 22px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;align-content:start}
 .grid.wide{grid-template-columns:1fr}
+
+/* 商品卡片與售完樣式 */
 .card{position:relative;background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:16px 14px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:.15s;user-select:none;box-shadow:0 4px 8px rgba(0,0,0,0.3)}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,0.15)}.card:active{transform:scale(.98)}
-.card.sold-out{opacity:0.35;filter:grayscale(1);pointer-events:none}
-.sold-badge{position:absolute;top:8px;right:8px;background:var(--bad);color:#fff;font-size:11px;padding:2px 6px;border-radius:4px;font-weight:700}
-
+.card.sold-out{background:#110e0c;opacity:0.4;border-color:#3a2e24;filter:grayscale(100%);pointer-events:none}
 .card .n{font-size:16px;font-weight:700;line-height:1.35;color:var(--tx)}
 .card .d{font-size:12.5px;color:var(--mu);line-height:1.6}
 .card .f{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
@@ -74,9 +74,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .sec{grid-column:1/-1;font-size:13px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:6px 2px;border-bottom:1px dashed var(--ln)}
 .card.wd{flex-direction:row;align-items:center;gap:16px}.card.wd .m{flex:1}
 
-/* 售完模式下的 X 按鈕標記 */
-.sold-x-btn{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:var(--bad);color:#fff;font-size:14px;font-weight:700;display:grid;place-items:center;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,0.5)}
-.nv .sold-x-btn{top:2px;right:2px}
+/* 售完模式下的遮罩提示 */
+.sold-out-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bad);color:#fff;padding:6px 14px;font-weight:bold;border-radius:6px;font-size:14px;z-index:5;pointer-events:none;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+.card.sold-out .sold-out-badge, .nv.sold-out .sold-out-badge{display:block}
 
 /* 購物車 */
 .cart{background:var(--s1);border-left:2px solid var(--ln);display:flex;flex-direction:column;min-height:0}
@@ -138,13 +138,13 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 
  <div class="sp"></div>
 
- <!-- 中央：品牌名稱與後台按鈕、售完按鈕垂直置中 -->
+ <!-- 中央：品牌名稱與後台按鈕垂直置中 -->
  <div class="brand-center">
   <div class="brand-row">
    <b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b>
   </div>
-  <div class="brand-btns">
-   <button class="ibtn" id="soldOutBtn" onclick="toggleSoldOutMode()">售完品項</button>
+  <div class="admin-btns-group">
+   <button class="ibtn" id="soldOutToggleBtn" onclick="toggleSoldOutMode()">🔴 售完品項</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
   </div>
  </div>
@@ -181,7 +181,7 @@ const MENU=[
 {k:'智能合約 (套餐)',ic:'🍱',combo:true,items:[
  {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"]},
  {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"]},
- {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
+ {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
  {id:'s4',name:'輕食減醣套餐',price:139,c:'雞肉:鹹水雞胸',d:["冬粉","花椰菜","玉米筍","豆皮","高麗菜"]},
  {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉:鹹水雞胸 × 2',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"]}]},
 {k:'鏈上綠色資產 (蔬菜)',ic:'🥬',items:mk('v',[["娃娃菜",40],["玉米筍",30],["筍片",25],["水蓮",25],["四季豆",25],["龍鬚菜",25],["花椰菜",25],["鴻喜菇",25],["杏鮑菇",20],["金針菇",20],["小黃瓜",20],["高麗菜",20],["白蘿蔔",20],["黑木耳",20],["洋蔥",20],["海帶",20]])},
@@ -196,27 +196,30 @@ const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'
 let cur=0,cart=[];
 let adminPassword = localStorage.getItem('admin_pwd') || '8888';
 let isAdmin = false;
-let isSoldOutMode = false; // 是否處於售完管理模式
-let soldOutItems = new Set(JSON.parse(localStorage.getItem('sold_out_items') || '[]'));
-let soldOutCategories = new Set(JSON.parse(localStorage.getItem('sold_out_cats') || '[]'));
+let isSoldOutMode = false; // 是否處於點擊設定售完的模式
+let soldOutItems = JSON.parse(localStorage.getItem('sold_out_items') || '{}');
+let soldOutCategories = JSON.parse(localStorage.getItem('sold_out_categories') || '{}');
 
 window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if(params.get('mode') === 'admin') {
         isAdmin = true;
-        $('adminBtn').style.display = 'inline-block';$('soldOutBtn').style.display = 'inline-block';
+        $('adminBtn').style.display = 'block';$('soldOutToggleBtn').style.display = 'block';
         $('statusPill').classList.add('admin-mode');$('statusPill').onclick = openStatusSelector;
     }
     updateStatusDisplay();
+    renderNav();
+    renderGrid();
+    renderCart();
 });
 
 window.addEventListener('storage', (e) => {
     if(e.key === 'shop_status') {
         updateStatusDisplay();
     }
-    if(e.key === 'sold_out_items' || e.key === 'sold_out_cats') {
-        soldOutItems = new Set(JSON.parse(localStorage.getItem('sold_out_items') || '[]'));
-        soldOutCategories = new Set(JSON.parse(localStorage.getItem('sold_out_cats') || '[]'));
+    if(e.key === 'sold_out_items' || e.key === 'sold_out_categories') {
+        soldOutItems = JSON.parse(localStorage.getItem('sold_out_items') || '{}');
+        soldOutCategories = JSON.parse(localStorage.getItem('sold_out_categories') || '{}');
         renderNav();
         renderGrid();
     }
@@ -261,355 +264,377 @@ function setShopStatus(status){
 function toggleSoldOutMode(){
     if(!isAdmin) return;
     isSoldOutMode = !isSoldOutMode;
-    const btn = $('soldOutBtn');
+    const btn = $('soldOutToggleBtn');
     if(isSoldOutMode){
-        btn.classList.add('active-sold');
-        btn.textContent = '退出售完設定';
+        btn.classList.add('active-mode');
+        btn.textContent = '🔴 結束設定';
     } else {
-        btn.classList.remove('active-sold');
-        btn.textContent = '售完品項';
+        btn.classList.remove('active-mode');
+        btn.textContent = '🔴 售完品項';
     }
     renderNav();
     renderGrid();
 }
 
-// 檢查半雞與套餐連動邏輯
-function checkLinkedSoldOut(){
-    // 鹹水半雞連動：鹹水雞腿(m1) 或 鹹水雞胸(m3) 售完 ➔ 鹹水半雞(m5) 自動售完
-    const saltLeg = soldOutItems.has('m1');
-    const saltBreast = soldOutItems.has('m3');
-    if(saltLeg || saltBreast) soldOutItems.add('m5');
-    
-    // 煙燻半雞連動：煙燻雞腿(m2) 或 煙燻雞胸(m4) 售完 ➔ 煙燻半雞(m6) 自動售完
-    const smokeLeg = soldOutItems.has('m2');
-    const smokeBreast = soldOutItems.has('m4');
-    if(smokeLeg || smokeBreast) soldOutItems.add('m6');
+// 判斷半雞與套餐連動是否售完
+function isItemOrCategorySoldOut(id, catIndex){
+    if(soldOutCategories[catIndex]) return true;
+    if(soldOutItems[id]) return true;
 
-    // 智能合約套餐連動：只要煙燻系列有一個品項售完 ➔ 煙燻套餐（例如散戶/巨鯨選擇煙燻）自動受影響，這裡直接針對全煙燻或對應套餐選項做控制
+    // 自動連動：若鹹水雞腿或鹹水雞胸售完，則鹹水半雞自動售完
+    if(id === 'm5') { // 鹹水半雞
+        if(soldOutItems['m1'] || soldOutItems['m3']) return true;
+    }
+    // 若煙燻雞腿或煙燻雞胸售完，則煙燻半雞自動售完
+    if(id === 'm6') { // 煙燻半雞
+        if(soldOutItems['m2'] || soldOutItems['m4']) return true;
+    }
+    return false;
 }
 
-function toggleItemSoldOut(id, event){
-    event.stopPropagation();
-    if(soldOutItems.has(id)){
-        soldOutItems.delete(id);
-    } else {
-        soldOutItems.add(id);
+// 智能合約套餐連動判斷：若煙燻系列有一個品項售完，則煙燻選項反黑；鹹水同理
+function isComboFlavorSoldOut(flavorType){
+    if(flavorType === '鹹水') {
+        return soldOutItems['m1'] || soldOutItems['m3'] || soldOutCategories[0];
     }
-    checkLinkedSoldOut();
-    localStorage.setItem('sold_out_items', JSON.stringify([...soldOutItems]));
-    renderGrid();
-}
-
-function toggleCategorySoldOut(catIndex, event){
-    event.stopPropagation();
-    const catKey = 'cat_' + catIndex;
-    if(soldOutCategories.has(catKey)){
-        soldOutCategories.delete(catKey);
-    } else {
-        soldOutCategories.add(catKey);
+    if(flavorType === '煙燻') {
+        return soldOutItems['m2'] || soldOutItems['m4'] || soldOutCategories[0];
     }
-    localStorage.setItem('sold_out_cats', JSON.stringify([...soldOutCategories]));
-    renderNav();
+    return false;
 }
 
 function renderNav(){
-    $('nav').innerHTML = MENU.map((c,i)=>{
-        const [t,s] = split(c.k);
-        const catKey = 'cat_' + i;
-        const isSold = soldOutCategories.has(catKey);
-        let xBtnHtml = (isAdmin && isSoldOutMode) ? `<button class="sold-x-btn" onclick="toggleCategorySoldOut(${i}, event)">${isSold ? '✓' : '✕'}</button>` : '';
-        return `<button class="nv${i===cur?' on':''}${isSold?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small>${xBtnHtml}</button>`;
+    $('nav').innerHTML=MENU.map((c,i)=>{
+        const [t,s]=split(c.k);
+        const isSoldOut = soldOutCategories[i];
+        return `<button class="nv${i===cur?' on':''}${isSoldOut?' sold-out':''}" onclick="handleNavClick(${i})">
+            <i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small>
+            <div class="sold-out-badge">已停用</div>
+        </button>`;
     }).join('');
 }
 
+function handleNavClick(i){
+    if(isSoldOutMode && isAdmin){
+        soldOutCategories[i] = !soldOutCategories[i];
+        localStorage.setItem('sold_out_categories', JSON.stringify(soldOutCategories));
+        renderNav();
+        renderGrid();
+        return;
+    }
+    cur = i;
+    renderNav();
+    renderGrid();
+}
+
 function renderGrid(){
-    const c = MENU[cur];
-    const catKey = 'cat_' + cur;
-    const isCatSold = soldOutCategories.has(catKey);
-    
-    const [t,s] = split(c.k);
-    $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${isCatSold ? '<span style="color:var(--bad); font-weight:bold;">[此分類目前全區售完]</span>' : esc(c.note||s||'')}</p>`;
+    const c=MENU[cur],[t,s]=split(c.k);
+    const isCatSoldOut = soldOutCategories[cur];
+    $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}${isCatSoldOut?' <span style="color:var(--bad);font-weight:bold;">[此分類目前已停用]</span>':''}</p>`;
     $('grid').className='grid'+(c.combo?' wide':'');
-
-    const card = (it, extra) => {
-        const q = cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
-        const isSold = isCatSold || soldOutItems.has(it.id);
-        let xBtnHtml = (isAdmin && isSoldOutMode) ? `<button class="sold-x-btn" onclick="toggleItemSoldOut('${it.id}', event)">${isSold ? '✓' : '✕'}</button>` : '';
-        let badge = isSold ? `<span class="sold-badge">已售完</span>` : '';
-        return `<div class="card${c.combo?' wd':''}${isSold?' sold-out':''}" onclick="${isSold ? '' : `handleItemClick('${it.id}')`}">${xBtnHtml}${badge}${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`;
+    
+    const card=(it,extra)=>{
+        const sold = isItemOrCategorySoldOut(it.id, cur);
+        const q=cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
+        return `<div class="card${c.combo?' wd':''}${sold?' sold-out':''}" onclick="handleItemClick('${it.id}')">
+            ${q?`<i class="qb">${q}</i>`:''}
+            <div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div>
+            <div class="f"><span class="price">${it.price}</span><span class="add">+</span></div>
+            <div class="sold-out-badge">已售完</div>
+        </div>`;
     };
-
+    
     let h='';
     if(c.two){
-        h += '<div class="sec">鹹本位</div>' + c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('') +
-             '<div class="sec">燻本位</div>' + c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('');
+        h+='<div class="sec">鹹本位</div>'+c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('')+
+           '<div class="sec">燻本位</div>'+c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('');
     } else {
-        h = c.items.map(i=>card(i, c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
+        h=c.items.map(i=>card(i,c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
     }
-    $('grid').innerHTML = h;
+    $('grid').innerHTML=h;
 }
 
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
 
 function handleItemClick(id){
- const item = find(id);
- if(['s1', 's2', 's3'].includes(id)) {
-  showComboOptions(item);
- } else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id)) {
-  showStirFryOptions(item);
- } else if(['w8','w9'].includes(id)) {
-  showSoupOptions(item);
- } else {
-  add(item.name, item.price, id);
- }
+    const item = find(id);
+    if(isSoldOutMode && isAdmin){
+        soldOutItems[id] = !soldOutItems[id];
+        localStorage.setItem('sold_out_items', JSON.stringify(soldOutItems));
+        renderGrid();
+        return;
+    }
+
+    if(isItemOrCategorySoldOut(id, cur)) return;
+
+    if(['s1', 's2', 's3'].includes(id)) {
+        showComboOptions(item);
+    } else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id)) {
+        showStirFryOptions(item);
+    } else if(['w8','w9'].includes(id)) {
+        showSoupOptions(item);
+    } else {
+        add(item.name, item.price, id);
+    }
 }
 
 function showComboOptions(item){
- let optionsHtml = '';
- if(item.id === 's3') {
-  // 檢查是否煙燻系列或鹹水系列售完
-  const smokeSold = soldOutItems.has('m2') || soldOutItems.has('m4') || soldOutItems.has('m6');
-  const saltSold = soldOutItems.has('m1') || soldOutItems.has('m3') || soldOutItems.has('m5');
-  
-  optionsHtml = `
-   <div class="opt-list">
-    <button class="opt-btn ${saltSold?'sold-out':''}" ${saltSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞</button>
-    <button class="opt-btn ${smokeSold?'sold-out':''}" ${smokeSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞</button>
-    <button class="opt-btn ${saltSold||smokeSold?'sold-out':''}" ${saltSold||smokeSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半</button>
-   </div>`;
- } else {
-  const isSmoke = (item.id === 's1' || item.id === 's2'); // 這裡依需求判斷
-  const smokeHalfSold = soldOutItems.has('m6');
-  const saltHalfSold = soldOutItems.has('m5');
+    let optionsHtml = '';
+    if(item.id === 's3') {
+        const soldA = isComboFlavorSoldOut('鹹水');
+        const soldB = isComboFlavorSoldOut('煙燻');
+        optionsHtml = `
+         <div class="opt-list">
+          <button class="opt-btn${soldA?' sold-out':''}" ${soldA?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞${soldA?' (已售完)':''}</button>
+          <button class="opt-btn${soldB?' sold-out':''}" ${soldB?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞${soldB?' (已售完)':''}</button>
+          <button class="opt-btn${soldA||soldB?' sold-out':''}" ${soldA||soldB?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半${soldA||soldB?' (已售完)':''}</button>
+         </div>`;
+    } else {
+        const soldA = isComboFlavorSoldOut('鹹水');
+        const soldB = isComboFlavorSoldOut('煙燻');
+        optionsHtml = `
+         <div class="opt-list">
+          <button class="opt-btn${soldA?' sold-out':''}" ${soldA?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞${soldA?' (已售完)':''}</button>
+          <button class="opt-btn${soldB?' sold-out':''}" ${soldB?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞${soldB?' (已售完)':''}</button>
+         </div>`;
+    }
 
-  optionsHtml = `
-   <div class="opt-list">
-    <button class="opt-btn ${saltHalfSold?'sold-out':''}" ${saltHalfSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞</button>
-    <button class="opt-btn ${smokeHalfSold?'sold-out':''}" ${smokeHalfSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞</button>
-   </div>`;
- }
-
- $('mBox').innerHTML=`
-  <h3>${esc(item.name)}</h3>
-  ${optionsHtml}
-  <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>
- `;
- $('modal').classList.add('open');
+    $('mBox').innerHTML=`
+     <h3>${esc(item.name)}</h3>
+     ${optionsHtml}
+     <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>
+    `;
+    $('modal').classList.add('open');
 }
 
 let tempStirFryOptions = { spice: '', flavor: '' };
 
 function showStirFryOptions(item){
- tempStirFryOptions = { spice: '', flavor: '' };
- renderStirFryModal(item);
+    tempStirFryOptions = { spice: '', flavor: '' };
+    renderStirFryModal(item);
 }
 
 function renderStirFryModal(item){
- const spices = ['微辣', '小辣', '中辣', '大辣'];
- const flavors = ['清淡', '正常', '重鹹'];
+    const spices = ['微辣', '小辣', '中辣', '大辣'];
+    const flavors = ['清淡', '正常', '重鹹'];
 
- $('mBox').innerHTML=`
-  <h3>${esc(item.name)}</h3>
-  
-  <div class="opt-section-title">辣度選擇</div>
-  <div class="opt-grid">
-   ${spices.map(s=>`<button class="opt-btn ${tempStirFryOptions.spice===s?'selected':''}" onclick="toggleStirFryOpt('spice','${s}','${item.id}')">${s}</button>`).join('')}
-  </div>
+    $('mBox').innerHTML=`
+     <h3>${esc(item.name)}</h3>
+     
+     <div class="opt-section-title">辣度選擇</div>
+     <div class="opt-grid">
+      ${spices.map(s=>`<button class="opt-btn ${tempStirFryOptions.spice===s?'selected':''}" onclick="toggleStirFryOpt('spice','${s}','${item.id}')">${s}</button>`).join('')}
+     </div>
 
-  <div class="opt-section-title">口味選擇</div>
-  <div class="opt-grid">
-   ${flavors.map(f=>`<button class="opt-btn ${tempStirFryOptions.flavor===f?'selected':''}" onclick="toggleStirFryOpt('flavor','${f}','${item.id}')">${f}</button>`).join('')}
-  </div>
+     <div class="opt-section-title">口味選擇</div>
+     <div class="opt-grid">
+      ${flavors.map(f=>`<button class="opt-btn ${tempStirFryOptions.flavor===f?'selected':''}" onclick="toggleStirFryOpt('flavor','${f}','${item.id}')">${f}</button>`).join('')}
+     </div>
 
-  <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選或註明辣度與口味偏好 系統將自動以「不辣、正常口味」為您製作 謝謝您的配合</div>
+     <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選或註明辣度與口味偏好 系統將自動以「不辣、正常口味」為您製作 謝謝您的配合</div>
 
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="closeModal()">取消</button>
-   <button class="btn-confirm" onclick="confirmStirFry('${item.id}','${item.name}',${item.price})">確認</button>
-  </div>
- `;
- $('modal').classList.add('open');
+     <div class="m-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" onclick="confirmStirFry('${item.id}','${item.name}',${item.price})">確認</button>
+     </div>
+    `;
+    $('modal').classList.add('open');
 }
 
 function toggleStirFryOpt(type, val, itemId){
- if(tempStirFryOptions[type] === val){
-  tempStirFryOptions[type] = '';
- } else {
-  tempStirFryOptions[type] = val;
- }
- renderStirFryModal(find(itemId));
+    if(tempStirFryOptions[type] === val){
+        tempStirFryOptions[type] = '';
+    } else {
+        tempStirFryOptions[type] = val;
+    }
+    renderStirFryModal(find(itemId));
 }
 
 function confirmStirFry(id, name, price){
- let tags = [];
- if(tempStirFryOptions.spice) tags.push(tempStirFryOptions.spice);
- if(tempStirFryOptions.flavor) tags.push(tempStirFryOptions.flavor);
+    let tags = [];
+    if(tempStirFryOptions.spice) tags.push(tempStirFryOptions.spice);
+    if(tempStirFryOptions.flavor) tags.push(tempStirFryOptions.flavor);
 
- let fullName = name;
- let uniqueId = id;
- if(tags.length > 0){
-  fullName += ` (${tags.join(', ')})`;
-  uniqueId += '_' + tags.join('_');
- }
+    let fullName = name;
+    let uniqueId = id;
+    if(tags.length > 0){
+        fullName += ` (${tags.join(', ')})`;
+        uniqueId += '_' + tags.join('_');
+    }
 
- add(fullName, price, uniqueId);
- closeModal();
+    add(fullName, price, uniqueId);
+    closeModal();
 }
 
 let tempSoupGinger = true;
 
 function showSoupOptions(item){
- tempSoupGinger = true;
- renderSoupModal(item);
+    tempSoupGinger = true;
+    renderSoupModal(item);
 }
 
 function renderSoupModal(item){
- $('mBox').innerHTML=`
-  <h3>${esc(item.name)}</h3>
-  
-  <div class="opt-grid" style="grid-template-columns: 1fr;">
-   <button class="opt-btn ${!tempSoupGinger?'selected':''}" onclick="toggleSoupGinger('${item.id}')">不要薑絲</button>
-  </div>
+    $('mBox').innerHTML=`
+     <h3>${esc(item.name)}</h3>
+     
+     <div class="opt-grid" style="grid-template-columns: 1fr;">
+      <button class="opt-btn ${!tempSoupGinger?'selected':''}" onclick="toggleSoupGinger('${item.id}')">不要薑絲</button>
+     </div>
 
-  <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選 系統將自動以「加薑絲」為您製作 謝謝您的配合</div>
+     <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選 系統將自動以「加薑絲」為您製作 謝謝您的配合</div>
 
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="closeModal()">取消</button>
-   <button class="btn-confirm" onclick="confirmSoup('${item.id}','${item.name}',${item.price})">確認</button>
-  </div>
- `;
- $('modal').classList.add('open');
+     <div class="m-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" onclick="confirmSoup('${item.id}','${item.name}',${item.price})">確認</button>
+     </div>
+    `;
+    $('modal').classList.add('open');
 }
 
 function toggleSoupGinger(itemId){
- tempSoupGinger = !tempSoupGinger;
- renderSoupModal(find(itemId));
+    tempSoupGinger = !tempSoupGinger;
+    renderSoupModal(find(itemId));
 }
 
 function confirmSoup(id, name, price){
- let fullName = name;
- let uniqueId = id;
- if(!tempSoupGinger){
-  fullName += ' (不要薑絲)';
-  uniqueId += '_no_ginger';
- }
+    let fullName = name;
+    let uniqueId = id;
+    if(!tempSoupGinger){
+        fullName += ' (不要薑絲)';
+        uniqueId += '_no_ginger';
+    }
 
- add(fullName, price, uniqueId);
- closeModal();
+    add(fullName, price, uniqueId);
+    closeModal();
 }
 
 function addComboWithFlavor(id, name, price, flavor){
- const fullName = `${name} (${flavor})`;
- const uniqueId = `${id}_${flavor}`;
- add(fullName, price, uniqueId);
- closeModal();
+    const fullName = `${name} (${flavor})`;
+    const uniqueId = `${id}_${flavor}`;
+    add(fullName, price, uniqueId);
+    closeModal();
 }
 
 function add(name, price, id){
- const e=cart.find(x=>x.id===id);
- e?e.qty++:cart.push({id,name,price,qty:1});
- renderCart();renderGrid()
+    const e=cart.find(x=>x.id===id);
+    e?e.qty++:cart.push({id,name,price,qty:1});
+    renderCart();
+    renderGrid();
 }
 
-function qty(id,d){const e=cart.find(x=>x.id===id);if(!e)return;e.qty+=d;if(e.qty<=0)cart=cart.filter(x=>x.id!==id);renderCart();renderGrid()}
+function qty(id,d){
+    const e=cart.find(x=>x.id===id);
+    if(!e)return;
+    e.qty+=d;
+    if(e.qty<=0)cart=cart.filter(x=>x.id!==id);
+    renderCart();
+    renderGrid();
+}
 
 function removeItem(id){
- cart=cart.filter(x=>x.id!==id);
- renderCart();
- renderGrid();
+    cart=cart.filter(x=>x.id!==id);
+    renderCart();
+    renderGrid();
 }
 
 function clearCart(){
- cart=[];
- renderCart();
- renderGrid();
+    cart=[];
+    renderCart();
+    renderGrid();
 }
 
 function renderCart(){
- $('cl').innerHTML=cart.length?cart.map(x=>`<div class="ci"><div class="cr"><button class="del-btn" onclick="removeItem('${x.id}')" title="刪除">✕</button><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
-  <div class="stp"><button onclick="qty('${x.id}',-1)">−</button><span>${x.qty}</span><button onclick="qty('${x.id}',1)">+</button></div></div>`).join(''):'<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
- const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
- $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n}
+    $('cl').innerHTML=cart.length?cart.map(x=>`<div class="ci"><div class="cr"><button class="del-btn" onclick="removeItem('${x.id}')" title="刪除">✕</button><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
+     <div class="stp"><button onclick="qty('${x.id}',-1)">−</button><span>${x.qty}</span><button onclick="qty('${x.id}',1)">+</button></div></div>`).join(''):'<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
+    const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
+    $('cnt').textContent=`共 ${n} 項`;
+    $('tot').textContent='$'+t;
+    $('go').disabled=!n;
+}
 
 function closeModal(){$('modal').classList.remove('open')}
 
 function openAdminLogin(){
- $('mBox').innerHTML=`
-  <h3>後台管理登入</h3>
-  <label>請輸入管理密碼
-   <input type="password" id="loginPwd" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')verifyAdmin()">
-  </label>
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="closeModal()">取消</button>
-   <button class="btn-confirm" onclick="verifyAdmin()">登入</button>
-  </div>
- `;
- $('modal').classList.add('open');$('loginPwd').focus();
+    $('mBox').innerHTML=`
+     <h3>後台管理登入</h3>
+     <label>請輸入管理密碼
+      <input type="password" id="loginPwd" placeholder="請輸入密碼">
+     </label>
+     <div class="m-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" onclick="verifyAdmin()">登入</button>
+     </div>
+    `;
+    $('modal').classList.add('open');$('loginPwd').focus();
 }
 
 function verifyAdmin(){
- const val = $('loginPwd').value;
- if(val === adminPassword){
-  openAdminPanel();
- } else {
-  alert('密碼錯誤！');
-  $('loginPwd').value = '';$('loginPwd').focus();
- }
+    const val = $('loginPwd').value;
+    if(val === adminPassword){
+        openAdminPanel();
+    } else {
+        alert('密碼錯誤！');
+        $('loginPwd').value = '';$('loginPwd').focus();
+    }
 }
 
 function openAdminPanel(){
- $('mBox').innerHTML=`
-  <h3>⚙ 後台管理</h3>
-  <div class="opt-list">
-   <button class="opt-btn" onclick="openChangePassword()">🔒 修改密碼</button>
-  </div>
-  <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>
- `;
+    $('mBox').innerHTML=`
+     <h3>⚙ 後台管理</h3>
+     <div class="opt-list">
+      <button class="opt-btn" onclick="openChangePassword()">🔒 修改密碼</button>
+     </div>
+     <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>
+    `;
 }
 
 function openChangePassword(){
- $('mBox').innerHTML=`
-  <h3>修改後台密碼</h3>
-  <label>1. 輸入舊密碼
-   <input type="password" id="oldPwd" placeholder="請輸入舊密碼">
-  </label>
-  <label>2. 輸入新密碼
-   <input type="password" id="newPwd" placeholder="請輸入新密碼">
-  </label>
-  <label>3. 再次輸入新密碼
-   <input type="password" id="confirmPwd" placeholder="請再次輸入新密碼" onkeydown="if(event.key==='Enter')submitNewPassword()">
-  </label>
-  <div class="m-btns">
-   <button class="btn-cancel" onclick="openAdminPanel()">返回</button>
-   <button class="btn-confirm" onclick="submitNewPassword()">確認修改</button>
-  </div>
- `;
+    $('mBox').innerHTML=`
+     <h3>修改後台密碼</h3>
+     <label>1. 輸入舊密碼
+      <input type="password" id="oldPwd" placeholder="請輸入舊密碼">
+     </label>
+     <label>2. 輸入新密碼
+      <input type="password" id="newPwd" placeholder="請輸入新密碼">
+     </label>
+     <label>3. 再次輸入新密碼
+      <input type="password" id="confirmPwd" placeholder="請再次輸入新密碼">
+     </label>
+     <div class="m-btns">
+      <button class="btn-cancel" onclick="openAdminPanel()">返回</button>
+      <button class="btn-confirm" onclick="submitNewPassword()">確認修改</button>
+     </div>
+    `;
 }
 
 function submitNewPassword(){
- const oldP = $('oldPwd').value;
- const newP = $('newPwd').value;
- const confP = $('confirmPwd').value;
+    const oldP = $('oldPwd').value;
+    const newP = $('newPwd').value;
+    const confP = $('confirmPwd').value;
 
- if(oldP !== adminPassword){
-  alert('舊密碼輸入錯誤！');
-  return;
- }
- if(!newP){
-  alert('新密碼不得為空！');
-  return;
- }
- if(newP !== confP){
-  alert('兩次輸入的新密碼不一致！');
-  return;
- }
+    if(oldP !== adminPassword){
+        alert('舊密碼輸入錯誤！');
+        return;
+    }
+    if(!newP){
+        alert('新密碼不得為空！');
+        return;
+    }
+    if(newP !== confP){
+        alert('兩次輸入的新密碼不一致！');
+        return;
+    }
 
- adminPassword = newP;
- localStorage.setItem('admin_pwd', adminPassword);
- alert('密碼修改成功！');
- openAdminPanel();
+    adminPassword = newP;
+    localStorage.setItem('admin_pwd', adminPassword);
+    alert('密碼修改成功！');
+    openAdminPanel();
 }
 
-function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
-tick();setInterval(tick,3e4);renderNav();renderGrid();renderCart();
+function tick(){
+    const d=new Date();
+    $('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+tick();
+setInterval(tick,3e4);
 </script></body></html>
