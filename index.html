@@ -12,7 +12,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--ac2),var(--ac));display:grid;place-items:center;font-size:22px}
 .brand b{display:block;font-size:17px;letter-spacing:.5px}.brand small{color:var(--mu);font-size:12px}
 .sp{flex:1}
-.pill{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;background:var(--s2);border:1px solid var(--ln);font-size:14px;font-weight:600}
+.pill{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;background:var(--s2);border:1px solid var(--ln);font-size:14px;font-weight:600;transition:.15s}
+.pill.admin-mode{cursor:pointer}
+.pill.admin-mode:hover{border-color:var(--ac)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:14px}
 .ibtn{padding:8px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:14px;display:none}
@@ -89,7 +91,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  <div class="logo">🍗</div>
  <div class="brand"><b>去中心鹹水雞 X 厝邊溫食</b><small>POS 點餐系統</small></div>
  <div class="sp"></div>
- <div class="pill"><span class="dot"></span>營業中</div>
+ <div class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div>
  <div class="clock" id="clock"></div>
  <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 店家</button>
 </header>
@@ -104,7 +106,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  </aside>
 </div>
 
-<!-- 互動彈跳視窗：密碼輸入/修改與套餐口味選擇 -->
+<!-- 互動彈跳視窗：密碼、狀態切換、套餐選項 -->
 <div class="modal" id="modal">
  <div class="m-box" id="mBox"></div>
 </div>
@@ -132,14 +134,61 @@ MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,''] };
 let cur=0,cart=[];
 let adminPassword = localStorage.getItem('admin_pwd') || '8888';
+let isAdmin = false;
 
-// 檢查網址是否帶有 ?mode=admin
+// 初始化檢查網址與套用營業狀態
 window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if(params.get('mode') === 'admin') {
+        isAdmin = true;
         $('adminBtn').style.display = 'block';
+        $('statusPill').classList.add('admin-mode');$('statusPill').onclick = openStatusSelector;
+    }
+    updateStatusDisplay();
+});
+
+// 監聽跨頁籤或同源其他頁面（顧客頁面與店家頁面同步）的狀態變更
+window.addEventListener('storage', (e) => {
+    if(e.key === 'shop_status') {
+        updateStatusDisplay();
     }
 });
+
+function updateStatusDisplay(){
+    const currentStatus = localStorage.getItem('shop_status') || '營業中';
+    $('statusText').textContent = currentStatus;
+    const dot = $('statusDot');
+    if(currentStatus === '營業中'){
+        dot.style.background = 'var(--ok)';
+        dot.style.boxShadow = '0 0 8px var(--ok)';
+    } else if(currentStatus === '備料中'){
+        dot.style.background = 'var(--ac)';
+        dot.style.boxShadow = '0 0 8px var(--ac)';
+    } else {
+        dot.style.background = 'var(--bad)';
+        dot.style.boxShadow = '0 0 8px var(--bad)';
+    }
+}
+
+function openStatusSelector(){
+    if(!isAdmin) return;
+    $('mBox').innerHTML=`
+     <h3>變更營業狀態</h3>
+     <div class="opt-list">
+      <button class="opt-btn" onclick="setShopStatus('營業中')">1. 營業中</button>
+      <button class="opt-btn" onclick="setShopStatus('備料中')">2. 備料中</button>
+      <button class="opt-btn" onclick="setShopStatus('休息中')">3. 休息中</button>
+     </div>
+     <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>
+    `;
+    $('modal').classList.add('open');
+}
+
+function setShopStatus(status){
+    localStorage.setItem('shop_status', status);
+    updateStatusDisplay();
+    closeModal();
+}
 
 function renderNav(){$('nav').innerHTML=MENU.map((c,i)=>{const[t,s]=split(c.k);return`<button class="nv${i===cur?' on':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`}).join('')}
 function renderGrid(){const c=MENU[cur],[t,s]=split(c.k);
@@ -156,7 +205,6 @@ function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)r
 
 function handleItemClick(id){
  const item = find(id);
- // 檢查是否為散戶、巨鯨、DAO 套餐 (s1, s2, s3)
  if(['s1', 's2', 's3'].includes(id)) {
   showComboOptions(item);
  } else {
