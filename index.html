@@ -61,7 +61,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .grid.wide{grid-template-columns:1fr}
 .card{position:relative;background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:16px 14px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:.15s;user-select:none;box-shadow:0 4px 8px rgba(0,0,0,0.3)}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,0.15)}.card:active{transform:scale(.98)}
-.card.sold-out{opacity:0.4;filter:grayscale(100%);cursor:not-allowed;transform:none !important}
+.card.sold-out{opacity:0.4;filter:grayscale(100%)}
 .card .n{font-size:16px;font-weight:700;line-height:1.35;color:var(--tx)}
 .card .d{font-size:12.5px;color:var(--mu);line-height:1.6}
 .card .f{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
@@ -71,10 +71,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .sec{grid-column:1/-1;font-size:13px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:6px 2px;border-bottom:1px dashed var(--ln)}
 .card.wd{flex-direction:row;align-items:center;gap:16px}.card.wd .m{flex:1}
 
-/* 調整後的售完標記（改至右上角，不擋字） */
-.sold-badge{position:absolute;top:6px;right:6px;width:24px;height:24px;background:var(--bad);color:#fff;border-radius:4px;font-size:14px;font-weight:700;display:none;place-items:center;z-index:5;box-shadow:0 2px 6px rgba(0,0,0,0.5)}
-.sold-mode .sold-badge{display:grid}
-.nv .sold-badge{top:2px;right:2px;width:18px;height:18px;font-size:11px}
+/* 群組專用左上角 ✕ 標記（不擋字） */
+.cat-badge{position:absolute;top:2px;left:4px;width:18px;height:18px;background:var(--bad);color:#fff;border-radius:3px;font-size:11px;font-weight:700;display:none;place-items:center;z-index:5}
+.sold-mode .cat-badge{display:grid}
 
 /* 購物車 */
 .cart{background:var(--s1);border-left:2px solid var(--ln);display:flex;flex-direction:column;min-height:0}
@@ -283,12 +282,10 @@ function toggleCatSoldOut(catIndex, e){
     renderGrid();
 }
 
-function toggleItemSoldOut(itemId, e){
-    if(e) e.stopPropagation();
+function toggleItemSoldOut(itemId){
     if(!isSoldOutMode) return;
     soldOutItems[itemId] = !soldOutItems[itemId];
     localStorage.setItem('sold_out_items', JSON.stringify(soldOutItems));
-    renderNav();
     renderGrid();
 }
 
@@ -306,7 +303,7 @@ function renderNav(){
         const [t,s] = split(c.k);
         const isSold = soldOutCats[i];
         return `<button class="nv${i===cur?' on':''}${isSold?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()">
-            <div class="sold-badge" onclick="toggleCatSoldOut(${i}, event)">✕</div>
+            <div class="cat-badge" onclick="toggleCatSoldOut(${i}, event)">✕</div>
             <i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small>
         </button>`;
     }).join('');
@@ -322,8 +319,7 @@ function renderGrid(){
     const card=(it,extra)=>{
         const q=cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
         const isSold = catSold || soldOutItems[it.id];
-        return `<div class="card${c.combo?' wd':''}${isSold?' sold-out':''}" onclick="${isSold && isSoldOutMode?'toggleItemSoldOut(\''+it.id+'\', event)':isSold?'':'handleItemClick(\''+it.id+'\')'}">
-            <div class="sold-badge" onclick="toggleItemSoldOut('${it.id}', event)">✕</div>
+        return `<div class="card${c.combo?' wd':''}${isSold?' sold-out':''}" onclick="handleCardClick('${it.id}')">
             ${q?`<i class="qb">${q}</i>`:''}
             <div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div>
             <div class="f"><span class="price">${it.price}</span><span class="add">+</span></div>
@@ -340,21 +336,25 @@ function renderGrid(){
     $('grid').innerHTML=h;
 }
 
-function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
-
-function handleItemClick(id){
-    const item = find(id);
-    if(soldOutItems[id] || soldOutCats[cur]) return;
-    if(['s1', 's2', 's3'].includes(id)) {
-        showComboOptions(item);
-    } else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id)) {
-        showStirFryOptions(item);
-    } else if(['w8','w9'].includes(id)) {
-        showSoupOptions(item);
+function handleCardClick(id){
+    if(isSoldOutMode){
+        toggleItemSoldOut(id);
     } else {
-        add(item.name, item.price, id);
+        const item = find(id);
+        if(soldOutItems[id] || soldOutCats[cur]) return;
+        if(['s1', 's2', 's3'].includes(id)) {
+            showComboOptions(item);
+        } else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id)) {
+            showStirFryOptions(item);
+        } else if(['w8','w9'].includes(id)) {
+            showSoupOptions(item);
+        } else {
+            add(item.name, item.price, id);
+        }
     }
 }
+
+function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
 
 function showComboOptions(item){
     let optionsHtml = '';
