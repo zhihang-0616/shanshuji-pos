@@ -97,7 +97,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 /* 彈跳視窗樣式 */
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);display:none;place-items:center;z-index:999;padding:20px}
 .modal.open{display:grid}
-.m-box{background:var(--s1);border:2px solid var(--ac);border-radius:var(--r);width:100%;max-width:420px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 24px rgba(0,0,0,0.8);max-height:90vh;overflow-y:auto}
+.m-box{background:var(--s1);border:2px solid var(--ac);border-radius:var(--r);width:100%;max-width:440px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 24px rgba(0,0,0,0.8);max-height:90vh;overflow-y:auto}
 .m-box h3{font-size:20px;color:var(--ac2)}
 .m-box label{font-size:13px;color:var(--mu);display:flex;flex-direction:column;gap:6px}
 .m-box input{padding:12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:16px}
@@ -106,6 +106,13 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .m-btns button{flex:1;padding:12px;border-radius:8px;font-weight:700}
 .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
 .btn-confirm{background:var(--ac);color:#1a1204}
+
+/* 快速管理清單樣式 */
+.sold-list-container{display:flex;flex-direction:column;gap:10px;max-height:350px;overflow-y:auto;padding-right:4px}
+.sold-item-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);padding:10px 14px;border-radius:8px;border:1px solid var(--ln)}
+.sold-item-name{font-size:15px;font-weight:600;color:var(--tx)}
+.sold-restore-btn{background:var(--ok);color:#fff;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:700}
+.sold-restore-btn:hover{opacity:0.9}
 
 .opt-section-title{font-size:14px;font-weight:700;color:var(--ac);margin-bottom:6px}
 .opt-grid{display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;margin-bottom:10px}
@@ -142,7 +149,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
    <b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b>
   </div>
   <div class="brand-actions">
-   <button class="ibtn" id="soldOutBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
+   <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
+   <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
   </div>
  </div>
@@ -158,7 +166,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  <nav class="nav" id="nav"></nav>
  <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
  <aside class="cart">
-  <div class="ch"><h3>🧾 訂單明細</h3><button onclick="clearCart()">清空</button></div>
+  <div class="ch"><h3>📦 訂單明細</h3><button onclick="clearCart()">清空</button></div>
   <div class="cl" id="cl"></div>
   <div class="cf"><div class="sum"><span id="cnt">共 0 項</span><b id="tot">$0</b></div>
    <button class="go" id="go" disabled>下一步：填寫取餐資訊</button><div class="hint">結帳流程將在下一步製作</div></div>
@@ -202,7 +210,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if(params.get('mode') === 'admin') {
         isAdmin = true;
-        $('adminBtn').style.display = 'block';$('soldOutBtn').style.display = 'block';
+        $('soldOutModeBtn').style.display = 'block';
+        $('soldOutListBtn').style.display = 'block';$('adminBtn').style.display = 'block';
         $('statusPill').classList.add('admin-mode');$('statusPill').onclick = openStatusSelector;
     }
     updateStatusDisplay();
@@ -259,7 +268,7 @@ function setShopStatus(status){
 
 function toggleSoldOutMode(){
     isSoldOutMode = !isSoldOutMode;
-    const btn = $('soldOutBtn');
+    const btn = $('soldOutModeBtn');
     if(isSoldOutMode){
         btn.style.background = 'var(--bad)';
         btn.style.color = '#fff';
@@ -271,6 +280,61 @@ function toggleSoldOutMode(){
     }
     renderNav();
     renderGrid();
+}
+
+/* 開啟「售完品項」快速管理視窗 */
+function openSoldOutListModal(){
+    let soldListHtml = '';
+
+    // 檢查被關閉的群組
+    MENU.forEach((c, idx) => {
+        if(soldOutCats[idx]) {
+            const [t] = split(c.k);
+            soldListHtml += `
+             <div class="sold-item-row">
+              <span class="sold-item-name">📁 群組：${esc(t)}</span>
+              <button class="sold-restore-btn" onclick="restoreCat(${idx})">恢復販售</button>
+             </div>`;
+        }
+        // 檢查群組內的商品
+        c.items.forEach(it => {
+            if(soldOutItems[it.id]) {
+                soldListHtml += `
+                 <div class="sold-item-row">
+                  <span class="sold-item-name">🍗 ${esc(it.name)}</span>
+                  <button class="sold-restore-btn" onclick="restoreItem('${it.id}')">恢復販售</button>
+                 </div>`;
+            }
+        });
+    });
+
+    if(!soldListHtml){
+        soldListHtml = '<div style="text-align:center; color:var(--mu); padding:20px;">目前沒有任何售完或關閉的品項！</div>';
+    }
+
+    $('mBox').innerHTML=`
+     <h3>📋 售完品項快速管理</h3>
+     <div class="sold-list-container">
+      ${soldListHtml}
+     </div>
+     <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>
+    `;
+    $('modal').classList.add('open');
+}
+
+function restoreCat(idx){
+    soldOutCats[idx] = false;
+    localStorage.setItem('sold_out_cats', JSON.stringify(soldOutCats));
+    renderNav();
+    renderGrid();
+    openSoldOutListModal(); // 重新整理彈出視窗
+}
+
+function restoreItem(itemId){
+    soldOutItems[itemId] = false;
+    localStorage.setItem('sold_out_items', JSON.stringify(soldOutItems));
+    renderGrid();
+    openSoldOutListModal(); // 重新整理彈出視窗
 }
 
 function toggleCatSoldOut(catIndex, e){
@@ -285,11 +349,9 @@ function toggleCatSoldOut(catIndex, e){
 function toggleItemSoldOut(itemId){
     if(!isSoldOutMode) return;
     
-    // 切換當前點擊的品項狀態
     soldOutItems[itemId] = !soldOutItems[itemId];
 
     // 雙向連動處理：
-    // 1. 鹹水系列：腿(m1) 或 胸(m3) 關閉 ➔ 半雞(m5)跟著關閉；半雞(m5)關閉 ➔ 腿(m1)與胸(m3)跟著關閉
     if (itemId === 'm1' || itemId === 'm3') {
         if (soldOutItems['m1'] || soldOutItems['m3']) {
             soldOutItems['m5'] = true;
@@ -306,7 +368,6 @@ function toggleItemSoldOut(itemId){
         }
     }
 
-    // 2. 煙燻系列：腿(m2) 或 胸(m4) 關閉 ➔ 半雞(m6)跟著關閉；半雞(m6)關閉 ➔ 腿(m2)與胸(m4)跟著關閉
     if (itemId === 'm2' || itemId === 'm4') {
         if (soldOutItems['m2'] || soldOutItems['m4']) {
             soldOutItems['m6'] = true;
@@ -386,9 +447,7 @@ function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)r
 
 function showComboOptions(item){
     let optionsHtml = '';
-    // 只要鹹水雞腿(m1)、鹹水雞胸(m3)或鹹水半雞(m5)其中之一售完，套餐的鹹水選項就自動反黑
     const saltSold = soldOutItems['m1'] || soldOutItems['m3'] || soldOutItems['m5'] || soldOutCats[0];
-    // 只要煙燻雞腿(m2)、煙燻雞胸(m4)或煙燻半雞(m6)其中之一售完，套餐的煙燻選項就自動反黑
     const smokeSold = soldOutItems['m2'] || soldOutItems['m4'] || soldOutItems['m6'] || soldOutCats[0];
 
     if(item.id === 's3') {
