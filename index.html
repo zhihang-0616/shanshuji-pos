@@ -15,7 +15,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .pill{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;background:var(--s2);border:1px solid var(--ln);font-size:14px;font-weight:600}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:14px}
-.ibtn{padding:8px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:14px}
+.ibtn{padding:8px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:14px;display:none}
 .ibtn:hover{border-color:var(--ac)}
 
 /* 主體三欄 */
@@ -58,6 +58,18 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .hint{font-size:12px;color:var(--mu);text-align:center}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 
+/* 彈窗樣式 */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:grid;place-items:center;z-index:1000;padding:20px}
+.modal.hidden{display:none}
+.modal-box{background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);width:100%;max-width:420px;padding:24px;display:flex;flex-direction:column;gap:18px}
+.modal-box h3{font-size:20px;color:var(--ac2)}
+.modal-opts{display:flex;flex-direction:column;gap:10px}
+.opt-btn{padding:14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);text-align:left;font-size:16px;font-weight:600;transition:.15s}
+.opt-btn:hover{border-color:var(--ac);background:rgba(232,163,61,.08)}
+.status-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.status-btn{padding:12px 6px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:14px;font-weight:700;text-align:center;cursor:pointer}
+.status-btn.active{border-color:var(--ac);background:rgba(232,163,61,.15);color:var(--ac2)}
+
 /* 手機 / 平板直式 */
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -72,9 +84,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  <div class="logo">🍗</div>
  <div class="brand"><b>去中心鹹水雞 X 厝邊溫食</b><small>POS 點餐系統</small></div>
  <div class="sp"></div>
- <div class="pill"><span class="dot"></span>營業中</div>
+ <div class="pill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div>
  <div class="clock" id="clock"></div>
- <button class="ibtn" title="之後步驟製作">⚙ 店家</button>
+ <button class="ibtn" id="adminBtn" onclick="openAdminModal()">⚙ 店家</button>
 </header>
 <div class="main">
  <nav class="nav" id="nav"></nav>
@@ -86,6 +98,30 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
    <button class="go" id="go" disabled>下一步：填寫取餐資訊</button><div class="hint">結帳流程將在下一步製作</div></div>
  </aside>
 </div>
+
+<!-- 套餐口味選擇彈窗 -->
+<div class="modal hidden" id="comboModal">
+ <div class="modal-box">
+  <h3 id="modalTitle">選擇雞肉口味</h3>
+  <div class="modal-opts" id="modalOpts"></div>
+  <button class="opt-btn" style="text-align:center;background:var(--ln);margin-top:4px" onclick="closeModal()">取消</button>
+ </div>
+</div>
+
+<!-- 店家模式設定彈窗 -->
+<div class="modal hidden" id="adminModal">
+ <div class="modal-box">
+  <h3>⚙ 店家狀態設定</h3>
+  <div style="font-size:14px;color:var(--mu)">切換營業狀態將即時同步至顧客頁面：</div>
+  <div class="status-opts">
+   <button class="status-btn" id="st_open" onclick="setShopStatus('營業中')">營業中</button>
+   <button class="status-btn" id="st_prep" onclick="setShopStatus('備料中')">備料中</button>
+   <button class="status-btn" id="st_rest" onclick="setShopStatus('休息中')">休息中</button>
+  </div>
+  <button class="opt-btn" style="text-align:center;background:var(--ln);margin-top:4px" onclick="closeAdminModal()">關閉</button>
+ </div>
+</div>
+
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -93,9 +129,9 @@ const mk=(p,r)=>r.map(([n,pr],i)=>({id:p+(i+1),name:n,price:pr}));
 const MENU=[
 {k:'信仰雞本位主義 (主食)',ic:'🍗',items:mk('m',[["鹹水雞腿",65],["煙燻雞腿",75],["鹹水雞胸",65],["煙燻雞胸",75],["鹹水半雞",130],["煙燻半雞",150]]),two:true},
 {k:'智能合約 (套餐)',ic:'🍱',combo:true,items:[
- {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"]},
- {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"]},
- {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
+ {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"],isCombo:true},
+ {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"],isCombo:true},
+ {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"],isDao:true},
  {id:'s4',name:'輕食減醣套餐',price:139,c:'雞肉：鹹水雞胸',d:["冬粉","花椰菜","玉米筍","豆皮","高麗菜"]},
  {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉：鹹水雞胸 × 2',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"]}]},
 {k:'鏈上綠色資產 (蔬菜)',ic:'🥬',items:mk('v',[["娃娃菜",40],["玉米筍",30],["筍片",25],["水蓮",25],["四季豆",25],["龍鬚菜",25],["花椰菜",25],["鴻喜菇",25],["杏鮑菇",20],["金針菇",20],["小黃瓜",20],["高麗菜",20],["白蘿蔔",20],["黑木耳",20],["洋蔥",20],["海帶",20]])},
@@ -109,25 +145,142 @@ MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,''] };
 let cur=0,cart=[];
 
+// 檢查網址是否有 ?mode=admin
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('mode') === 'admin'){
+ $('adminBtn').style.display = 'block';
+}
+
 function renderNav(){$('nav').innerHTML=MENU.map((c,i)=>{const[t,s]=split(c.k);return`<button class="nv${i===cur?' on':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`}).join('')}
 function renderGrid(){const c=MENU[cur],[t,s]=split(c.k);
  $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}</p>`;
  $('grid').className='grid'+(c.combo?' wide':'');
- const card=(it,extra)=>{const q=cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
-  return`<div class="card${c.combo?' wd':''}" onclick="add('${it.id}')">${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`};
+ const card=(it,extra)=>{const q=cart.filter(x=>x.baseId===it.id).reduce((a,x)=>a+x.qty,0);
+  return`<div class="card${c.combo?' wd':''}" onclick="handleCardClick('${it.id}')">${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`};
  let h='';
  if(c.two){h+='<div class="sec">鹹本位</div>'+c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('')+'<div class="sec">燻本位</div>'+c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('')}
  else h=c.items.map(i=>card(i,c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
  $('grid').innerHTML=h}
+
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
-function add(id){const i=find(id),e=cart.find(x=>x.id===id);e?e.qty++:cart.push({id,name:i.name,price:i.price,qty:1});renderCart();renderGrid()}
-function qty(id,d){const e=cart.find(x=>x.id===id);if(!e)return;e.qty+=d;if(e.qty<=0)cart=cart.filter(x=>x.id!==id);renderCart();renderGrid()}
-function clearCart(){if(cart.length&&!confirm('確定清空訂單？'))return;cart=[];renderCart();renderGrid()}
+
+function handleCardClick(id){
+ const item = find(id);
+ if(!item) return;
+ 
+ if(item.isCombo){
+  openComboModal(item, ['鹹水半雞', '煙燻半雞']);
+ } else if(item.isDao){
+  openComboModal(item, ['全鹹水', '全煙燻', '鹹半+燻半']);
+ } else {
+  addToCart(item.id, item.name, item.price);
+ }
+}
+
+function openComboModal(item, options){
+ $('modalTitle').textContent = `選擇 ${item.name} 的雞肉口味`;
+ $('modalOpts').innerHTML = options.map(opt=>
+  `<button class="opt-btn" onclick="addComboToCart('${item.id}', '${item.name}', ${item.price}, '${opt}')">${opt}</button>`
+ ).join('');
+ $('comboModal').classList.remove('hidden');
+}
+
+function closeModal(){
+ $('comboModal').classList.add('hidden');
+}
+
+function addComboToCart(baseId, baseName, price, flavor){
+ closeModal();
+ const fullName = `${baseName} (${flavor})`;
+ const cartId = `${baseId}_${flavor}`;
+ const existing = cart.find(x=>x.cartId === cartId);
+ if(existing){
+  existing.qty++;
+ } else {
+  cart.push({cartId, baseId, name: fullName, price, qty:1});
+ }
+ renderCart();
+ renderGrid();
+}
+
+function addToCart(id, name, price){
+ const cartId = id;
+ const existing = cart.find(x=>x.cartId === cartId);
+ if(existing){
+  existing.qty++;
+ } else {
+  cart.push({cartId, baseId: id, name, price, qty:1});
+ }
+ renderCart();
+ renderGrid();
+}
+
+function qty(cartId, d){
+ const e = cart.find(x=>x.cartId === cartId);
+ if(!e) return;
+ e.qty += d;
+ if(e.qty <= 0) cart = cart.filter(x=>x.cartId !== cartId);
+ renderCart();
+ renderGrid();
+}
+
+function clearCart(){
+ if(cart.length && !confirm('確定清空訂單？')) return;
+ cart = [];
+ renderCart();
+ renderGrid();
+}
+
 function renderCart(){
- $('cl').innerHTML=cart.length?cart.map(x=>`<div class="ci"><div class="cr"><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
-  <div class="stp"><button onclick="qty('${x.id}',-1)">−</button><span>${x.qty}</span><button onclick="qty('${x.id}',1)">+</button></div></div>`).join(''):'<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
- const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
- $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n}
-function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
-tick();setInterval(tick,3e4);renderNav();renderGrid();renderCart();
+ $('cl').innerHTML = cart.length ? cart.map(x=>`<div class="ci"><div class="cr"><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
+  <div class="stp"><button onclick="qty('${x.cartId}',-1)">−</button><span>${x.qty}</span><button onclick="qty('${x.cartId}',1)">+</button></div></div>`).join('') : '<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
+ const n = cart.reduce((a,x)=>a+x.qty,0), t = cart.reduce((a,x)=>a+x.qty*x.price,0);
+ $('cnt').textContent = `共 ${n} 項`;
+ $('tot').textContent = '$' + t;
+ $('go').disabled = !n;
+}
+
+// 店家設定狀態相關
+function openAdminModal(){
+ $('adminModal').classList.remove('hidden');
+}
+function closeAdminModal(){
+ $('adminModal').classList.add('hidden');
+}
+function setShopStatus(status){
+ const dot = $('statusDot');
+ const text = $('statusText');
+ text.textContent = status;
+ 
+ // 更新按鈕樣式
+ ['營業中', '備料中', '休息中'].forEach(s=>{
+  const btnId = s === '營業中' ? 'st_open' : s === '備料中' ? 'st_prep' : 'st_rest';
+  $(btnId).classList.toggle('active', s === status);
+ });
+
+ // 調整燈號顏色
+ if(status === '營業中'){
+  dot.style.background = 'var(--ok)';
+  dot.style.boxShadow = '0 0 8px var(--ok)';
+ } else if(status === '備料中'){
+  dot.style.background = 'var(--ac)';
+  dot.style.boxShadow = '0 0 8px var(--ac)';
+ } else {
+  dot.style.background = 'var(--bad)';
+  dot.style.boxShadow = '0 0 8px var(--bad)';
+ }
+ closeAdminModal();
+}
+
+function tick(){
+ const d = new Date();
+ $('clock').textContent = `${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+tick();
+setInterval(tick, 3e4);
+renderNav();
+renderGrid();
+renderCart();
+// 初始化預設狀態按鈕
+setShopStatus('營業中');
 </script></body></html>
