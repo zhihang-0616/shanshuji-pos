@@ -37,21 +37,24 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .brand-center .sep{color:var(--ac);margin:0 6px;font-size:18px}
 .brand-center small{color:var(--mu);font-size:13px;letter-spacing:1px}
 
+/* 按鈕群組 */
+.brand-btns{display:flex;gap:8px;align-items:center}
+.ibtn{padding:5px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;display:none;color:var(--ac2);transition:.15s}
+.ibtn:hover{border-color:var(--ac);background:rgba(212,175,55,.15)}
+.ibtn.active-sold{background:var(--bad);color:#fff;border-color:var(--bad)}
+
 /* 右側：時鐘 */
 .top-right{display:flex;align-items:center;gap:10px}
 .clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:14px}
 
-/* 後台按鈕（移至品牌下方） */
-.ibtn{padding:5px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;display:none;color:var(--ac2);transition:.15s}
-.ibtn:hover{border-color:var(--ac);background:rgba(212,175,55,.15)}
-
 /* 主體三欄 */
 .main{flex:1;display:grid;grid-template-columns:150px 1fr 350px;min-height:0}
 .nav{background:var(--s1);border-right:2px solid var(--ln);padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
-.nv{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border-radius:8px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
+.nv{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border-radius:8px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
 .nv i{font-style:normal;font-size:24px}.nv b{font-size:14px}.nv small{font-size:11px;opacity:.8;min-height:14px}
 .nv:hover{background:var(--s2);color:var(--tx)}
 .nv.on{background:rgba(212,175,55,.15);border-color:var(--ac);color:var(--ac2)}
+.nv.sold-out{opacity:0.35;filter:grayscale(1);pointer-events:none}
 
 .pane{display:flex;flex-direction:column;min-height:0;background:radial-gradient(circle at center, #231b14 0%, #17110d 100%)}
 .ph{padding:16px 22px 6px}.ph h2{font-size:22px;color:var(--ac2)}.ph p{color:var(--mu);font-size:13px;margin-top:2px}
@@ -59,6 +62,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .grid.wide{grid-template-columns:1fr}
 .card{position:relative;background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:16px 14px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:.15s;user-select:none;box-shadow:0 4px 8px rgba(0,0,0,0.3)}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,0.15)}.card:active{transform:scale(.98)}
+.card.sold-out{opacity:0.35;filter:grayscale(1);pointer-events:none}
+.sold-badge{position:absolute;top:8px;right:8px;background:var(--bad);color:#fff;font-size:11px;padding:2px 6px;border-radius:4px;font-weight:700}
+
 .card .n{font-size:16px;font-weight:700;line-height:1.35;color:var(--tx)}
 .card .d{font-size:12.5px;color:var(--mu);line-height:1.6}
 .card .f{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
@@ -67,6 +73,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .qb{position:absolute;top:-8px;right:-8px;min-width:26px;height:26px;padding:0 7px;border-radius:99px;background:var(--bad);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 .sec{grid-column:1/-1;font-size:13px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:6px 2px;border-bottom:1px dashed var(--ln)}
 .card.wd{flex-direction:row;align-items:center;gap:16px}.card.wd .m{flex:1}
+
+/* 售完模式下的 X 按鈕標記 */
+.sold-x-btn{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:var(--bad);color:#fff;font-size:14px;font-weight:700;display:grid;place-items:center;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,0.5)}
+.nv .sold-x-btn{top:2px;right:2px}
 
 /* 購物車 */
 .cart{background:var(--s1);border-left:2px solid var(--ln);display:flex;flex-direction:column;min-height:0}
@@ -128,12 +138,15 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 
  <div class="sp"></div>
 
- <!-- 中央：品牌名稱與後台按鈕垂直置中 -->
+ <!-- 中央：品牌名稱與後台按鈕、售完按鈕垂直置中 -->
  <div class="brand-center">
   <div class="brand-row">
    <b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b>
   </div>
-  <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
+  <div class="brand-btns">
+   <button class="ibtn" id="soldOutBtn" onclick="toggleSoldOutMode()">售完品項</button>
+   <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
+  </div>
  </div>
 
  <div class="sp"></div>
@@ -168,7 +181,7 @@ const MENU=[
 {k:'智能合約 (套餐)',ic:'🍱',combo:true,items:[
  {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"]},
  {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"]},
- {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
+ {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（全鹹水 / 全煙燻 / 鹹半+燻半）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
  {id:'s4',name:'輕食減醣套餐',price:139,c:'雞肉:鹹水雞胸',d:["冬粉","花椰菜","玉米筍","豆皮","高麗菜"]},
  {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉:鹹水雞胸 × 2',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"]}]},
 {k:'鏈上綠色資產 (蔬菜)',ic:'🥬',items:mk('v',[["娃娃菜",40],["玉米筍",30],["筍片",25],["水蓮",25],["四季豆",25],["龍鬚菜",25],["花椰菜",25],["鴻喜菇",25],["杏鮑菇",20],["金針菇",20],["小黃瓜",20],["高麗菜",20],["白蘿蔔",20],["黑木耳",20],["洋蔥",20],["海帶",20]])},
@@ -183,12 +196,15 @@ const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'
 let cur=0,cart=[];
 let adminPassword = localStorage.getItem('admin_pwd') || '8888';
 let isAdmin = false;
+let isSoldOutMode = false; // 是否處於售完管理模式
+let soldOutItems = new Set(JSON.parse(localStorage.getItem('sold_out_items') || '[]'));
+let soldOutCategories = new Set(JSON.parse(localStorage.getItem('sold_out_cats') || '[]'));
 
 window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if(params.get('mode') === 'admin') {
         isAdmin = true;
-        $('adminBtn').style.display = 'block';
+        $('adminBtn').style.display = 'inline-block';$('soldOutBtn').style.display = 'inline-block';
         $('statusPill').classList.add('admin-mode');$('statusPill').onclick = openStatusSelector;
     }
     updateStatusDisplay();
@@ -197,6 +213,12 @@ window.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('storage', (e) => {
     if(e.key === 'shop_status') {
         updateStatusDisplay();
+    }
+    if(e.key === 'sold_out_items' || e.key === 'sold_out_cats') {
+        soldOutItems = new Set(JSON.parse(localStorage.getItem('sold_out_items') || '[]'));
+        soldOutCategories = new Set(JSON.parse(localStorage.getItem('sold_out_cats') || '[]'));
+        renderNav();
+        renderGrid();
     }
 });
 
@@ -236,16 +258,96 @@ function setShopStatus(status){
     closeModal();
 }
 
-function renderNav(){$('nav').innerHTML=MENU.map((c,i)=>{const[t,s]=split(c.k);return`<button class="nv${i===cur?' on':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`}).join('')}
-function renderGrid(){const c=MENU[cur],[t,s]=split(c.k);
- $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}</p>`;
- $('grid').className='grid'+(c.combo?' wide':'');
- const card=(it,extra)=>{const q=cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
-  return`<div class="card${c.combo?' wd':''}" onclick="handleItemClick('${it.id}')">${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`};
- let h='';
- if(c.two){h+='<div class="sec">鹹本位</div>'+c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('')+'<div class="sec">燻本位</div>'+c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('')}
- else h=c.items.map(i=>card(i,c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
- $('grid').innerHTML=h}
+function toggleSoldOutMode(){
+    if(!isAdmin) return;
+    isSoldOutMode = !isSoldOutMode;
+    const btn = $('soldOutBtn');
+    if(isSoldOutMode){
+        btn.classList.add('active-sold');
+        btn.textContent = '退出售完設定';
+    } else {
+        btn.classList.remove('active-sold');
+        btn.textContent = '售完品項';
+    }
+    renderNav();
+    renderGrid();
+}
+
+// 檢查半雞與套餐連動邏輯
+function checkLinkedSoldOut(){
+    // 鹹水半雞連動：鹹水雞腿(m1) 或 鹹水雞胸(m3) 售完 ➔ 鹹水半雞(m5) 自動售完
+    const saltLeg = soldOutItems.has('m1');
+    const saltBreast = soldOutItems.has('m3');
+    if(saltLeg || saltBreast) soldOutItems.add('m5');
+    
+    // 煙燻半雞連動：煙燻雞腿(m2) 或 煙燻雞胸(m4) 售完 ➔ 煙燻半雞(m6) 自動售完
+    const smokeLeg = soldOutItems.has('m2');
+    const smokeBreast = soldOutItems.has('m4');
+    if(smokeLeg || smokeBreast) soldOutItems.add('m6');
+
+    // 智能合約套餐連動：只要煙燻系列有一個品項售完 ➔ 煙燻套餐（例如散戶/巨鯨選擇煙燻）自動受影響，這裡直接針對全煙燻或對應套餐選項做控制
+}
+
+function toggleItemSoldOut(id, event){
+    event.stopPropagation();
+    if(soldOutItems.has(id)){
+        soldOutItems.delete(id);
+    } else {
+        soldOutItems.add(id);
+    }
+    checkLinkedSoldOut();
+    localStorage.setItem('sold_out_items', JSON.stringify([...soldOutItems]));
+    renderGrid();
+}
+
+function toggleCategorySoldOut(catIndex, event){
+    event.stopPropagation();
+    const catKey = 'cat_' + catIndex;
+    if(soldOutCategories.has(catKey)){
+        soldOutCategories.delete(catKey);
+    } else {
+        soldOutCategories.add(catKey);
+    }
+    localStorage.setItem('sold_out_cats', JSON.stringify([...soldOutCategories]));
+    renderNav();
+}
+
+function renderNav(){
+    $('nav').innerHTML = MENU.map((c,i)=>{
+        const [t,s] = split(c.k);
+        const catKey = 'cat_' + i;
+        const isSold = soldOutCategories.has(catKey);
+        let xBtnHtml = (isAdmin && isSoldOutMode) ? `<button class="sold-x-btn" onclick="toggleCategorySoldOut(${i}, event)">${isSold ? '✓' : '✕'}</button>` : '';
+        return `<button class="nv${i===cur?' on':''}${isSold?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small>${xBtnHtml}</button>`;
+    }).join('');
+}
+
+function renderGrid(){
+    const c = MENU[cur];
+    const catKey = 'cat_' + cur;
+    const isCatSold = soldOutCategories.has(catKey);
+    
+    const [t,s] = split(c.k);
+    $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${isCatSold ? '<span style="color:var(--bad); font-weight:bold;">[此分類目前全區售完]</span>' : esc(c.note||s||'')}</p>`;
+    $('grid').className='grid'+(c.combo?' wide':'');
+
+    const card = (it, extra) => {
+        const q = cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
+        const isSold = isCatSold || soldOutItems.has(it.id);
+        let xBtnHtml = (isAdmin && isSoldOutMode) ? `<button class="sold-x-btn" onclick="toggleItemSoldOut('${it.id}', event)">${isSold ? '✓' : '✕'}</button>` : '';
+        let badge = isSold ? `<span class="sold-badge">已售完</span>` : '';
+        return `<div class="card${c.combo?' wd':''}${isSold?' sold-out':''}" onclick="${isSold ? '' : `handleItemClick('${it.id}')`}">${xBtnHtml}${badge}${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`;
+    };
+
+    let h='';
+    if(c.two){
+        h += '<div class="sec">鹹本位</div>' + c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('') +
+             '<div class="sec">燻本位</div>' + c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('');
+    } else {
+        h = c.items.map(i=>card(i, c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
+    }
+    $('grid').innerHTML = h;
+}
 
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
 
@@ -265,17 +367,25 @@ function handleItemClick(id){
 function showComboOptions(item){
  let optionsHtml = '';
  if(item.id === 's3') {
+  // 檢查是否煙燻系列或鹹水系列售完
+  const smokeSold = soldOutItems.has('m2') || soldOutItems.has('m4') || soldOutItems.has('m6');
+  const saltSold = soldOutItems.has('m1') || soldOutItems.has('m3') || soldOutItems.has('m5');
+  
   optionsHtml = `
    <div class="opt-list">
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞</button>
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞</button>
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半</button>
+    <button class="opt-btn ${saltSold?'sold-out':''}" ${saltSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞</button>
+    <button class="opt-btn ${smokeSold?'sold-out':''}" ${smokeSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞</button>
+    <button class="opt-btn ${saltSold||smokeSold?'sold-out':''}" ${saltSold||smokeSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半</button>
    </div>`;
  } else {
+  const isSmoke = (item.id === 's1' || item.id === 's2'); // 這裡依需求判斷
+  const smokeHalfSold = soldOutItems.has('m6');
+  const saltHalfSold = soldOutItems.has('m5');
+
   optionsHtml = `
    <div class="opt-list">
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞</button>
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞</button>
+    <button class="opt-btn ${saltHalfSold?'sold-out':''}" ${saltHalfSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞</button>
+    <button class="opt-btn ${smokeHalfSold?'sold-out':''}" ${smokeHalfSold?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞</button>
    </div>`;
  }
 
@@ -427,7 +537,7 @@ function openAdminLogin(){
  $('mBox').innerHTML=`
   <h3>後台管理登入</h3>
   <label>請輸入管理密碼
-   <input type="password" id="loginPwd" placeholder="請輸入密碼">
+   <input type="password" id="loginPwd" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')verifyAdmin()">
   </label>
   <div class="m-btns">
    <button class="btn-cancel" onclick="closeModal()">取消</button>
@@ -467,7 +577,7 @@ function openChangePassword(){
    <input type="password" id="newPwd" placeholder="請輸入新密碼">
   </label>
   <label>3. 再次輸入新密碼
-   <input type="password" id="confirmPwd" placeholder="請再次輸入新密碼">
+   <input type="password" id="confirmPwd" placeholder="請再次輸入新密碼" onkeydown="if(event.key==='Enter')submitNewPassword()">
   </label>
   <div class="m-btns">
    <button class="btn-cancel" onclick="openAdminPanel()">返回</button>
