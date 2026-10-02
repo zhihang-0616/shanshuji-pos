@@ -20,7 +20,7 @@ html,body{height:100%}body{background:var(--bg);color:var(--tx);display:flex;fle
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 
 /* 頂部列 */
-.top{display:flex;align-items:center;gap:14px;padding:12px 20px;background:linear-gradient(135deg, #2c2218, #1c1510);border-bottom:3px solid var(--ac);box-shadow:0 4px 12px rgba(0,0,0,0.6)}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(135deg, #2c2218, #1c1510);border-bottom:3px solid var(--ac);box-shadow:0 4px 12px rgba(0,0,0,0.6)}
 
 /* 左側：營業狀態 */
 .top-left{display:flex;align-items:center;gap:10px}
@@ -29,27 +29,26 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .pill.admin-mode:hover{border-color:var(--ac)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
 
-/* 中央：品牌名稱放大置中 */
-.sp{flex:1}
-.brand-center{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
-.brand-center .brand-row{display:flex;align-items:center;gap:0;white-space:nowrap}
+/* 中央：品牌名稱與後台按鈕 */
+.brand-center{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.brand-row{display:flex;align-items:center;gap:0;white-space:nowrap}
 .brand-center b{font-size:20px;letter-spacing:.5px;color:var(--ac2)}
 .brand-center .sep{color:var(--ac);margin:0 6px;font-size:18px}
-.brand-center small{color:var(--mu);font-size:13px;letter-spacing:1px}
+.ibtn{padding:4px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;display:none;color:var(--ac2);font-weight:600}
+.ibtn:hover{border-color:var(--ac)}
 
-/* 右側：時鐘、後台按鈕 */
+/* 右側：時鐘 */
 .top-right{display:flex;align-items:center;gap:10px}
 .clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:14px}
-.ibtn{padding:8px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:14px;display:none;color:var(--ac2)}
-.ibtn:hover{border-color:var(--ac)}
 
 /* 主體三欄 */
 .main{flex:1;display:grid;grid-template-columns:150px 1fr 350px;min-height:0}
 .nav{background:var(--s1);border-right:2px solid var(--ln);padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
-.nv{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border-radius:8px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
+.nv{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border-radius:8px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
 .nv i{font-style:normal;font-size:24px}.nv b{font-size:14px}.nv small{font-size:11px;opacity:.8;min-height:14px}
 .nv:hover{background:var(--s2);color:var(--tx)}
 .nv.on{background:rgba(212,175,55,.15);border-color:var(--ac);color:var(--ac2)}
+.nv.sold-out{opacity:0.4;filter:grayscale(1);}
 
 .pane{display:flex;flex-direction:column;min-height:0;background:radial-gradient(circle at center, #231b14 0%, #17110d 100%)}
 .ph{padding:16px 22px 6px}.ph h2{font-size:22px;color:var(--ac2)}.ph p{color:var(--mu);font-size:13px;margin-top:2px}
@@ -57,6 +56,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .grid.wide{grid-template-columns:1fr}
 .card{position:relative;background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:16px 14px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:.15s;user-select:none;box-shadow:0 4px 8px rgba(0,0,0,0.3)}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,0.15)}.card:active{transform:scale(.98)}
+.card.sold-out{background:#111 !important;border-color:#333 !important;opacity:0.35;cursor:not-allowed !important;transform:none !important;box-shadow:none !important}
+.card.sold-out *{color:#666 !important}
 .card .n{font-size:16px;font-weight:700;line-height:1.35;color:var(--tx)}
 .card .d{font-size:12.5px;color:var(--mu);line-height:1.6}
 .card .f{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
@@ -65,6 +66,11 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .qb{position:absolute;top:-8px;right:-8px;min-width:26px;height:26px;padding:0 7px;border-radius:99px;background:var(--bad);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 .sec{grid-column:1/-1;font-size:13px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:6px 2px;border-bottom:1px dashed var(--ln)}
 .card.wd{flex-direction:row;align-items:center;gap:16px}.card.wd .m{flex:1}
+
+/* 售完標記 X 按鈕 */
+.sold-out-badge {position:absolute;top:8px;right:8px;background:var(--bad);color:#fff;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2}
+.admin-sold-badge {position:absolute;top:8px;right:8px;background:rgba(217,83,79,0.8);color:#fff;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;cursor:pointer;z-index:5}
+.admin-sold-badge.active {background:var(--bad);box-shadow:0 0 6px var(--bad)}
 
 /* 購物車 */
 .cart{background:var(--s1);border-left:2px solid var(--ln);display:flex;flex-direction:column;min-height:0}
@@ -103,6 +109,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .opt-btn{padding:12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);text-align:center;font-size:15px;font-weight:600;transition:.15s;color:var(--tx)}
 .opt-btn:hover{border-color:var(--ac);background:rgba(212,175,55,.15);color:var(--ac2)}
 .opt-btn.selected{background:var(--ac);color:#1a1204;border-color:var(--ac2);font-weight:700}
+.opt-btn.sold-out{background:#111 !important;color:#666 !important;border-color:#333 !important;cursor:not-allowed !important;text-decoration:line-through}
 .modal-tip{font-size:11.5px;color:var(--mu);line-height:1.5;background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;border-left:3px solid var(--ac)}
 
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
@@ -124,21 +131,17 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
   <div class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div>
  </div>
 
- <div class="sp"></div>
-
- <!-- 中央：品牌名稱 -->
+ <!-- 中央：品牌名稱與後台按鈕 -->
  <div class="brand-center">
   <div class="brand-row">
    <b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b>
   </div>
+  <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
  </div>
 
- <div class="sp"></div>
-
- <!-- 右側：時鐘 + 後台 -->
+ <!-- 右側：時鐘 -->
  <div class="top-right">
   <div class="clock" id="clock"></div>
-  <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
  </div>
 </header>
 <div class="main">
@@ -181,22 +184,35 @@ const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'
 let cur=0,cart=[];
 let adminPassword = localStorage.getItem('admin_pwd') || '8888';
 let isAdmin = false;
+let soldOutMap = JSON.parse(localStorage.getItem('sold_out_map') || '{}');
 
 window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if(params.get('mode') === 'admin') {
         isAdmin = true;
-        $('adminBtn').style.display = 'block';
+        $('adminBtn').style.display = 'inline-block';
         $('statusPill').classList.add('admin-mode');$('statusPill').onclick = openStatusSelector;
     }
     updateStatusDisplay();
+    renderNav();
+    renderGrid();
+    renderCart();
 });
 
 window.addEventListener('storage', (e) => {
     if(e.key === 'shop_status') {
         updateStatusDisplay();
     }
+    if(e.key === 'sold_out_map') {
+        soldOutMap = JSON.parse(e.newValue || '{}');
+        renderNav();
+        renderGrid();
+    }
 });
+
+function saveSoldOut(){
+    localStorage.setItem('sold_out_map', JSON.stringify(soldOutMap));
+}
 
 function updateStatusDisplay(){
     const currentStatus = localStorage.getItem('shop_status') || '營業中';
@@ -234,21 +250,90 @@ function setShopStatus(status){
     closeModal();
 }
 
-function renderNav(){$('nav').innerHTML=MENU.map((c,i)=>{const[t,s]=split(c.k);return`<button class="nv${i===cur?' on':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`}).join('')}
-function renderGrid(){const c=MENU[cur],[t,s]=split(c.k);
- $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}</p>`;
- $('grid').className='grid'+(c.combo?' wide':'');
- const card=(it,extra)=>{const q=cart.filter(x=>x.id===it.id).reduce((a,x)=>a+x.qty,0);
-  return`<div class="card${c.combo?' wd':''}" onclick="handleItemClick('${it.id}')">${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`};
- let h='';
- if(c.two){h+='<div class="sec">鹹本位</div>'+c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('')+'<div class="sec">燻本位</div>'+c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('')}
- else h=c.items.map(i=>card(i,c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
- $('grid').innerHTML=h}
+// 檢查半雞、套餐智能合約的連動售完狀態
+function isItemSoldOut(id, name){
+    if(soldOutMap[id]) return true;
+    
+    // 連動邏輯：鹹水半雞 (m5) -> 鹹水雞腿(m1) 或 鹹水雞胸(m3) 售完即連動
+    if(id === 'm5' && (soldOutMap['m1'] || soldOutMap['m3'])) return true;
+    // 連動邏輯：煙燻半雞 (m6) -> 煙燻雞腿(m2) 或 煙燻雞胸(m4) 售完即連動
+    if(id === 'm6' && (soldOutMap['m2'] || soldOutMap['m4'])) return true;
+
+    return false;
+}
+
+// 檢查分類群組是否全數售完
+function isCategorySoldOut(catIndex){
+    const cat = MENU[catIndex];
+    if(soldOutMap['cat_' + catIndex]) return true;
+    if(cat.items && cat.items.length > 0){
+        // 若該分類下所有品項都售完，群組也算售完
+        return cat.items.every(item => isItemSoldOut(item.id, item.name));
+    }
+    return false;
+}
+
+function renderNav(){
+    $('nav').innerHTML = MENU.map((c, i) => {
+        const [t, s] = split(c.k);
+        const isSold = isCategorySoldOut(i);
+        const adminBadge = isAdmin ? `<div class="admin-sold-badge ${isSold?'active':''}" onclick="event.stopPropagation();toggleCategorySoldOut(${i})">✕</div>` : '';
+        return `<button class="nv${i===cur?' on':''}${isSold?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()"><i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small>${adminBadge}</button>`;
+    }).join('');
+}
+
+function renderGrid(){
+    const c = MENU[cur], [t, s] = split(c.k);
+    $('ph').innerHTML = `<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}</p>`;
+    $('grid').className = 'grid' + (c.combo ? ' wide' : '');
+    
+    const card = (it, extra) => {
+        const isSold = isItemSoldOut(it.id, it.name);
+        const q = cart.filter(x => x.id === it.id).reduce((a, x) => a + x.qty, 0);
+        const adminBadge = isAdmin ? `<div class="admin-sold-badge ${soldOutMap[it.id]?'active':''}" onclick="event.stopPropagation();toggleItemSoldOut('${it.id}')">✕</div>` : '';
+        const soldBadgeHtml = (!isAdmin && isSold) ? `<div class="sold-out-badge">已售完</div>` : '';
+
+        return `<div class="card${c.combo?' wd':''}${isSold?' sold-out':''}" onclick="${isSold?'':`handleItemClick('${it.id}')`}">${soldBadgeHtml}${adminBadge}${q&&!isSold?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div><div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`;
+    };
+
+    let h = '';
+    if(c.two){
+        h += '<div class="sec">鹹本位</div>' + c.items.filter(i => i.name.startsWith('鹹')).map(i => card(i)).join('') + 
+             '<div class="sec">燻本位</div>' + c.items.filter(i => i.name.startsWith('煙')).map(i => card(i)).join('');
+    } else {
+        h = c.items.map(i => card(i, c.combo ? `<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>` : '')).join('');
+    }
+    $('grid').innerHTML = h;
+}
+
+function toggleItemSoldOut(id){
+    soldOutMap[id] = !soldOutMap[id];
+    saveSoldOut();
+    renderNav();
+    renderGrid();
+}
+
+function toggleCategorySoldOut(catIndex){
+    const key = 'cat_' + catIndex;
+    soldOutMap[key] = !soldOutMap[key];
+    // 同時設定該分類下所有品項
+    const cat = MENU[catIndex];
+    if(cat.items){
+        cat.items.forEach(it => {
+            soldOutMap[it.id] = soldOutMap[key];
+        });
+    }
+    saveSoldOut();
+    renderNav();
+    renderGrid();
+}
 
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
 
 function handleItemClick(id){
  const item = find(id);
+ if(isItemSoldOut(id, item.name)) return;
+
  if(['s1', 's2', 's3'].includes(id)) {
   showComboOptions(item);
  } else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id)) {
@@ -262,18 +347,22 @@ function handleItemClick(id){
 
 function showComboOptions(item){
  let optionsHtml = '';
+ // 檢查鹹水與煙燻系列是否售完以決定套餐選項是否反黑
+ const isSaltSoldOut = soldOutMap['m1'] || soldOutMap['m3'] || soldOutMap['m5'];
+ const isSmokeSoldOut = soldOutMap['m2'] || soldOutMap['m4'] || soldOutMap['m6'];
+
  if(item.id === 's3') {
   optionsHtml = `
    <div class="opt-list">
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞</button>
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞</button>
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半</button>
+    <button class="opt-btn ${isSaltSoldOut?'sold-out':''}" ${isSaltSoldOut?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全鹹水')">1. 全鹹水全雞 ${isSaltSoldOut?'(已售完)':''}</button>
+    <button class="opt-btn ${isSmokeSoldOut?'sold-out':''}" ${isSmokeSoldOut?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '全煙燻')">2. 全煙燻全雞 ${isSmokeSoldOut?'(已售完)':''}</button>
+    <button class="opt-btn ${isSaltSoldOut||isSmokeSoldOut?'sold-out':''}" ${isSaltSoldOut||isSmokeSoldOut?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹半+燻半')">3. 鹹半 + 燻半 ${isSaltSoldOut||isSmokeSoldOut?'(已售完)':''}</button>
    </div>`;
  } else {
   optionsHtml = `
    <div class="opt-list">
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞</button>
-    <button class="opt-btn" onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞</button>
+    <button class="opt-btn ${isSaltSoldOut?'sold-out':''}" ${isSaltSoldOut?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '鹹水半雞')">1. 鹹水半雞 ${isSaltSoldOut?'(已售完)':''}</button>
+    <button class="opt-btn ${isSmokeSoldOut?'sold-out':''}" ${isSmokeSoldOut?'disabled':''} onclick="addComboWithFlavor('${item.id}', '${item.name}', ${item.price}, '煙燻半雞')">2. 煙燻半雞 ${isSmokeSoldOut?'(已售完)':''}</button>
    </div>`;
  }
 
@@ -499,5 +588,5 @@ function submitNewPassword(){
 }
 
 function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
-tick();setInterval(tick,3e4);renderNav();renderGrid();renderCart();
+tick();setInterval(tick,3e4);
 </script></body></html>
