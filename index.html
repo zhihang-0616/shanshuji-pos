@@ -103,6 +103,14 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .fm-line{display:flex;justify-content:space-between;color:var(--mu);font-size:14px}
 .fm-total{display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed var(--ln);padding-top:12px;font-weight:800;color:var(--ac2);font-size:18px}
 .fm-total b{font-size:26px;color:var(--ac)}
+/* 訂單明細 */
+.rc-head{text-align:center}.rc-head small{display:block;color:var(--mu);font-size:13px;margin-top:4px}
+.rc-row{display:flex;justify-content:space-between;gap:14px;font-size:14px;line-height:1.5}
+.rc-row span:first-child{color:var(--mu);flex:none}.rc-row span:last-child{text-align:right;word-break:break-all}
+.rc-item{display:flex;justify-content:space-between;gap:12px;font-size:15px}
+.rc-item .nm{flex:1}.rc-item .nm small{color:var(--mu);margin-left:6px}.rc-item .pr{font-weight:700;color:var(--ac)}
+.rc-done{text-align:center;padding:10px 0}.rc-done .ok{font-size:48px}
+.rc-no{font-size:30px;font-weight:800;color:var(--ac);letter-spacing:2px;margin:6px 0}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -403,7 +411,8 @@ function calcTotals(){
     const p=Math.min(100,Math.max(0,parseFloat(CK.pct)||0));
     total=Math.round(total*p/100)-(parseFloat(CK.off)||0);
   }
-  return{sub,extra,total:Math.max(0,total)};
+  const base=sub+extra;
+  return{sub,extra,disc:Math.max(0,base-Math.max(0,total)),total:Math.max(0,total)};
 }
 function updateTotal(){$('fmTot').textContent='$'+calcTotals().total}
 
@@ -449,10 +458,67 @@ function submitCheckout(){
     name:CK.name.trim(),phone:CK.phone,time:CK.time,note:CK.note.trim(),
     flavor:CK.flavor||'原味',spice:CK.spice||'不辣',salt:CK.salt||'正常',
     gear:[...CK.gear],pay:CK.pay,items:JSON.parse(JSON.stringify(cart)),
-    subtotal:t.sub,total:t.total
+    subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
   };
-  closeModal();
-  alert('取餐資訊已確認！（訂單確認頁將於下一步製作）');
+  renderReceipt();
+}
+function backToForm(){CK.err=false;renderCheckout()}
+
+function renderReceipt(){
+  const o=window.pendingOrder;
+  const row=(k,v)=>`<div class="rc-row"><span>${k}</span><span>${esc(v)}</span></div>`;
+  const items=o.items.map(x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`).join('');
+  const cnt=o.items.reduce((a,x)=>a+x.qty,0);
+  $('mBox').innerHTML=`
+   <div class="rc-head"><h3>訂單明細確認</h3><small>請核對以下資訊，確認無誤後送出訂單</small></div>
+   <div class="fm-sec">
+    ${row('訂購人',o.name)}${row('電話',o.phone)}${row('取餐時間','今日 '+o.time)}
+    ${o.note?row('顧客備註',o.note):''}
+   </div>
+   <div class="fm-sec">
+    ${row('口味',o.flavor)}${row('辣度',o.spice)}${row('鹹度',o.salt)}
+    ${row('配備',o.gear.length?o.gear.join('、'):'無')}
+    <div style="text-align:center;font-size:12.5px;color:var(--mu)">🌱 依法不主動提供免洗餐具</div>
+   </div>
+   <div class="fm-sec">
+    <div class="fm-title">餐點明細（共 ${cnt} 項）</div>
+    ${items}
+    <div class="fm-line" style="border-top:1px dashed var(--ln);padding-top:10px"><span>小計金額:</span><span>$${o.subtotal}</span></div>
+    ${o.extra?`<div class="fm-line"><span>口味加價 (泰式):</span><span>+$${o.extra}</span></div>`:''}
+    ${o.discount?`<div class="fm-line"><span>優惠折抵:</span><span>-$${o.discount}</span></div>`:''}
+    <div class="fm-total"><span>應付總額:</span><b>$${o.total}</b></div>
+    ${row('付款方式',o.pay)}
+   </div>
+   <div class="m-btns"><button class="btn-cancel" onclick="backToForm()">返回修改</button><button class="btn-confirm" onclick="confirmOrder()">確認送出</button></div>`;
+  $('mBox').scrollTop=0;
+}
+
+function confirmOrder(){
+  const o=window.pendingOrder;if(!o)return;
+  const d=new Date(),day=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  let seq={date:day,n:0};
+  try{const r=JSON.parse(localStorage.getItem('order_seq')||'null');if(r&&r.date===day)seq=r}catch(e){}
+  seq.n++;
+  o.no=String(seq.n).padStart(3,'0');
+  o.date=day;o.createdAt=d.toISOString();
+  try{
+    localStorage.setItem('order_seq',JSON.stringify(seq));
+    const list=JSON.parse(localStorage.getItem('orders')||'[]');
+    list.push(o);localStorage.setItem('orders',JSON.stringify(list));
+  }catch(e){}
+  $('mBox').innerHTML=`
+   <div class="rc-done"><div class="ok">✅</div><h3>訂單已送出</h3>
+    <div class="rc-no">#${o.no}</div>
+    <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>今日 ${o.time}</span></div>
+    <div class="rc-row" style="justify-content:center;gap:8px;margin-top:4px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div>
+    <div class="modal-tip" style="margin-top:14px;text-align:left">請記下您的訂單編號，取餐時向店員出示。謝謝您的光臨！</div>
+   </div>
+   <div class="m-btns"><button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
+}
+function finishOrder(){
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',flavor:'',spice:'',salt:'',gear:[],pay:'現金',pct:100,off:0,err:false});
+  window.pendingOrder=null;
+  cart=[];renderCart();renderGrid();closeModal();
 }
 
 /* ===== 後台 ===== */
