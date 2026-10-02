@@ -16,61 +16,80 @@
   --r:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;font-size:16px;}body{background:var(--bg);color:var(--tx);display:flex;flex-direction:column;overflow:hidden}
+html,body{height:100%;font-size:16px}
+body{background:var(--bg);color:var(--tx);display:flex;justify-content:center;align-items:center;overflow:hidden;padding:20px}
+
+/* 整體外框容器：放大並置中 */
+.app-container{
+  width:100%;
+  max-width:1480px;
+  height:92vh;
+  background:var(--s1);
+  border:3px solid var(--ac);
+  border-radius:16px;
+  box-shadow:0 12px 36px rgba(0,0,0,0.8);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 
 /* 頂部列 */
-.top{display:flex;align-items:center;gap:16px;padding:16px 24px;background:linear-gradient(135deg, #2c2218, #1c1510);border-bottom:3px solid var(--ac);box-shadow:0 4px 12px rgba(0,0,0,0.6)}
-.brand-logo{width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--ac);box-shadow:0 0 10px rgba(212,175,55,0.4)}
-.brand b{display:block;font-size:20px;letter-spacing:.5px;color:var(--ac2)}.brand small{color:var(--mu);font-size:13.5px}
-.sp{flex:1}
-.pill{display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:99px;background:var(--s2);border:1px solid var(--ln);font-size:15.5px;font-weight:600;transition:.15s}
+.top{display:flex;align-items:center;gap:18px;padding:16px 24px;background:linear-gradient(135deg, #2c2218, #1c1510);border-bottom:3px solid var(--ac)}
+.pill{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:99px;background:var(--s2);border:1px solid var(--ln);font-size:15px;font-weight:600;transition:.15s}
 .pill.admin-mode{cursor:pointer}
 .pill.admin-mode:hover{border-color:var(--ac)}
-.dot{width:11px;height:11px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
-.clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:15.5px}
-.ibtn{padding:10px 18px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:15.5px;display:none;color:var(--ac2)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand b{font-size:22px;letter-spacing:.5px;color:var(--ac2)}
+.brand small{color:var(--mu);font-size:15px}
+
+.sp{flex:1}
+.clock{color:var(--mu);font-variant-numeric:tabular-nums;font-size:16px}
+.ibtn{padding:10px 18px;border-radius:10px;background:var(--s2);border:1px solid var(--ln);font-size:15px;display:none;color:var(--ac2);font-weight:700}
 .ibtn:hover{border-color:var(--ac)}
 
 /* 主體三欄 */
 .main{flex:1;display:grid;grid-template-columns:180px 1fr 380px;min-height:0}
-.nav{background:var(--s1);border-right:2px solid var(--ln);padding:14px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
-.nv{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border-radius:10px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
-.nv i{font-style:normal;font-size:28px}.nv b{font-size:15.5px}.nv small{font-size:12px;opacity:.8;min-height:16px}
+.nav{background:var(--s1);border-right:2px solid var(--ln);padding:16px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.nv{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px;border-radius:10px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
+.nv i{font-style:normal;font-size:28px}.nv b{font-size:15px}.nv small{font-size:12px;opacity:.8;min-height:16px}
 .nv:hover{background:var(--s2);color:var(--tx)}
 .nv.on{background:rgba(212,175,55,.15);border-color:var(--ac);color:var(--ac2)}
 
 .pane{display:flex;flex-direction:column;min-height:0;background:radial-gradient(circle at center, #231b14 0%, #17110d 100%)}
-.ph{padding:20px 24px 8px}.ph h2{font-size:26px;color:var(--ac2)}.ph p{color:var(--mu);font-size:14.5px;margin-top:4px}
-.grid{flex:1;overflow-y:auto;padding:14px 24px 28px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;align-content:start}
+.ph{padding:20px 26px 8px}.ph h2{font-size:24px;color:var(--ac2)}.ph p{color:var(--mu);font-size:14px;margin-top:4px}
+.grid{flex:1;overflow-y:auto;padding:16px 26px 28px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;align-content:start}
 .grid.wide{grid-template-columns:1fr}
 .card{position:relative;background:var(--s1);border:1px solid var(--ln);border-radius:var(--r);padding:18px 16px;display:flex;flex-direction:column;gap:12px;cursor:pointer;transition:.15s;user-select:none;box-shadow:0 4px 8px rgba(0,0,0,0.3)}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,0.15)}.card:active{transform:scale(.98)}
-.card .n{font-size:18px;font-weight:700;line-height:1.35;color:var(--tx)}
-.card .d{font-size:14px;color:var(--mu);line-height:1.6}
+.card .n{font-size:17px;font-weight:700;line-height:1.35;color:var(--tx)}
+.card .d{font-size:13.5px;color:var(--mu);line-height:1.6}
 .card .f{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
 .price{font-size:22px;font-weight:800;color:var(--ac)}.price:before{content:"$";font-size:14px;margin-right:1px;opacity:.8}
 .add{width:38px;height:38px;border-radius:50%;background:var(--ac);color:#1a1204;font-size:24px;font-weight:700;display:grid;place-items:center}
-.qb{position:absolute;top:-9px;right:-9px;min-width:28px;height:28px;padding:0 8px;border-radius:99px;background:var(--bad);color:#fff;font-size:14px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-.sec{grid-column:1/-1;font-size:14.5px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:8px 2px;border-bottom:1px dashed var(--ln)}
+.qb{position:absolute;top:-8px;right:-8px;min-width:28px;height:28px;padding:0 8px;border-radius:99px;background:var(--bad);color:#fff;font-size:14px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.sec{grid-column:1/-1;font-size:14px;font-weight:700;color:var(--ac);letter-spacing:2px;padding:8px 2px;border-bottom:1px dashed var(--ln)}
 .card.wd{flex-direction:row;align-items:center;gap:18px}.card.wd .m{flex:1}
 
 /* 購物車 */
 .cart{background:var(--s1);border-left:2px solid var(--ln);display:flex;flex-direction:column;min-height:0}
 .ch{padding:18px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ln)}
-.ch h3{font-size:20px;color:var(--ac2)}.ch button{color:var(--mu);font-size:14.5px}.ch button:hover{color:var(--bad)}
+.ch h3{font-size:19px;color:var(--ac2)}.ch button{color:var(--mu);font-size:14px}.ch button:hover{color:var(--bad)}
 .cl{flex:1;overflow-y:auto;padding:10px 16px}
-.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mu);font-size:15.5px}.empty i{font-style:normal;font-size:46px;opacity:.5}
-.ci{padding:14px 6px;border-bottom:1px solid var(--ln)}
+.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mu);font-size:15px}.empty i{font-style:normal;font-size:44px;opacity:.5}
+.ci{padding:14px 4px;border-bottom:1px solid var(--ln)}
 .cr{display:flex;align-items:center;gap:12px}
-.del-btn{background:none;border:none;color:var(--bad);font-size:18px;font-weight:700;cursor:pointer;padding:4px 8px;border-radius:6px;transition:.15s}
+.del-btn{background:none;border:none;color:var(--bad);font-size:17px;font-weight:700;cursor:pointer;padding:3px 8px;border-radius:6px;transition:.15s}
 .del-btn:hover{background:rgba(217,83,79,.2)}
-.cr .t{flex:1;font-weight:600;font-size:16.5px}.cr .p{font-weight:700;color:var(--ac);font-size:17px}
+.cr .t{flex:1;font-weight:600;font-size:16px}.cr .p{font-weight:700;color:var(--ac)}
 .stp{display:flex;align-items:center;gap:4px;background:var(--s2);border-radius:99px;padding:3px;margin-top:10px;width:max-content;border:1px solid var(--ln)}
-.stp button{width:32px;height:32px;border-radius:50%;font-size:19px}.stp button:hover{background:var(--ln)}.stp span{min-width:32px;text-align:center;font-weight:700;font-size:16px}
+.stp button{width:30px;height:30px;border-radius:50%;font-size:18px}.stp button:hover{background:var(--ln)}.stp span{min-width:30px;text-align:center;font-weight:700}
 .cf{padding:18px 20px;border-top:2px solid var(--ln);display:flex;flex-direction:column;gap:14px;background:var(--s2)}
-.sum{display:flex;justify-content:space-between;align-items:baseline;color:var(--mu);font-size:15.5px}.sum b{font-size:32px;color:var(--ac)}
-.go{padding:18px;border-radius:10px;background:linear-gradient(135deg,var(--ac2),var(--ac));color:#1a1204;font-weight:800;font-size:19px;box-shadow:0 4px 10px rgba(212,175,55,0.3)}
+.sum{display:flex;justify-content:space-between;align-items:baseline;color:var(--mu);font-size:15px}.sum b{font-size:30px;color:var(--ac)}
+.go{padding:18px;border-radius:10px;background:linear-gradient(135deg,var(--ac2),var(--ac));color:#1a1204;font-weight:800;font-size:18px;box-shadow:0 4px 10px rgba(212,175,55,0.3)}
 .go:disabled{background:var(--ln);color:var(--mu);cursor:not-allowed;box-shadow:none}
 .hint{font-size:13px;color:var(--mu);text-align:center}
 
@@ -79,7 +98,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .modal.open{display:grid}
 .m-box{background:var(--s1);border:2px solid var(--ac);border-radius:var(--r);width:100%;max-width:440px;padding:28px;display:flex;flex-direction:column;gap:18px;box-shadow:0 8px 24px rgba(0,0,0,0.8);max-height:90vh;overflow-y:auto}
 .m-box h3{font-size:22px;color:var(--ac2)}
-.m-box label{font-size:14.5px;color:var(--mu);display:flex;flex-direction:column;gap:8px}
+.m-box label{font-size:14px;color:var(--mu);display:flex;flex-direction:column;gap:8px}
 .m-box input{padding:14px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:17px}
 .m-box input:focus{border-color:var(--ac);outline:none}
 .m-btns{display:flex;gap:12px;margin-top:6px}
@@ -87,42 +106,45 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
 .btn-confirm{background:var(--ac);color:#1a1204}
 
-.opt-section-title{font-size:15.5px;font-weight:700;color:var(--ac);margin-bottom:8px}
+.opt-section-title{font-size:15px;font-weight:700;color:var(--ac);margin-bottom:8px}
 .opt-grid{display:grid;grid-template-columns:repeat(2, 1fr);gap:10px;margin-bottom:12px}
-.opt-btn{padding:14px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);text-align:center;font-size:16.5px;font-weight:600;transition:.15s;color:var(--tx)}
+.opt-btn{padding:14px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);text-align:center;font-size:16px;font-weight:600;transition:.15s;color:var(--tx)}
 .opt-btn:hover{border-color:var(--ac);background:rgba(212,175,55,.15);color:var(--ac2)}
 .opt-btn.selected{background:var(--ac);color:#1a1204;border-color:var(--ac2);font-weight:700}
-.modal-tip{font-size:13px;color:var(--mu);line-height:1.6;background:rgba(0,0,0,0.2);padding:12px;border-radius:6px;border-left:3px solid var(--ac)}
+.modal-tip{font-size:12.5px;color:var(--mu);line-height:1.6;background:rgba(0,0,0,0.2);padding:12px;border-radius:6px;border-left:3px solid var(--ac)}
 
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 
 /* 手機 / 平板直式 */
 @media(max-width:900px){
- body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
+ body{overflow:auto;height:auto;padding:0}
+ .app-container{height:100vh;border:0;border-radius:0}
+ .main{grid-template-columns:1fr;display:flex;flex-direction:column}
  .nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:2px solid var(--ln);padding:10px}.nv{flex:0 0 auto;min-width:100px;padding:10px 12px}.nv small{display:none}
- .grid{max-height:none;overflow:visible;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding:14px 16px}
+ .grid{max-height:none;overflow:visible;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding:16px}
  .cart{border-left:0;border-top:2px solid var(--ln);position:sticky;bottom:0;max-height:55vh}
  .top{padding:12px 16px;flex-wrap:wrap}.clock{display:none}
 }
 </style></head>
 <body>
-<header class="top">
- <img src="去中心雞-無字版.jpg" alt="Logo" class="brand-logo">
- <div class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div>
- <div class="brand"><b>去中心鹹水雞 X 厝邊溫食</b><small>POS 點餐系統</small></div>
- <div class="sp"></div>
- <div class="clock" id="clock"></div>
- <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">⚙ 後台管理</button>
-</header>
-<div class="main">
- <nav class="nav" id="nav"></nav>
- <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
- <aside class="cart">
-  <div class="ch"><h3>🧾 訂單明細</h3><button onclick="clearCart()">清空</button></div>
-  <div class="cl" id="cl"></div>
-  <div class="cf"><div class="sum"><span id="cnt">共 0 項</span><b id="tot">$0</b></div>
-   <button class="go" id="go" disabled>下一步：填寫取餐資訊</button><div class="hint">結帳流程將在下一步製作</div></div>
- </aside>
+<div class="app-container">
+ <header class="top">
+  <div class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div>
+  <div class="brand"><b>去中心鹹水雞 X 厝邊溫食</b><small>POS 點餐系統</small></div>
+  <div class="sp"></div>
+  <div class="clock" id="clock"></div>
+  <button class="ibtn" id="adminBtn" onclick="openAdminLogin()">後台管理</button>
+ </header>
+ <div class="main">
+  <nav class="nav" id="nav"></nav>
+  <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
+  <aside class="cart">
+   <div class="ch"><h3>🧾 訂單明細</h3><button onclick="clearCart()">清空</button></div>
+   <div class="cl" id="cl"></div>
+   <div class="cf"><div class="sum"><span id="cnt">共 0 項</span><b id="tot">$0</b></div>
+    <button class="go" id="go" disabled>下一步：填寫取餐資訊</button><div class="hint">結帳流程將在下一步製作</div></div>
+  </aside>
+ </div>
 </div>
 
 <!-- 互動彈跳視窗 -->
