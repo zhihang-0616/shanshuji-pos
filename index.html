@@ -50,7 +50,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .cl{flex:1;overflow-y:auto;padding:8px 14px}
 .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--mu);font-size:14px}.empty i{font-style:normal;font-size:40px;opacity:.5}
 .ci{padding:12px 4px;border-bottom:1px solid var(--ln)}
-.cr{display:flex;align-items:center;gap:10px}.cr .t{flex:1;font-weight:600;font-size:15px}.cr .p{font-weight:700;color:var(--ac2)}
+.cr{display:flex;align-items:center;gap:10px}
+.del-btn{background:none;border:none;color:var(--bad);font-size:16px;font-weight:700;cursor:pointer;padding:2px 6px;border-radius:6px;transition:.15s}
+.del-btn:hover{background:rgba(229,96,77,.15)}
+.cr .t{flex:1;font-weight:600;font-size:15px}.cr .p{font-weight:700;color:var(--ac2)}
 .stp{display:flex;align-items:center;gap:2px;background:var(--s2);border-radius:99px;padding:2px;margin-top:8px;width:max-content}
 .stp button{width:28px;height:28px;border-radius:50%;font-size:17px}.stp button:hover{background:var(--ln)}.stp span{min-width:28px;text-align:center;font-weight:700}
 .cf{padding:16px 18px;border-top:1px solid var(--ln);display:flex;flex-direction:column;gap:12px;background:var(--s2)}
@@ -106,7 +109,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
  </aside>
 </div>
 
-<!-- 互動彈跳視窗：密碼、狀態切換、套餐選項 -->
+<!-- 互動彈跳視窗 -->
 <div class="modal" id="modal">
  <div class="m-box" id="mBox"></div>
 </div>
@@ -136,7 +139,6 @@ let cur=0,cart=[];
 let adminPassword = localStorage.getItem('admin_pwd') || '8888';
 let isAdmin = false;
 
-// 初始化檢查網址與套用營業狀態
 window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     if(params.get('mode') === 'admin') {
@@ -147,7 +149,6 @@ window.addEventListener('DOMContentLoaded', () => {
     updateStatusDisplay();
 });
 
-// 監聽跨頁籤或同源其他頁面（顧客頁面與店家頁面同步）的狀態變更
 window.addEventListener('storage', (e) => {
     if(e.key === 'shop_status') {
         updateStatusDisplay();
@@ -251,17 +252,27 @@ function add(name, price, id){
 }
 
 function qty(id,d){const e=cart.find(x=>x.id===id);if(!e)return;e.qty+=d;if(e.qty<=0)cart=cart.filter(x=>x.id!==id);renderCart();renderGrid()}
-function clearCart(){if(cart.length&&!confirm('確定清空訂單？'))return;cart=[];renderCart();renderGrid()}
+
+function removeItem(id){
+ cart=cart.filter(x=>x.id!==id);
+ renderCart();
+ renderGrid();
+}
+
+function clearCart(){
+ cart=[];
+ renderCart();
+ renderGrid();
+}
 
 function renderCart(){
- $('cl').innerHTML=cart.length?cart.map(x=>`<div class="ci"><div class="cr"><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
+ $('cl').innerHTML=cart.length?cart.map(x=>`<div class="ci"><div class="cr"><button class="del-btn" onclick="removeItem('${x.id}')" title="刪除">✕</button><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
   <div class="stp"><button onclick="qty('${x.id}',-1)">−</button><span>${x.qty}</span><button onclick="qty('${x.id}',1)">+</button></div></div>`).join(''):'<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
  const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
  $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n}
 
 function closeModal(){$('modal').classList.remove('open')}
 
-// 店家密碼與後台管理
 function openAdminLogin(){
  $('mBox').innerHTML=`
   <h3>店家後台登入</h3>
