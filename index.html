@@ -251,14 +251,13 @@ function showComboOptions(item){
  }
 
  $('mBox').innerHTML=`
-  <h3>選擇 ${esc(item.name)} 口味</h3>
+  <h3>${esc(item.name)}</h3>
   ${optionsHtml}
   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>
  `;
  $('modal').classList.add('open');
 }
 
-// 炒麵/燴飯/熱炒選項 (支援複選，點擊第二次即取消)
 let tempStirFryOptions = { spice: '', flavor: '' };
 
 function showStirFryOptions(item){
@@ -271,14 +270,14 @@ function renderStirFryModal(item){
  const flavors = ['清淡', '正常', '重鹹'];
 
  $('mBox').innerHTML=`
-  <h3>選擇 ${esc(item.name)} 偏好</h3>
+  <h3>${esc(item.name)}</h3>
   
-  <div class="opt-section-title">辣度選擇 (點選第二次取消)</div>
+  <div class="opt-section-title">辣度選擇</div>
   <div class="opt-grid">
    ${spices.map(s=>`<button class="opt-btn ${tempStirFryOptions.spice===s?'selected':''}" onclick="toggleStirFryOpt('spice','${s}','${item.id}')">${s}</button>`).join('')}
   </div>
 
-  <div class="opt-section-title">口味選擇 (點選第二次取消)</div>
+  <div class="opt-section-title">口味選擇</div>
   <div class="opt-grid">
    ${flavors.map(f=>`<button class="opt-btn ${tempStirFryOptions.flavor===f?'selected':''}" onclick="toggleStirFryOpt('flavor','${f}','${item.id}')">${f}</button>`).join('')}
   </div>
@@ -287,7 +286,7 @@ function renderStirFryModal(item){
 
   <div class="m-btns">
    <button class="btn-cancel" onclick="closeModal()">取消</button>
-   <button class="btn-confirm" onclick="confirmStirFry('${item.id}','${item.name}',${item.price})">確認加入</button>
+   <button class="btn-confirm" onclick="confirmStirFry('${item.id}','${item.name}',${item.price})">確認</button>
   </div>
  `;
  $('modal').classList.add('open');
@@ -318,8 +317,7 @@ function confirmStirFry(id, name, price){
  closeModal();
 }
 
-// 當歸湯系列選項 (不要薑絲)
-let tempSoupGinger = true; // 預設要薑絲
+let tempSoupGinger = true;
 
 function showSoupOptions(item){
  tempSoupGinger = true;
@@ -328,7 +326,7 @@ function showSoupOptions(item){
 
 function renderSoupModal(item){
  $('mBox').innerHTML=`
-  <h3>選擇 ${esc(item.name)} 薑絲偏好</h3>
+  <h3>${esc(item.name)}</h3>
   
   <div class="opt-grid" style="grid-template-columns: 1fr;">
    <button class="opt-btn ${!tempSoupGinger?'selected':''}" onclick="toggleSoupGinger('${item.id}')">不要薑絲</button>
@@ -338,7 +336,7 @@ function renderSoupModal(item){
 
   <div class="m-btns">
    <button class="btn-cancel" onclick="closeModal()">取消</button>
-   <button class="btn-confirm" onclick="confirmSoup('${item.id}','${item.name}',${item.price})">確認加入</button>
+   <button class="btn-confirm" onclick="confirmSoup('${item.id}','${item.name}',${item.price})">確認</button>
   </div>
  `;
  $('modal').classList.add('open');
