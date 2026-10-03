@@ -196,6 +196,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
    <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
+   <button class="ibtn" id="cashBtn" onclick="openCash()">💵 收銀盤點</button>
    <button class="ibtn" id="soundBtn" onclick="toggleSound()">🔔 提示音</button>
    <button class="ibtn" id="logoutBtn" onclick="doLogout()">🚪 登出</button>
   </div>
@@ -716,7 +717,7 @@ function finishOrder(){
 
 /* ===== 店家登入（Firebase Auth）===== */
 function setAdminUI(on){
-  ['ordersBtn','soldOutModeBtn','soldOutListBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
+  ['ordersBtn','soldOutModeBtn','soldOutListBtn','cashBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
   $('adminBtn').style.display=on&&isManager()?'block':'none';
   $('logoutBtn').textContent='🚪 登出（'+(isManager()?'店長':'店員')+'）';
   $('statusPill').classList.toggle('admin-mode',on);
@@ -732,6 +733,7 @@ async function onAuth(user){
     catch(e){ROLE=localStorage.getItem('role_'+user.uid)||'staff'}
     isAdmin=true;setAdminUI(true);startOrders();startAlarm();keepAwake();updateSoundBtn();
     toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
+    setTimeout(checkOpenReminder,5000);
   }else{
     isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();openAdminLogin();
   }
@@ -911,6 +913,7 @@ function openAdminPanel(){
    <div class="opt-list">
     <button class="opt-btn" onclick="openStats()">📊 今日營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
+    <button class="opt-btn" onclick="openDayReport()">💵 日報表與彙整匯出（收銀對帳）</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
@@ -1330,6 +1333,262 @@ function showQueued(o){
 function notifyLine(id){
   if(!LINE_HOOK)return;
   try{fetch(LINE_HOOK,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'order',id})}).catch(()=>{})}catch(e){}
+}
+
+/* ===== 收銀盤點 / 日報表 / 彙整匯出 ===== */
+const DENOMS=[2000,1000,500,200,100,50,20,10,5,1];
+const EXP_TYPES=[['進貨','進貨/材料'],['雜支','雜支'],['退款','退款'],['其他','其他支出'],['存鈔','存鈔（存起來）']];
+const expLabel=k=>(EXP_TYPES.find(x=>x[0]===k)||[k,k])[1];
+const dayStartMs=day=>new Date(+day.slice(0,4),+day.slice(4,6)-1,+day.slice(6,8),2,0,0,0).getTime();
+const dayPlain=day=>day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8);
+const dayWeek=day=>'週'+'日一二三四五六'[new Date(dayStartMs(day)).getDay()];
+const dayLabel=day=>dayPlain(day)+'（'+dayWeek(day)+'）';
+const shiftDay=(day,n)=>{const d=new Date(dayStartMs(day));d.setDate(d.getDate()+n);return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
+
+async function fetchDayOrders(day){
+  const a=dayStartMs(day),b=a+86400000-1;
+  const sn=await FB.get(FB.query(FB.ref(FB.db,'orders'),FB.orderByChild('createdAt'),FB.startAt(a),FB.endAt(b)));
+  return Object.values(sn.val()||{});
+}
+function salesOf(list){
+  const ok=list.filter(o=>o.status!=='cancelled');
+  const r={count:ok.length,voided:list.length-ok.length,revenue:0,cash:0,transfer:0,linepay:0,allpay:0,unpaidN:0,unpaid:0};
+  ok.forEach(o=>{
+    const t=+o.total||0;r.revenue+=t;
+    if(!o.paid){r.unpaidN++;r.unpaid+=t;return}
+    if(o.pay==='現金')r.cash+=t;else if(o.pay==='轉帳')r.transfer+=t;else if(o.pay==='Linepay')r.linepay+=t;else if(o.pay==='全支付')r.allpay+=t;
+  });
+  return r;
+}
+function calcDay(cb,sales){
+  const exps=Object.values(cb.expenses||{});
+  const sum=f=>exps.filter(f).reduce((a,e)=>a+(+e.amount||0),0);
+  const expense=sum(e=>e.type!=='存鈔'),deposit=sum(e=>e.type==='存鈔');
+  const hasOpen=!!cb.open,hasClose=!!cb.close,open=hasOpen?(+cb.open.total||0):0;
+  const expected=open+sales.cash-expense-deposit;
+  const close=hasClose?(+cb.close.total||0):null;
+  return{expense,deposit,hasOpen,hasClose,open,expected,close,diff:hasClose?close-expected:null};
+}
+
+/* --- 盤點 / 支出 輸入畫面（店員、店長都可用）--- */
+let CASH={day:'',data:{},tab:null,cnt:null,ex:{type:'進貨',amount:'',note:''}};
+async function openCash(day,tab){
+  CASH={day:day||today8(),data:{},tab:tab||null,cnt:null,ex:{type:'進貨',amount:'',note:''}};
+  viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box xl';
+  $('mBox').innerHTML='<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+  $('modal').classList.add('open');
+  await reloadCash();
+}
+async function reloadCash(){
+  try{const sn=await FB.get(FB.ref(FB.db,'cashbook/'+CASH.day));CASH.data=sn.val()||{}}
+  catch(e){CASH.data={};alert('讀取收銀資料失敗：'+(e.code||e.message))}
+  if(!CASH.tab)CASH.tab=!CASH.data.open?'open':(!CASH.data.close?'exp':'close');
+  CASH.cnt=null;renderCash();
+}
+function cashTab(k){CASH.tab=k;CASH.cnt=null;renderCash()}
+function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=+src['d'+d]||0)}
+const cashTotal=()=>DENOMS.reduce((a,d)=>a+d*(CASH.cnt[d]||0),0);
+function cashCnt(d,v){
+  CASH.cnt[d]=Math.max(0,parseInt(v)||0);
+  const el=$('cs'+d);if(el)el.textContent='$'+d*CASH.cnt[d];
+  const t=$('cashTot');if(t)t.textContent='$'+cashTotal();
+}
+function renderCash(){
+  const D=CASH.data||{},t=CASH.tab,day=CASH.day;
+  const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['close','收班盤點',!!D.close]];
+  let body='';
+  if(t==='open'||t==='close'){
+    if(!CASH.cnt)cntInit(t);
+    const rec=D[t],nm=t==='open'?'開店':'收班';
+    body=`<div class="fm-sec"><div class="fm-title">${nm}時收銀台內的現金（輸入每種面額的張數／枚數）</div>
+      ${rec?`<div class="modal-tip">已盤點：$${rec.total}（${fmtDT(rec.at)}　${esc(rec.by||'')}）。重新輸入後按儲存即可修改。</div>`:''}
+      ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input class="qt" style="width:100px" type="number" min="0" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="0" oninput="cashCnt(${d},this.value)"><span style="flex:1;text-align:right;color:var(--mu)" id="cs${d}">$${d*(CASH.cnt[d]||0)}</span></div>`).join('')}
+      <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
+      <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
+  }else body=expHtml();
+  $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
+   <div class="modal-tip">營業日：${dayLabel(day)}（每日 02:00 換日）</div>
+   <div class="chips">${tabs.map(([k,n,ok])=>`<button class="chip${t===k?' on':''}" onclick="cashTab('${k}')">${ok?'✔ ':''}${n}</button>`).join('')}</div>${body}`;
+}
+async function saveCount(kind){
+  const total=cashTotal(),counts={};DENOMS.forEach(d=>counts['d'+d]=CASH.cnt[d]||0);
+  const old=CASH.data[kind],nm=kind==='open'?'開店':'收班';
+  if(total===0&&!confirm(`${nm}盤點合計是 $0，確定要儲存嗎？`))return;
+  const b=$('cashSave');b.disabled=true;b.textContent='儲存中…';
+  try{
+    await FB.set(FB.ref(FB.db,'cashbook/'+CASH.day+'/'+kind),{counts,total,at:Date.now(),by:whoAmI()});
+    if(kind==='close'){
+      const sm=salesOf(await fetchDayOrders(CASH.day));sm.at=Date.now();
+      await FB.set(FB.ref(FB.db,'cashbook/'+CASH.day+'/summary'),sm);
+    }
+    logAct(nm+'盤點',null,'',`${dayPlain(CASH.day)} 合計 $${total}${old?'（原 $'+old.total+'）':''}`);
+  }catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'+nm+'盤點';return}
+  CASH.tab=kind==='open'?'exp':'close';
+  toast(`✅ ${nm}盤點已儲存：$${total}`+(kind==='close'&&isManager()?'　可到「後台管理 → 日報表」查看差額':''));
+  await reloadCash();
+}
+function expHtml(){
+  const D=CASH.data||{};
+  const list=Object.entries(D.expenses||{}).map(([id,e])=>({id,...e})).sort((a,b)=>a.at-b.at);
+  const sum=f=>list.filter(f).reduce((a,e)=>a+(+e.amount||0),0);
+  const mg=isManager();
+  const rows=list.map(e=>`<tr><td>${fmtT(e.at)}</td><td>${esc(expLabel(e.type))}</td><td>$${e.amount}</td><td>${esc(e.note||'')}</td><td>${esc(e.by||'')}</td>${mg?`<td><button class="rb" onclick="editExpense('${e.id}')">修改</button><button class="rb del" onclick="delExpense('${e.id}')">刪除</button></td>`:''}</tr>`).join('');
+  return `<div class="fm-sec"><div class="fm-title">新增一筆（從收銀機拿出去的錢）</div>
+    <div class="chips">${EXP_TYPES.map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" onclick="CASH.ex.type='${k}';renderCash()">${n}</button>`).join('')}</div>
+    <div class="fm-row"><b>金額</b><input type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value"></div>
+    <div class="fm-row"><b>說明</b><input value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2" oninput="CASH.ex.note=this.value"></div>
+    <div class="m-btns"><button class="btn-confirm" onclick="addExpense()">＋ 新增</button></div></div>
+   <div class="fm-sec"><div class="fm-title">當日紀錄</div>
+    ${list.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th>${mg?'<th>操作</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:12px">今天還沒有支出或存鈔紀錄</div>'}
+    <div class="fm-line"><span>支出合計</span><span>$${sum(e=>e.type!=='存鈔')}</span></div>
+    <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div></div>`;
+}
+async function addExpense(){
+  const amt=parseFloat(CASH.ex.amount);
+  if(!(amt>0)){alert('請輸入大於 0 的金額');return}
+  const rec={at:Date.now(),type:CASH.ex.type,amount:amt,note:CASH.ex.note.trim(),by:whoAmI()};
+  try{await FB.set(FB.push(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses')),rec)}
+  catch(e){alert('新增失敗：'+(e.code||e.message));return}
+  logAct('收銀'+(rec.type==='存鈔'?'存鈔':'支出'),null,'',`${expLabel(rec.type)} $${amt}${rec.note?'｜'+rec.note:''}`);
+  CASH.ex={type:CASH.ex.type,amount:'',note:''};
+  await reloadCash();
+}
+async function editExpense(id){
+  if(!isManager())return;
+  const e=(CASH.data.expenses||{})[id];if(!e)return;
+  const a=prompt('修改金額',e.amount);if(a===null)return;
+  const amt=parseFloat(a);if(!(amt>0)){alert('金額不正確');return}
+  const n=prompt('修改說明',e.note||'');if(n===null)return;
+  try{await FB.update(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses/'+id),{amount:amt,note:n.trim()})}
+  catch(er){alert('修改失敗：'+(er.code||er.message));return}
+  logAct('修改收銀紀錄',null,'',`${expLabel(e.type)} $${e.amount}→$${amt}`);
+  await reloadCash();
+}
+async function delExpense(id){
+  if(!isManager())return;
+  const e=(CASH.data.expenses||{})[id];if(!e||!confirm(`刪除這筆「${expLabel(e.type)} $${e.amount}」？`))return;
+  try{await FB.remove(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses/'+id))}
+  catch(er){alert('刪除失敗：'+(er.code||er.message));return}
+  logAct('刪除收銀紀錄',null,'',`${expLabel(e.type)} $${e.amount}${e.note?'｜'+e.note:''}`);
+  await reloadCash();
+}
+async function checkOpenReminder(){
+  if(!isAdmin||!window.FB)return;
+  try{const sn=await FB.get(FB.ref(FB.db,'cashbook/'+today8()+'/open'));if(!sn.exists())toast('💵 今天還沒有開店盤點，點這裡輸入收銀台金額',()=>openCash(null,'open'))}catch(e){}
+}
+
+/* --- 日報表（店長）--- */
+let RP={day:''};
+async function openDayReport(day){
+  if(!isManager())return;
+  RP={day:day||today8()};viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xl';$('modal').classList.add('open');
+  await renderDayReport();
+}
+async function loadDay(day){
+  const cb=(await FB.get(FB.ref(FB.db,'cashbook/'+day))).val()||{};
+  let sales=cb.summary,live=false;
+  if(!sales){sales=salesOf(await fetchDayOrders(day));live=true}
+  return{cb,sales,live};
+}
+async function renderDayReport(){
+  const day=RP.day;
+  $('mBox').innerHTML='<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+  let cb,sales,live;
+  try{({cb,sales,live}=await loadDay(day))}
+  catch(e){$('mBox').innerHTML=`<div class="oh"><h3>💵 日報表</h3><button onclick="openAdminPanel()">返回</button></div><div style="color:var(--bad);padding:20px">讀取失敗：${esc(e.code||e.message)}</div>`;return}
+  const c=calcDay(cb,sales);
+  const L=(k,v,st)=>`<div class="fm-line"><span>${k}</span><span${st?` style="${st}"`:''}>${v}</span></div>`;
+  const byType={};Object.values(cb.expenses||{}).forEach(e=>{byType[e.type]=(byType[e.type]||0)+(+e.amount||0)});
+  const typeLines=EXP_TYPES.filter(([k])=>byType[k]).map(([k,n])=>L('　'+n,'$'+byType[k])).join('');
+  const dcol=c.diff==null?'':(c.diff===0?'color:var(--ok);font-weight:800':'color:var(--bad);font-weight:800');
+  const dtxt=c.diff==null?'尚未收班盤點':(c.diff===0?'$0（帳實相符）':(c.diff>0?'多 $'+c.diff:'短 $'+(-c.diff)));
+  $('mBox').innerHTML=`<div class="oh"><h3>💵 日報表　${dayLabel(day)}</h3><button onclick="openAdminPanel()">返回</button></div>
+   <div class="fm-row"><button class="rb" onclick="gotoReport('${shiftDay(day,-1)}')">◀ 前一天</button><input type="date" value="${day.slice(0,4)}-${day.slice(4,6)}-${day.slice(6,8)}" onchange="gotoReport(this.value.replace(/-/g,''))"><button class="rb" onclick="gotoReport('${shiftDay(day,1)}')">後一天 ▶</button></div>
+   ${live?'<div class="modal-tip">這一天尚未收班盤點，銷售數字為即時計算（收班盤點後會固定下來）。</div>':''}
+   <div class="fm-sec"><div class="fm-title">銷售</div>
+    <div class="fm-total" style="border:0;padding:0"><span>營收合計</span><b>${money(sales.revenue)}</b></div>
+    ${L('有效訂單',sales.count+' 單')}${L('已拒單',sales.voided+' 單')}
+    ${L('現金收入（已收款）',money(sales.cash))}${L('轉帳',money(sales.transfer))}${L('Linepay',money(sales.linepay))}${L('全支付',money(sales.allpay))}
+    ${L('未收款',`${sales.unpaidN} 單 / ${money(sales.unpaid)}`,sales.unpaidN?'color:var(--bad)':'')}</div>
+   <div class="fm-sec"><div class="fm-title">收銀台現金對帳</div>
+    ${L('開店現金',c.hasOpen?money(c.open):'尚未開店盤點',c.hasOpen?'':'color:var(--bad)')}
+    ${L('＋ 現金收入',money(sales.cash))}
+    ${L('－ 支出合計',money(c.expense))}${typeLines}
+    ${L('－ 存鈔合計',money(c.deposit))}
+    ${L('＝ 理論應有現金',money(c.expected),'font-weight:800')}
+    ${L('收班實際現金',c.hasClose?money(c.close):'尚未收班盤點')}
+    <div class="fm-total"><span>差額</span><b style="${dcol}">${dtxt}</b></div></div>
+   <div class="m-btns"><button class="btn-cancel" onclick="openCash('${day}')">✏️ 編輯這天的盤點／支出</button><button class="btn-cancel" onclick="recalcSales('${day}')">🔄 重新計算銷售</button><button class="btn-confirm" id="xlBtn" onclick="exportCashbook()">📥 匯出彙整 Excel（全部日期）</button></div>`;
+}
+function gotoReport(day){if(/^\d{8}$/.test(day)){RP.day=day;renderDayReport()}}
+async function recalcSales(day){
+  try{
+    const sm=salesOf(await fetchDayOrders(day));sm.at=Date.now();
+    const cb=(await FB.get(FB.ref(FB.db,'cashbook/'+day))).val()||{};
+    if(cb.close){await FB.set(FB.ref(FB.db,'cashbook/'+day+'/summary'),sm);logAct('重算日報銷售',null,'',dayPlain(day))}
+  }catch(e){alert('重新計算失敗：'+(e.code||e.message));return}
+  renderDayReport();
+}
+
+/* --- 彙整 Excel：每次都匯出「所有日期」，隔天再匯出時前一天仍在 --- */
+function loadXLSX(){
+  return new Promise((res,rej)=>{
+    if(window.XLSX)return res(window.XLSX);
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload=()=>window.XLSX?res(window.XLSX):rej(new Error('xlsx'));
+    sc.onerror=()=>rej(new Error('load'));
+    document.head.appendChild(sc);
+  });
+}
+async function buildCashbookSheets(){
+  const all=(await FB.get(FB.ref(FB.db,'cashbook'))).val()||{};
+  const days=Object.keys(all).sort();
+  const daily=[],exps=[],cnts=[];let cumRev=0,cumDiff=0;
+  for(const day of days){
+    const cb=all[day]||{};
+    const sales=cb.summary||salesOf(await fetchDayOrders(day));
+    const c=calcDay(cb,sales);
+    cumRev+=sales.revenue;if(c.diff!=null)cumDiff+=c.diff;
+    daily.push([dayPlain(day),dayWeek(day),c.hasClose?'已收班':'未收班',sales.count,sales.voided,sales.revenue,sales.cash,sales.transfer,sales.linepay,sales.allpay,sales.unpaid,
+      c.hasOpen?c.open:'',c.expense,c.deposit,c.expected,c.hasClose?c.close:'',c.diff==null?'':c.diff,cumRev,cumDiff]);
+    Object.values(cb.expenses||{}).sort((a,b)=>a.at-b.at).forEach(e=>exps.push([dayPlain(day),fmtDT(e.at),expLabel(e.type),+e.amount||0,e.note||'',e.by||'']));
+    [['open','開店'],['close','收班']].forEach(([k,nm])=>{
+      const r=cb[k];if(!r)return;
+      cnts.push([dayPlain(day),nm+'盤點',fmtDT(r.at),r.by||'',...DENOMS.map(d=>+((r.counts||{})['d'+d])||0),+r.total||0]);
+    });
+  }
+  return{
+    daily:[['營業日','星期','狀態','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','未收款','開店現金','支出合計','存鈔合計','理論應有現金','收班現金','差額','累計營收','累計差額'],...daily],
+    exps:[['營業日','時間','類別','金額','說明','登錄人'],...exps],
+    cnts:[['營業日','類型','時間','登錄人',...DENOMS.map(d=>'$'+d),'合計'],...cnts]
+  };
+}
+async function exportCashbook(){
+  const btn=$('xlBtn');if(btn){btn.disabled=true;btn.textContent='整理中…'}
+  try{
+    const S=await buildCashbookSheets();
+    if(S.daily.length<2){alert('目前還沒有任何收銀資料');return}
+    const stamp=ymd(new Date());
+    try{
+      const X=await loadXLSX(),wb=X.utils.book_new();
+      [[S.daily,'日報表彙整'],[S.exps,'支出與存鈔明細'],[S.cnts,'盤點明細']].forEach(([rows,name])=>{
+        const ws=X.utils.aoa_to_sheet(rows);
+        ws['!cols']=rows[0].map((_,i)=>({wch:i===0?12:14}));
+        X.utils.book_append_sheet(wb,ws,name);
+      });
+      X.writeFile(wb,'收銀日報彙整_'+stamp+'.xlsx');
+    }catch(e){
+      /* 沒有網路載入 Excel 元件時，改匯出 CSV（只有日報表彙整） */
+      const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+      const csv='\ufeff'+S.daily.map(r=>r.map(q).join(',')).join('\r\n');
+      const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+      a.download='收銀日報彙整_'+stamp+'.csv';document.body.appendChild(a);a.click();a.remove();
+      alert('Excel 元件載入失敗，已改匯出 CSV（只含日報表彙整）。');
+    }
+  }catch(e){alert('匯出失敗：'+(e.code||e.message))}
+  if(btn){btn.disabled=false;btn.textContent='📥 匯出彙整 Excel（全部日期）'}
 }
 
 function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
