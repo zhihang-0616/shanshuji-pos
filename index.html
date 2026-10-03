@@ -89,6 +89,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
 .btn-confirm{background:var(--ac);color:#1a1204}
 .btn-confirm:disabled{opacity:.4;cursor:not-allowed}
+.btn-confirm:disabled{opacity:.4;cursor:not-allowed}
 .sold-list-container{display:flex;flex-direction:column;gap:10px;max-height:350px;overflow-y:auto;padding-right:4px}
 .sold-item-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);padding:10px 14px;border-radius:8px;border:1px solid var(--ln)}
 .sold-item-name{font-size:15px;font-weight:600;color:var(--tx)}
@@ -471,21 +472,36 @@ function confirmStirFry(id,name,price){
 
 /* 自由流通麵：客人必選包裝方式 */
 const NOODLE_OPTS=['與食材裝一起','麵食另外裝','多數麵食獨立分開裝'];
-let tempNoodle='';
-function showNoodleOptions(item){tempNoodle='';renderNoodleModal(item)}
-function renderNoodleModal(item){
-  $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>
+let NDL=null;
+const prodQty=(base,p)=>cart.filter(x=>baseId(x.id)===base&&(x.p||0)===p).reduce((a,x)=>a+x.qty,0);
+const isMultiNoodle=x=>String(x.id).endsWith('_'+NOODLE_OPTS[2]);
+function showNoodleOptions(item){NDL={item,opt:'',qty:1};renderNoodleModal()}
+function renderNoodleModal(){
+  const it=NDL.item,have=prodQty(it.id,curP),multiOk=NDL.qty+have>=2;
+  if(NDL.opt===NOODLE_OPTS[2]&&!multiOk)NDL.opt='';
+  $('mBox').innerHTML=`<h3>${esc(it.name)}</h3>
+   <div class="fm-row"><b style="width:auto">數量</b><div class="stp"><button onclick="ndlQty(-1)">−</button><span>${NDL.qty}</span><button onclick="ndlQty(1)">+</button></div></div>
    <div class="opt-section-title">麵食包裝方式（必選）</div>
-   <div class="opt-grid" style="grid-template-columns:1fr">${NOODLE_OPTS.map(o=>`<button class="opt-btn ${tempNoodle===o?'selected':''}" onclick="pickNoodle('${o}','${item.id}')">${o}</button>`).join('')}</div>
-   <div class="modal-tip">請先選擇麵食要怎麼包裝，選好後才能加入訂單。</div>
-   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" ${tempNoodle?'':'disabled'} onclick="confirmNoodle('${item.id}','${item.name}',${item.price})">確認</button></div>`;
+   <div class="opt-grid" style="grid-template-columns:1fr">${NOODLE_OPTS.map((o,i)=>{const dis=i===2&&!multiOk;return `<button class="opt-btn ${NDL.opt===o?'selected':''} ${dis?'disabled-opt':''}" ${dis?'disabled':''} onclick="ndlPick(${i})">${o}${i===2?`<br><small style="font-weight:400">同商品需點 2 份（含）以上才能選${have?`（購物車已有 ${have} 份）`:''}</small>`:''}</button>`}).join('')}</div>
+   <div class="modal-tip">請選擇麵食要怎麼包裝，選好後才能加入訂單。</div>
+   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" ${NDL.opt?'':'disabled'} onclick="confirmNoodle()">確認加入</button></div>`;
   $('modal').classList.add('open');
 }
-function pickNoodle(o,id){tempNoodle=o;renderNoodleModal(find(id))}
-function confirmNoodle(id,name,price){
-  if(!tempNoodle){alert('請先選擇麵食包裝方式');return}
-  add(`${name} (${tempNoodle})`,price,id+'_'+tempNoodle);
+function ndlQty(d){NDL.qty=Math.max(1,Math.min(20,NDL.qty+d));renderNoodleModal()}
+function ndlPick(i){
+  if(i===2&&NDL.qty+prodQty(NDL.item.id,curP)<2)return;
+  NDL.opt=NOODLE_OPTS[i];renderNoodleModal();
+}
+function confirmNoodle(){
+  if(!NDL||!NDL.opt){alert('請先選擇麵食包裝方式');return}
+  const it=NDL.item,name=`${it.name} (${NDL.opt})`,id=it.id+'_'+NDL.opt;
+  for(let i=0;i<NDL.qty;i++)add(name,it.price,id);
   closeModal();
+}
+/* 選了「多數麵食獨立分開裝」的商品，同一位客人必須點到 2 份以上 */
+function noodleViolation(){
+  const x=cart.find(l=>isMultiNoodle(l)&&prodQty(baseId(l.id),l.p||0)<2);
+  return x?itemName(x.id):'';
 }
 let tempSoupGinger=true;
 function showSoupOptions(item){tempSoupGinger=true;renderSoupModal(item)}
@@ -509,7 +525,7 @@ function add(name,price,id){
   e?e.qty++:cart.push({id,name,price,qty:1,p:curP});
   renderCart();renderGrid();
 }
-function qty(j,d){const e=cart[j];if(!e)return;if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
+function qty(j,d){const e=cart[j];if(!e)return;if(d<0&&isMultiNoodle(e)&&prodQty(baseId(e.id),e.p||0)+d<2){toast(`「${itemName(e.id)}」選了「多數麵食獨立分開裝」，同商品需要 2 份以上；要減少請先刪除這一項，再重新選擇包裝方式`);return}if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
 function removeItem(j){cart.splice(j,1);renderCart();renderGrid()}
 function clearCart(){cart=[];CK.people=[newP()];curP=0;renderCart();renderGrid()}
 function selPerson(i){curP=i;renderCart();renderGrid()}
@@ -569,6 +585,8 @@ function timeSlots(){
 }
 function openCheckout(){
   if(!cart.length||isClosed())return;
+  const bad=noodleViolation();
+  if(bad){alert(`「${bad}」選了「多數麵食獨立分開裝」，但同商品只有 1 份。\n請把它刪除後重新選擇包裝方式，或再多點 1 份。`);return}
   prunePeople();
   CK.err=false;
   $('mBox').className='m-box wide';
