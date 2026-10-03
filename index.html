@@ -1336,7 +1336,7 @@ function notifyLine(id){
 }
 
 /* ===== 收銀盤點 / 日報表 / 彙整匯出 ===== */
-const DENOMS=[2000,1000,500,200,100,50,20,10,5,1];
+const DENOMS=[1000,500,100,50,10,5,1];
 const EXP_TYPES=[['進貨','進貨/材料'],['雜支','雜支'],['退款','退款'],['其他','其他支出'],['存鈔','存鈔（存起來）']];
 const expLabel=k=>(EXP_TYPES.find(x=>x[0]===k)||[k,k])[1];
 const dayStartMs=day=>new Date(+day.slice(0,4),+day.slice(4,6)-1,+day.slice(6,8),2,0,0,0).getTime();
