@@ -88,6 +88,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .m-btns button{flex:1;min-width:96px;padding:12px;border-radius:8px;font-weight:700}
 .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
 .btn-confirm{background:var(--ac);color:#1a1204}
+.btn-confirm:disabled{opacity:.4;cursor:not-allowed}
 .sold-list-container{display:flex;flex-direction:column;gap:10px;max-height:350px;overflow-y:auto;padding-right:4px}
 .sold-item-row{display:flex;align-items:center;justify-content:space-between;background:var(--s2);padding:10px 14px;border-radius:8px;border:1px solid var(--ln)}
 .sold-item-name{font-size:15px;font-weight:600;color:var(--tx)}
@@ -429,6 +430,7 @@ function handleCardClick(id){
   if(['s1','s2','s3'].includes(id))showComboOptions(item);
   else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id))showStirFryOptions(item);
   else if(['w8','w9'].includes(id))showSoupOptions(item);
+  else if(MENU.find(c=>c.k.startsWith('自由流通麵')).items.some(x=>x.id===id))showNoodleOptions(item);
   else add(item.name,item.price,id);
 }
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
@@ -467,6 +469,24 @@ function confirmStirFry(id,name,price){
   closeModal();
 }
 
+/* 自由流通麵：客人必選包裝方式 */
+const NOODLE_OPTS=['與食材裝一起','麵食另外裝','多數麵食獨立分開裝'];
+let tempNoodle='';
+function showNoodleOptions(item){tempNoodle='';renderNoodleModal(item)}
+function renderNoodleModal(item){
+  $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>
+   <div class="opt-section-title">麵食包裝方式（必選）</div>
+   <div class="opt-grid" style="grid-template-columns:1fr">${NOODLE_OPTS.map(o=>`<button class="opt-btn ${tempNoodle===o?'selected':''}" onclick="pickNoodle('${o}','${item.id}')">${o}</button>`).join('')}</div>
+   <div class="modal-tip">請先選擇麵食要怎麼包裝，選好後才能加入訂單。</div>
+   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" ${tempNoodle?'':'disabled'} onclick="confirmNoodle('${item.id}','${item.name}',${item.price})">確認</button></div>`;
+  $('modal').classList.add('open');
+}
+function pickNoodle(o,id){tempNoodle=o;renderNoodleModal(find(id))}
+function confirmNoodle(id,name,price){
+  if(!tempNoodle){alert('請先選擇麵食包裝方式');return}
+  add(`${name} (${tempNoodle})`,price,id+'_'+tempNoodle);
+  closeModal();
+}
 let tempSoupGinger=true;
 function showSoupOptions(item){tempSoupGinger=true;renderSoupModal(item)}
 function renderSoupModal(item){
@@ -533,7 +553,6 @@ function renderCart(){
 function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('modal').classList.remove('open');$('mBox').className='m-box'}
 
 /* ===== 取餐資訊 ===== */
-const NOODLE=['麵食分開裝','麵食裝一起','多數麵分開裝'];
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
 const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
@@ -562,7 +581,6 @@ function pick(key,v){CK[key]=CK[key]===v?'':v;renderCheckout()}
 function toggleGear(v){
   if(CK.gear.includes(v))CK.gear=CK.gear.filter(x=>x!==v);
   else{
-    if(NOODLE.includes(v))CK.gear=CK.gear.filter(x=>!NOODLE.includes(x));
     CK.gear.push(v);
   }
   renderCheckout();
@@ -642,7 +660,7 @@ function renderCheckout(){
    </div>
    ${CK.people.map((pp,i)=>personBlock(i)).join('')}
    <div class="fm-sec">
-    <div class="fm-row"><b>配備:</b><div class="chips">${['需熱食','需餐具',...NOODLE].map(gearChip).join('')}</div></div>
+    <div class="fm-row"><b>配備:</b><div class="chips">${['需熱食','需餐具'].map(gearChip).join('')}</div></div>
     <div style="text-align:center;font-size:12.5px;color:var(--mu)">🌱 依法不主動提供免洗餐具</div>
     <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選或註明辣度與口味偏好 系統將自動以「原味、不辣、正常口味」為您製作 謝謝您的配合</div>
    </div>
@@ -1137,7 +1155,7 @@ function edDelPerson(i){
 }
 function edGear(v){
   if(ED.gear.includes(v))ED.gear=ED.gear.filter(x=>x!==v);
-  else{if(NOODLE.includes(v))ED.gear=ED.gear.filter(x=>!NOODLE.includes(x));ED.gear.push(v)}
+  else ED.gear.push(v);
   renderEdit();
 }
 function edPhone(el){
@@ -1179,7 +1197,7 @@ function renderEdit(){
    </div>
    ${pblocks}
    <div class="fm-sec">
-    <div class="fm-row"><b>配備</b><div class="chips">${['需熱食','需餐具',...NOODLE].map(v=>`<button class="chip${ED.gear.includes(v)?' on':''}" onclick="edGear('${v}')">${v}</button>`).join('')}</div></div>
+    <div class="fm-row"><b>配備</b><div class="chips">${['需熱食','需餐具',...ED.gear.filter(x=>!['需熱食','需餐具'].includes(x))].map(v=>`<button class="chip${ED.gear.includes(v)?' on':''}" onclick="edGear('${v}')">${v}</button>`).join('')}</div></div>
     <div class="fm-row"><button class="chip" onclick="edAddPerson()">＋ 新增一位（分開計）</button></div>
    </div>
    <div class="fm-sec">
