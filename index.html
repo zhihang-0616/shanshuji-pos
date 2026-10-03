@@ -192,7 +192,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  <div class="brand-center">
   <div class="brand-row"><b>去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b>POS 點餐系統</b></div>
   <div class="brand-actions">
-   <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單</button>
+   <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單管理</button>
    <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
@@ -783,7 +783,7 @@ function toast(msg,fn){
 
 /* ===== 訂單列表（店家）===== */
 let ORDERS={},ordStart=0,ordUnsub=null,ordInit=false,viewingOrders=false,viewingStats=false,viewingTrack=false,ordFilter='active';
-const ST={new:'新單',making:'製作中',done:'已完成',picked:'已取餐',cancelled:'已作廢'};
+const ST={new:'新單',making:'製作中',done:'已完成',picked:'已取餐',cancelled:'已拒單'};
 const NEXT={new:['making','開始製作'],making:['done','製作完成'],done:['picked','已取餐']};
 function startOrders(){
   stopOrders();
@@ -803,7 +803,7 @@ function startOrders(){
 function stopOrders(){if(ordUnsub){ordUnsub();ordUnsub=null}ORDERS={};ordInit=false;updateOrderBadge()}
 function updateOrderBadge(){
   const n=Object.values(ORDERS).filter(o=>o.status==='new').length;
-  const b=$('ordersBtn');b.textContent='📦 訂單'+(n?` (${n})`:'');b.classList.toggle('pulse',n>0);
+  const b=$('ordersBtn');b.textContent='📦 訂單管理'+(n?` (${n})`:'');b.classList.toggle('pulse',n>0);
   document.title=(n?`(${n}) 新訂單｜`:'')+BASE_TITLE;
 }
 function openOrders(){
@@ -815,7 +815,7 @@ function renderOrders(){
   if(!viewingOrders)return;
   const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
   const cnt=k=>all.filter(o=>o.status===k).length;
-  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已作廢',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
+  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
     .sort((a,b)=>String(a.time).localeCompare(String(b.time))||a.createdAt-b.createdAt);
   const cards=list.map(o=>{
@@ -830,20 +830,20 @@ function renderOrders(){
       <div>${items}</div>
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
-      ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">作廢原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
+      ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
       <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'?(o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':'　<span style="color:var(--bad);font-weight:700">未收款</span>'):''}</div>
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
       ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款':'結帳'}</button>`:''}
-      ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">作廢</button>`:''}
+      ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">拒單</button>`:''}
       ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
       ${nx?`<button class="oc-go" onclick="setOrderStatus('${o.id}','${nx[0]}')">${nx[1]}</button>`:''}
      </div></div>`;
   }).join('');
   const y=$('mBox').scrollTop;
   $('mBox').innerHTML=`
-   <div class="oh"><h3>📦 今日訂單</h3><button onclick="closeModal()">關閉</button></div>
+   <div class="oh"><h3>📦 訂單管理</h3><button onclick="closeModal()">關閉</button></div>
    <div class="ofl">${F.map(([k,t,n])=>`<button class="chip${ordFilter===k?' on':''}" onclick="setOrdFilter('${k}')">${t} ${n}</button>`).join('')}</div>
    ${cards||'<div style="text-align:center;color:var(--mu);padding:30px">目前沒有訂單</div>'}`;
   $('mBox').scrollTop=y;
@@ -871,7 +871,7 @@ function watchMy(id){
     if(v&&v.notice){try{const seen=JSON.parse(localStorage.getItem('seen_notice')||'{}');if(seen[id]!==v.notice.at){seen[id]=v.notice.at;localStorage.setItem('seen_notice',JSON.stringify(seen));toast(`📢 訂單 #${v.no}：${v.notice.text}`,openTrack)}}catch(e){}}
     if(v&&prev&&prev!==v.status){
       if(v.status==='done')toast(`🍱 訂單 #${v.no} 已完成，請前往取餐`,openTrack);
-      else if(v.status==='cancelled')toast(`訂單 #${v.no} 已被店家取消`,openTrack);
+      else if(v.status==='cancelled')toast(`訂單 #${v.no} 店家無法接單（已拒單）`,openTrack);
     }
     renderTrack();
   },()=>{MYD[id]={gone:true};renderTrack()});
@@ -887,7 +887,7 @@ function renderTrack(){
     if(!o)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">讀取中…</div></div>`;
     if(o.gone)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">找不到此訂單，請洽店家</div></div>`;
     const cur=STEPS.findIndex(x=>x[0]===o.status);
-    const prog=o.status==='cancelled'?'<div style="color:var(--bad);font-weight:700;text-align:center">此訂單已取消，如有疑問請洽店家</div>'
+    const prog=o.status==='cancelled'?'<div style="color:var(--bad);font-weight:700;text-align:center">店家無法接受此訂單（已拒單），如有疑問請洽店家</div>'
       :`<div class="trk">${STEPS.map((x,i)=>`<span class="${i<cur?'ok':i===cur?'cur':''}">${x[1]}</span>`).join('')}</div>`;
     return `<div class="fm-sec">
      <div class="oc-h"><b style="font-size:20px;color:var(--ac)">#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span></div>
@@ -911,7 +911,7 @@ function openAdminPanel(){
    <div class="opt-list">
     <button class="opt-btn" onclick="openStats()">📊 今日營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
-    <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（作廢／刪除／修改）</button>
+    <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
@@ -941,7 +941,7 @@ function renderStats(){
   $('mBox').innerHTML=`<div class="oh"><h3>📊 今日營業統計</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-sec">
     <div class="fm-total" style="border:0;padding:0"><span>今日營收</span><b>${money(S.rev)}</b></div>
-    ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已作廢',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
+    ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已拒單',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
     ${line('待處理 / 已完成未取 / 已取餐',`${cnt('new')+cnt('making')} / ${cnt('done')} / ${cnt('picked')}`)}
    </div>
    <div class="fm-sec"><div class="fm-title">付款方式</div>${rows(S.pay)}</div>
@@ -987,7 +987,7 @@ function renderHist(){
   const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${itemsBlock(o,false)}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}${o.late?'<br><span class="mu">補單</span>':''}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
   box.innerHTML=`<div class="fm-sec">
     <div class="fm-line"><span>訂單數（不含已取消）</span><span>${S.ok.length} 單</span></div>
-    <div class="fm-line"><span>已作廢</span><span>${S.cancelled} 單</span></div>
+    <div class="fm-line"><span>已拒單</span><span>${S.cancelled} 單</span></div>
     <div class="fm-total"><span>營收</span><b>${money(S.rev)}</b></div></div>
    ${HIST.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>編號</th><th>訂購人</th><th>餐點</th><th>金額</th><th>付款</th><th>收款</th><th>來源</th><th>狀態</th><th>操作</th></tr></thead><tbody>${body}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">此區間沒有訂單</div>'}`;
 }
@@ -1110,7 +1110,7 @@ function renderEdit(){
     <div class="fm-row"><b>付款方式</b><div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>edChip('pay',v)).join('')}</div></div>
    </div>
    <div class="modal-tip">若修改「取餐時間」或「餐點內容」，儲存後客人的「我的訂單」會即時收到更新提醒。</div>
-   <div class="m-btns">${ED.status!=='cancelled'?`<button class="btn-del" onclick="openVoid('${ED.id}',EDFROM)">作廢訂單</button>`:''}${isManager()?`<button class="btn-del" onclick="delOrder('${ED.id}','${esc(ED.no)}','edit')">永久刪除</button>`:''}<button class="btn-cancel" onclick="backFromEdit()">取消</button><button class="btn-confirm" id="edSave" onclick="saveEdit()">儲存</button></div>`;
+   <div class="m-btns">${ED.status!=='cancelled'?`<button class="btn-del" onclick="openVoid('${ED.id}',EDFROM)">拒單</button>`:''}${isManager()?`<button class="btn-del" onclick="delOrder('${ED.id}','${esc(ED.no)}','edit')">永久刪除</button>`:''}<button class="btn-cancel" onclick="backFromEdit()">取消</button><button class="btn-confirm" id="edSave" onclick="saveEdit()">儲存</button></div>`;
   $('mBox').scrollTop=y;
 }
 function backFromEdit(){EDFROM==='history'?openHistory(true):openOrders()}
@@ -1142,11 +1142,11 @@ async function saveEdit(){
   catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'}
 }
 async function delOrder(id,no,from){
-  if(!isManager()){alert('只有店長可以永久刪除訂單，請改用「作廢」');return}
+  if(!isManager()){alert('只有店長可以永久刪除訂單，請改用「拒單」');return}
   if(!confirm(`確定要「永久刪除」訂單 #${no}？\n刪除後無法復原（系統會留下刪除紀錄）。`))return;
   const o=ORDERS[id]||HIST.find(x=>x.id===id)||{};
   try{await FB.remove(FB.ref(FB.db,'orders/'+id))}catch(e){alert('刪除失敗：'+(e.code||e.message));return}
-  logAct('永久刪除',id,no,`${o.name||''} $${o.total==null?'':o.total}${o.voidReason?'（先前已作廢：'+o.voidReason+'）':''}`,{name:o.name||'',total:o.total==null?0:o.total,items:(o.items||[]).map(x=>x.name+'×'+x.qty).join('；')});
+  logAct('永久刪除',id,no,`${o.name||''} $${o.total==null?'':o.total}${o.voidReason?'（先前已拒單：'+o.voidReason+'）':''}`,{name:o.name||'',total:o.total==null?0:o.total,items:(o.items||[]).map(x=>x.name+'×'+x.qty).join('；')});
   if(from==='histlist')loadHistory();else if(from==='orders')openOrders();else backFromEdit();
 }
 
@@ -1232,9 +1232,9 @@ async function openLogs(){
   }catch(e){$('mBox').innerHTML=`<div class="oh"><h3>🧾 操作紀錄</h3><button onclick="openAdminPanel()">返回</button></div><div style="color:var(--bad);padding:20px">讀取失敗：${esc(e.code||e.message)}</div>`}
 }
 
-/* ===== 作廢 / 還原 ===== */
+/* ===== 拒單 / 還原 ===== */
 let VD=null;
-const VOID_REASONS=['客人取消','重複下單','打錯單','客人聯絡不上','其他'];
+const VOID_REASONS=['現場忙碌中','品項不足','提早打烊','客人取消','重複下單','打錯單','客人聯絡不上','其他'];
 function openVoid(id,from){
   const o=from==='history'?HIST.find(x=>x.id===id):ORDERS[id];if(!o)return;
   VD={id,from,o,reason:'',text:''};viewingOrders=viewingStats=viewingTrack=false;
@@ -1242,28 +1242,28 @@ function openVoid(id,from){
 }
 function renderVoid(){
   const o=VD.o;
-  $('mBox').innerHTML=`<h3>作廢訂單 #${esc(o.no)}</h3>
-   <div class="modal-tip">作廢後訂單仍會保留在系統中並標示原因，不計入營收統計。${o.paid?'<br><b style="color:var(--bad)">此單已收款，請記得處理退款。</b>':''}</div>
+  $('mBox').innerHTML=`<h3>拒單 #${esc(o.no)}</h3>
+   <div class="modal-tip">拒單後訂單仍會保留在系統中並標示原因，不計入營收統計。${o.paid?'<br><b style="color:var(--bad)">此單已收款，請記得處理退款。</b>':''}</div>
    <div class="chips">${VOID_REASONS.map(r=>`<button class="chip${VD.reason===r?' on':''}" onclick="VD.reason='${r}';renderVoid()">${r}</button>`).join('')}</div>
    <label>補充說明（選填）<input value="${esc(VD.text)}" oninput="VD.text=this.value"></label>
-   <div class="m-btns"><button class="btn-cancel" onclick="backFromVoid()">返回</button><button class="btn-del" id="vdBtn" onclick="confirmVoid()">確認作廢</button></div>`;
+   <div class="m-btns"><button class="btn-cancel" onclick="backFromVoid()">返回</button><button class="btn-del" id="vdBtn" onclick="confirmVoid()">確認拒單</button></div>`;
 }
 function backFromVoid(){VD.from==='history'?openHistory(true):openOrders()}
 async function confirmVoid(){
-  if(!VD.reason){alert('請選擇作廢原因');return}
+  if(!VD.reason){alert('請選擇拒單原因');return}
   const o=VD.o,reason=VD.reason+(VD.text.trim()?'：'+VD.text.trim():'');
   const b=$('vdBtn');b.disabled=true;b.textContent='處理中…';
   try{await FB.update(FB.ref(FB.db,'orders/'+VD.id),{status:'cancelled',prevStatus:o.status||'new',voidReason:reason,voidAt:Date.now(),voidBy:whoAmI(),updatedAt:Date.now()})}
-  catch(e){alert('作廢失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認作廢';return}
-  logAct('作廢',VD.id,o.no,reason+(o.paid?'（已收款）':''));
+  catch(e){alert('拒單失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認拒單';return}
+  logAct('拒單',VD.id,o.no,reason+(o.paid?'（已收款）':''));
   backFromVoid();
 }
 async function restoreOrder(id,from){
-  if(!isManager()){alert('只有店長可以還原作廢的訂單');return}
+  if(!isManager()){alert('只有店長可以還原拒單的訂單');return}
   const o=ORDERS[id]||HIST.find(x=>x.id===id);if(!o||!confirm(`還原訂單 #${o.no}？`))return;
   try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:o.prevStatus||'new',prevStatus:null,voidReason:null,voidAt:null,voidBy:null,updatedAt:Date.now()})}
   catch(e){alert('還原失敗：'+(e.code||e.message));return}
-  logAct('還原',id,o.no,'由作廢還原');
+  logAct('還原',id,o.no,'由拒單還原');
   if(from==='history')loadHistory();
 }
 
