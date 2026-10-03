@@ -155,6 +155,15 @@ input[type=date]{color-scheme:dark}
 .rb{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;background:var(--s1);border:1px solid var(--ln);margin:2px;white-space:nowrap}
 .rb.del{color:var(--bad)}
 input[type=time]{color-scheme:dark}
+/* 多人點餐 */
+.pbar{padding:8px 14px;border-bottom:1px solid var(--ln);display:flex;flex-direction:column;gap:8px}
+.pbar .chips{gap:6px}.pbar .chip{padding:6px 10px;font-size:13px}
+.m-box .pbar input,.pbar input{padding:8px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:14px;flex:1;min-width:0}
+.pgh{display:flex;justify-content:space-between;align-items:center;padding:8px 4px 4px;font-weight:700;color:var(--ac2);border-bottom:1px dashed var(--ln);cursor:pointer}
+.pgh.cur{color:var(--ac)}
+.pg{margin:6px 0;padding:6px 8px;border-left:3px solid var(--ln);background:rgba(0,0,0,.15);border-radius:4px}
+.pg .mu{color:var(--mu);font-size:13px}
+.er select{padding:8px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:14px;width:96px}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -189,6 +198,7 @@ input[type=time]{color-scheme:dark}
  <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
  <aside class="cart">
   <div class="ch"><h3>📦 訂單明細</h3><button onclick="clearCart()">清空</button></div>
+  <div class="pbar" id="pbar"></div>
   <div class="cl" id="cl"></div>
   <div class="cf"><div class="sum"><span id="cnt">共 0 項</span><b id="tot">$0</b></div>
    <button class="go" id="go" disabled onclick="openCheckout()">下一步：填寫取餐資訊</button></div>
@@ -218,7 +228,7 @@ const MENU=[
 ];
 MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法指定變更。';
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'']};
-let cur=0,cart=[];
+let cur=0,cart=[],curP=0;
 const ADMIN_PARAM=new URLSearchParams(location.search).get('mode')==='admin';
 let isAdmin=false,isSoldOutMode=false;
 let soldOutItems=JSON.parse(localStorage.getItem('sold_out_items')||'{}');
@@ -334,7 +344,7 @@ function renderGrid(){
   $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'')}</p>`;
   $('grid').className='grid'+(c.combo?' wide':'');
   const card=(it,extra)=>{
-    const q=cart.filter(x=>x.id.split('_')[0]===it.id).reduce((a,x)=>a+x.qty,0);
+    const q=cart.filter(x=>x.id.split('_')[0]===it.id&&x.p===curP).reduce((a,x)=>a+x.qty,0);
     const sold=catSold||soldOutItems[it.id];
     return `<div class="card${c.combo?' wd':''}${sold?' sold-out':''}" onclick="handleCardClick('${it.id}')">
       ${q?`<i class="qb">${q}</i>`:''}
@@ -411,16 +421,48 @@ function confirmSoup(id,name,price){
 function addComboWithFlavor(id,name,price,flavor){add(`${name} (${flavor})`,price,`${id}_${flavor}`);closeModal()}
 
 function add(name,price,id){
-  const e=cart.find(x=>x.id===id);
-  e?e.qty++:cart.push({id,name,price,qty:1});
+  const e=cart.find(x=>x.id===id&&x.p===curP);
+  e?e.qty++:cart.push({id,name,price,qty:1,p:curP});
   renderCart();renderGrid();
 }
-function qty(id,d){const e=cart.find(x=>x.id===id);if(!e)return;e.qty+=d;if(e.qty<=0)cart=cart.filter(x=>x.id!==id);renderCart();renderGrid()}
-function removeItem(id){cart=cart.filter(x=>x.id!==id);renderCart();renderGrid()}
-function clearCart(){cart=[];renderCart();renderGrid()}
+function qty(j,d){const e=cart[j];if(!e)return;e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
+function removeItem(j){cart.splice(j,1);renderCart();renderGrid()}
+function clearCart(){cart=[];CK.people=[newP()];curP=0;renderCart();renderGrid()}
+function selPerson(i){curP=i;renderCart();renderGrid()}
+function addPerson(){CK.people.push(newP());curP=CK.people.length-1;renderCart();renderGrid()}
+function delPerson(i){
+  const n=cart.filter(x=>x.p===i).length;
+  if(n&&!confirm(`移除「${plabel(i)}」會一併刪除 ${n} 項餐點，確定嗎？`))return;
+  cart=cart.filter(x=>x.p!==i);cart.forEach(x=>{if(x.p>i)x.p--});
+  CK.people.splice(i,1);if(!CK.people.length)CK.people.push(newP());
+  curP=Math.min(curP,CK.people.length-1);renderCart();renderGrid();
+}
+function prunePeople(){
+  const keep=CK.people.map((_,i)=>cart.some(x=>x.p===i));
+  if(keep.every(Boolean)||!keep.some(Boolean))return;
+  const map={};let n=0;keep.forEach((k,i)=>{if(k)map[i]=n++});
+  CK.people=CK.people.filter((_,i)=>keep[i]);
+  cart.forEach(x=>{x.p=map[x.p]});
+  curP=Math.min(curP,CK.people.length-1);renderCart();renderGrid();
+}
 function renderCart(){
-  $('cl').innerHTML=cart.length?cart.map(x=>`<div class="ci"><div class="cr"><button class="del-btn" onclick="removeItem('${x.id}')" title="刪除">✕</button><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
-   <div class="stp"><button onclick="qty('${x.id}',-1)">−</button><span>${x.qty}</span><button onclick="qty('${x.id}',1)">+</button></div></div>`).join(''):'<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
+  const P=CK.people,multi=P.length>1;
+  $('pbar').innerHTML=multi
+    ?`<div class="chips">${P.map((pp,i)=>`<button class="chip${i===curP?' on':''}" onclick="selPerson(${i})">👤 ${esc(plabel(i))}</button>`).join('')}<button class="chip" onclick="addPerson()">＋ 新增一位</button></div>
+      <div style="display:flex;gap:6px"><input id="pName" value="${esc(P[curP].name)}" placeholder="這份餐點是給誰的？（選填）" oninput="CK.people[curP].name=this.value" onchange="renderCart()"><button class="chip" onclick="delPerson(${curP})">移除此位</button></div>
+      <div class="hint">目前點的餐會加到「${esc(plabel(curP))}」，全部點完再一次送單</div>`
+    :`<button class="chip" onclick="addPerson()" style="align-self:flex-start">＋ 幫別人一起點（分開計）</button>`;
+  const row=(x,j)=>`<div class="ci"><div class="cr"><button class="del-btn" onclick="removeItem(${j})" title="刪除">✕</button><span class="t">${esc(x.name)}</span><span class="p">$${x.price*x.qty}</span></div>
+   <div class="stp"><button onclick="qty(${j},-1)">−</button><span>${x.qty}</span><button onclick="qty(${j},1)">+</button></div></div>`;
+  let h;
+  if(!multi)h=cart.length?cart.map(row).join(''):'<div class="empty"><i>🛒</i>點選左側餐點加入訂單</div>';
+  else h=P.map((pp,i)=>{
+    const its=cart.map((x,j)=>[x,j]).filter(([x])=>x.p===i);
+    const sub=its.reduce((a,[x])=>a+x.qty*x.price,0);
+    return `<div class="pgh${i===curP?' cur':''}" onclick="selPerson(${i})"><span>👤 ${esc(plabel(i))}</span><span>$${sub}</span></div>`
+      +(its.length?its.map(([x,j])=>row(x,j)).join(''):'<div class="hint" style="padding:8px">（尚未點餐）</div>');
+  }).join('');
+  $('cl').innerHTML=h;
   const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
   $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n||isClosed();
 }
@@ -428,7 +470,9 @@ function closeModal(){viewingOrders=viewingStats=viewingTrack=false;$('modal').c
 
 /* ===== 取餐資訊 ===== */
 const NOODLE=['麵食分開裝','麵食裝一起','多數麵分開裝'];
-const CK={name:'',phone:'',time:'',note:'',flavor:'',spice:'',salt:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場'};
+const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
+const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()]};
+const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 function timeSlots(){
   const d=new Date();d.setSeconds(0,0);
@@ -442,6 +486,7 @@ function timeSlots(){
 }
 function openCheckout(){
   if(!cart.length||isClosed())return;
+  prunePeople();
   CK.err=false;
   $('mBox').className='m-box wide';
   renderCheckout();
@@ -471,7 +516,7 @@ const phoneValid=()=>CK.phone?phoneOK(CK.phone):isAdmin;
 
 function calcTotals(){
   const sub=cart.reduce((a,x)=>a+x.qty*x.price,0);
-  const extra=CK.flavor==='泰式+5元'?5:0;
+  const extra=5*CK.people.filter(p=>p.flavor==='泰式+5元').length;
   let total=sub+extra;
   if(isAdmin){
     const p=Math.min(100,Math.max(0,parseFloat(CK.pct)||0));
@@ -482,6 +527,29 @@ function calcTotals(){
 }
 function updateTotal(){$('fmTot').textContent='$'+calcTotals().total}
 
+const NOTE_QUICK=['不要香菜','不要蔥','不要蒜','多蒜','少油','切小塊','醬料分開'];
+function quickNote(t,txt){
+  const cur=t==='g'?CK.note:CK.people[t].note;
+  const parts=cur?cur.split('、').filter(Boolean):[];
+  const k=parts.indexOf(txt);k>=0?parts.splice(k,1):parts.push(txt);
+  const v=parts.join('、');
+  if(t==='g')CK.note=v;else CK.people[t].note=v;
+  renderCheckout();
+}
+const qnChips=(t,cur)=>`<div class="chips" style="margin-left:88px">${NOTE_QUICK.map(x=>`<button class="chip${(cur||'').split('、').includes(x)?' on':''}" onclick="quickNote(${typeof t==='number'?t:"'g'"},'${x}')">${x}</button>`).join('')}</div>`;
+const pchip=(i,k,v)=>`<button class="chip${CK.people[i][k]===v?' on':''}" onclick="pickP(${i},'${k}','${v}')">${v}</button>`;
+function pickP(i,k,v){CK.people[i][k]=CK.people[i][k]===v?'':v;renderCheckout()}
+function personBlock(i){
+  const multi=CK.people.length>1,pp=CK.people[i];
+  const sub=cart.filter(x=>x.p===i).reduce((a,x)=>a+x.qty*x.price,0);
+  return `<div class="fm-sec">
+    <div class="fm-title">${multi?`👤 ${esc(plabel(i))}（$${sub}）`:'倉位調整(選取口味)'}</div>
+    <div class="fm-row"><b>口味:</b><div class="chips">${['原味','蒜味','泰式+5元'].map(v=>pchip(i,'flavor',v)).join('')}</div></div>
+    <div class="fm-row"><b>辣度:</b><div class="chips">${['不辣','小辣','中辣','大辣'].map(v=>pchip(i,'spice',v)).join('')}</div></div>
+    <div class="fm-row"><b>鹹度:</b><div class="chips">${['清淡','正常','重鹹'].map(v=>pchip(i,'salt',v)).join('')}</div></div>
+    ${multi?`<div class="fm-row"><b>備註:</b><input value="${esc(pp.note)}" placeholder="這位的特殊需求（例如：不要香菜）" oninput="CK.people[${i}].note=this.value"></div>${qnChips(i,pp.note)}`:''}
+   </div>`;
+}
 function renderCheckout(){
   const slots=timeSlots();
   if(!slots.includes(CK.time))CK.time=isAdmin?(slots[0]||''):'';
@@ -496,15 +564,13 @@ function renderCheckout(){
     <div class="fm-row${e&&!CK.time?' err':''}"><b>取餐時間*</b>
      <select onchange="CK.time=this.value"><option value="">請選擇取餐時間</option>${slots.map(s=>`<option value="${s}"${CK.time===s?' selected':''}>${s}</option>`).join('')}</select></div>
     <div class="fm-err">請選擇取餐時間</div>
-    ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','電話'].map(v=>chip('src',v)).join('')}</div></div>`:''}
-    <div class="fm-row"><b>顧客備註</b><input value="${esc(CK.note)}" placeholder="特殊需求 (例如:多蒜、少雞油)" oninput="CK.note=this.value"></div>
+    ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>chip('src',v)).join('')}</div></div>`:''}
+    <div class="fm-row"><b>${CK.people.length>1?'整單備註':'顧客備註'}</b><input value="${esc(CK.note)}" placeholder="特殊需求 (例如:多蒜、少雞油)" oninput="CK.note=this.value"></div>
+    ${qnChips('g',CK.note)}
    </div>
+   ${CK.people.map((pp,i)=>personBlock(i)).join('')}
    <div class="fm-sec">
-    <div class="fm-title">倉位調整(選取口味)</div>
-    <div class="fm-row"><b>口味:</b><div class="chips">${['原味','蒜味','泰式+5元'].map(v=>chip('flavor',v)).join('')}</div></div>
-    <div class="fm-row"><b>辣度:</b><div class="chips">${['不辣','小辣','中辣','大辣'].map(v=>chip('spice',v)).join('')}</div></div>
-    <div class="fm-row"><b>鹹度:</b><div class="chips">${['清淡','正常','重鹹'].map(v=>chip('salt',v)).join('')}</div></div>
-    <div class="fm-row" style="border-top:1px dashed var(--ln);padding-top:12px"><b>配備:</b><div class="chips">${['需熱食','需餐具',...NOODLE].map(gearChip).join('')}</div></div>
+    <div class="fm-row"><b>配備:</b><div class="chips">${['需熱食','需餐具',...NOODLE].map(gearChip).join('')}</div></div>
     <div style="text-align:center;font-size:12.5px;color:var(--mu)">🌱 依法不主動提供免洗餐具</div>
     <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選或註明辣度與口味偏好 系統將自動以「原味、不辣、正常口味」為您製作 謝謝您的配合</div>
    </div>
@@ -524,10 +590,12 @@ function submitCheckout(){
   const t=calcTotals();
   window.pendingOrder={
     name:CK.name.trim()||'現場客',phone:CK.phone,src:isAdmin?(CK.src||'現場'):'線上',time:CK.time,note:CK.note.trim(),
-    flavor:CK.flavor||'原味',spice:CK.spice||'不辣',salt:CK.salt||'正常',
+    flavor:CK.people[0].flavor||'原味',spice:CK.people[0].spice||'不辣',salt:CK.people[0].salt||'正常',
     gear:[...CK.gear],pay:CK.pay,items:JSON.parse(JSON.stringify(cart)),
     subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
   };
+  if(isAdmin)window.pendingOrder.staff=true;
+  if(CK.people.length>1)window.pendingOrder.people=CK.people.map((x,i)=>({name:x.name.trim()||'第'+(i+1)+'位',flavor:x.flavor||'原味',spice:x.spice||'不辣',salt:x.salt||'正常',note:x.note.trim()}));
   renderReceipt();
 }
 function backToForm(){CK.err=false;renderCheckout()}
@@ -535,7 +603,9 @@ function backToForm(){CK.err=false;renderCheckout()}
 function renderReceipt(){
   const o=window.pendingOrder;
   const row=(k,v)=>`<div class="rc-row"><span>${k}</span><span>${esc(v)}</span></div>`;
-  const items=o.items.map(x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`).join('');
+  const line=x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`;
+  const P=o.people?o.people.map((pp,i)=>({...pp,items:o.items.filter(x=>(x.p||0)===i)})):null;
+  const items=P?P.map(pp=>`<div class="pg"><b>👤 ${esc(pp.name)}</b><span class="mu">　${esc([pp.flavor,pp.spice,pp.salt].join(' / '))}${pp.note?'｜備註：'+esc(pp.note):''}</span></div>${pp.items.map(line).join('')}<div class="fm-line"><span>　小計</span><span>$${pp.items.reduce((a,x)=>a+x.price*x.qty,0)}</span></div>`).join(''):o.items.map(line).join('');
   const cnt=o.items.reduce((a,x)=>a+x.qty,0);
   $('mBox').innerHTML=`
    <div class="rc-head"><h3>訂單明細確認</h3><small>請核對以下資訊，確認無誤後送出訂單</small></div>
@@ -544,7 +614,7 @@ function renderReceipt(){
     ${o.note?row('顧客備註',o.note):''}
    </div>
    <div class="fm-sec">
-    ${row('口味',o.flavor)}${row('辣度',o.spice)}${row('鹹度',o.salt)}
+    ${o.people?'':row('口味',o.flavor)+row('辣度',o.spice)+row('鹹度',o.salt)}
     ${row('配備',o.gear.length?o.gear.join('、'):'無')}
     <div style="text-align:center;font-size:12.5px;color:var(--mu)">🌱 依法不主動提供免洗餐具</div>
    </div>
@@ -595,7 +665,7 @@ function showDone(o){
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 function finishOrder(){
-  Object.assign(CK,{name:'',phone:'',time:'',note:'',flavor:'',spice:'',salt:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場'});
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()]});curP=0;
   window.pendingOrder=null;
   cart=[];renderCart();renderGrid();closeModal();
 }
@@ -672,7 +742,7 @@ function startOrders(){
   const q=FB.query(FB.ref(FB.db,'orders'),FB.orderByChild('createdAt'),FB.startAt(ordStart));
   ordUnsub=FB.onValue(q,sn=>{
     const v=sn.val()||{};
-    const fresh=Object.keys(v).filter(id=>!ORDERS[id]&&v[id].status==='new'&&(v[id].src||'線上')==='線上');
+    const fresh=Object.keys(v).filter(id=>!ORDERS[id]&&v[id].status==='new'&&!v[id].staff&&(v[id].src||'線上')==='線上');
     ORDERS=v;
     if(ordInit&&fresh.length){
       beep();const o=v[fresh[fresh.length-1]];
@@ -699,8 +769,8 @@ function renderOrders(){
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
     .sort((a,b)=>String(a.time).localeCompare(String(b.time))||a.createdAt-b.createdAt);
   const cards=list.map(o=>{
-    const items=(o.items||[]).map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>');
-    const opt=[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
+    const items=itemsBlock(o,true);
+    const opt=o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
     const gear=(o.gear||[]).join('、');
     const nx=NEXT[o.status];
     return `<div class="oc st-${o.status}">
@@ -708,7 +778,7 @@ function renderOrders(){
      <div class="oc-b">
       <div>${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
       <div>${items}</div>
-      <div class="mu">${esc(opt)}${gear?'｜配備：'+esc(gear):''}</div>
+      <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
       <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'?(o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':'　<span style="color:var(--bad);font-weight:700">未收款</span>'):''}</div>
      </div>
@@ -744,6 +814,7 @@ function watchMy(id){
   myUn[id]=FB.onValue(FB.ref(FB.db,'orders/'+id),sn=>{
     const v=sn.val(),prev=MYD[id]&&MYD[id].status;
     MYD[id]=v||{gone:true};
+    if(v&&v.notice){try{const seen=JSON.parse(localStorage.getItem('seen_notice')||'{}');if(seen[id]!==v.notice.at){seen[id]=v.notice.at;localStorage.setItem('seen_notice',JSON.stringify(seen));toast(`📢 訂單 #${v.no}：${v.notice.text}`,openTrack)}}catch(e){}}
     if(v&&prev&&prev!==v.status){
       if(v.status==='done')toast(`🍱 訂單 #${v.no} 已完成，請前往取餐`,openTrack);
       else if(v.status==='cancelled')toast(`訂單 #${v.no} 已被店家取消`,openTrack);
@@ -767,8 +838,9 @@ function renderTrack(){
     return `<div class="fm-sec">
      <div class="oc-h"><b style="font-size:20px;color:var(--ac)">#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span></div>
      ${prog}
+     ${o.notice?`<div class="modal-tip" style="border-left-color:var(--bad)">📢 店家更新（${fmtT(o.notice.at)}）：${esc(o.notice.text)}</div>`:''}
      <div class="rc-row"><span>訂購人</span><span>${esc(o.name)}</span></div>
-     <div style="font-size:14px;line-height:1.7">${(o.items||[]).map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>')}</div>
+     <div style="font-size:14px;line-height:1.7">${itemsBlock(o,true)}</div>
      <div class="rc-row"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div></div>`;
   }).join('');
   $('mBox').innerHTML=`<div class="oh"><h3>📋 我的訂單</h3><button onclick="closeModal()">關閉</button></div>
@@ -857,7 +929,7 @@ async function loadHistory(){
 function renderHist(){
   const box=$('hRes');if(!box)return;
   const S=summarize(HIST);
-  const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${(o.items||[]).map(x=>esc(x.name)+' ×'+x.qty).join('<br>')}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
+  const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${itemsBlock(o,false)}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
   box.innerHTML=`<div class="fm-sec">
     <div class="fm-line"><span>訂單數（不含已取消）</span><span>${S.ok.length} 單</span></div>
     <div class="fm-line"><span>已取消</span><span>${S.cancelled} 單</span></div>
@@ -868,7 +940,7 @@ function exportCSV(){
   if(!HIST.length){alert('請先查詢，且區間內要有訂單');return}
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   const head=['日期時間','訂單編號','取餐時間','訂購人','電話','餐點','口味','辣度','鹹度','配備','備註','小計','折扣','總額','付款方式','收款','來源','狀態'];
-  const rows=HIST.map(o=>[fmtDT(o.createdAt),o.no,o.time,o.name,o.phone||'',(o.items||[]).map(x=>x.name+'×'+x.qty).join('；'),o.flavor,o.spice,o.salt,(o.gear||[]).join('、'),o.note||'',o.subtotal,o.discount||0,o.total,o.pay,o.paid?'已收款':'未收款',o.src||'線上',ST[o.status]||o.status]);
+  const rows=HIST.map(o=>[fmtDT(o.createdAt),o.no,o.time,o.name,o.phone||'',(o.items||[]).map(x=>(o.people&&o.people[x.p||0]?'['+o.people[x.p||0].name+']':'')+x.name+'×'+x.qty).join('；'),optCol(o,'flavor'),optCol(o,'spice'),optCol(o,'salt'),(o.gear||[]).join('、'),o.note||'',o.subtotal,o.discount||0,o.total,o.pay,o.paid?'已收款':'未收款',o.src||'線上',ST[o.status]||o.status]);
   const csv='\ufeff'+[head,...rows].map(r=>r.map(q).join(',')).join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
@@ -876,21 +948,43 @@ function exportCSV(){
   document.body.appendChild(a);a.click();a.remove();
 }
 
+/* ===== 多人訂單 / 備註 共用工具 ===== */
+const fmtT=t=>{const d=new Date(t);return p2(d.getHours())+':'+p2(d.getMinutes())};
+function peopleOf(o){
+  if(o.people&&o.people.length>1)return o.people.map((pp,i)=>({...pp,items:(o.items||[]).filter(x=>(x.p||0)===i)}));
+  return null;
+}
+function itemsBlock(o,withOpt){
+  const P=peopleOf(o);
+  if(!P)return(o.items||[]).map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>');
+  return P.map(pp=>`<div class="pg"><b>👤 ${esc(pp.name)}</b>${withOpt?`<span class="mu">　${esc([pp.flavor,pp.spice,pp.salt].filter(Boolean).join(' / '))}${pp.note?'｜備註：'+esc(pp.note):''}</span>`:''}<br>${pp.items.map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>')}</div>`).join('');
+}
+const optCol=(o,k)=>o.people?o.people.map(p=>p.name+':'+(p[k]||'')).join('；'):(o[k]||'');
+
 /* ===== 編輯訂單 ===== */
 let ED=null,EDFROM='orders';
 function openEdit(id,from){
   const o=from==='history'?HIST.find(x=>x.id===id):ORDERS[id];
   if(!o)return;
-  const items=(o.items||[]).map(x=>({id:x.id||'',name:x.name,price:+x.price||0,qty:+x.qty||1}));
+  const multi=!!(o.people&&o.people.length>1);
+  const people=multi?o.people.map(x=>({name:x.name||'',flavor:x.flavor||'',spice:x.spice||'',salt:x.salt||'',note:x.note||''}))
+    :[{name:'',flavor:o.flavor||'',spice:o.spice||'',salt:o.salt||'',note:''}];
+  const items=(o.items||[]).map(x=>({id:x.id||'',name:x.name,price:+x.price||0,qty:+x.qty||1,p:multi?(x.p||0):0}));
   const sub=items.reduce((a,x)=>a+x.price*x.qty,0);
-  ED={id,no:o.no,name:o.name||'',phone:o.phone||'',time:o.time||'',note:o.note||'',src:o.src||'線上',
-    flavor:o.flavor||'',spice:o.spice||'',salt:o.salt||'',gear:[...(o.gear||[])],pay:o.pay||'現金',
-    status:o.status||'new',items,adj:(+o.total||0)-sub};
+  ED={id,no:o.no,orig:o,name:o.name||'',phone:o.phone||'',time:o.time||'',note:o.note||'',src:o.src||'線上',
+    gear:[...(o.gear||[])],pay:o.pay||'現金',status:o.status||'new',people,items,adj:(+o.total||0)-sub};
   EDFROM=from;viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box xl';renderEdit();$('modal').classList.add('open');
 }
 const edChip=(k,v)=>`<button class="chip${ED[k]===v?' on':''}" onclick="edPick('${k}','${v}')">${v}</button>`;
+const edChipP=(i,k,v)=>`<button class="chip${ED.people[i][k]===v?' on':''}" onclick="edPickP(${i},'${k}','${v}')">${v}</button>`;
 function edPick(k,v){ED[k]=(ED[k]===v&&!['pay','src','status'].includes(k))?'':v;renderEdit()}
+function edPickP(i,k,v){ED.people[i][k]=ED.people[i][k]===v?'':v;renderEdit()}
+function edAddPerson(){ED.people.push({name:'',flavor:'',spice:'',salt:'',note:''});renderEdit()}
+function edDelPerson(i){
+  ED.items.forEach(x=>{if(x.p===i)x.p=0;else if(x.p>i)x.p--});
+  ED.people.splice(i,1);renderEdit();
+}
 function edGear(v){
   if(ED.gear.includes(v))ED.gear=ED.gear.filter(x=>x!==v);
   else{if(NOODLE.includes(v))ED.gear=ED.gear.filter(x=>!NOODLE.includes(x));ED.gear.push(v)}
@@ -905,34 +999,41 @@ const edSub=()=>ED.items.reduce((a,x)=>a+(parseFloat(x.price)||0)*Math.max(0,par
 const edTotal=()=>Math.max(0,edSub()+(parseFloat(ED.adj)||0));
 function edUpdate(){$('edSub').textContent='$'+edSub();$('edTot').textContent='$'+edTotal()}
 function edDel(i){ED.items.splice(i,1);renderEdit()}
-function edAddBlank(){ED.items.push({id:'',name:'',price:0,qty:1});renderEdit()}
+function edAddBlank(){ED.items.push({id:'',name:'',price:0,qty:1,p:0});renderEdit()}
 function edAddMenu(sel){
   const it=find(sel.value);
-  if(it){const ex=ED.items.find(x=>x.id===it.id&&x.name===it.name);ex?ex.qty=(parseInt(ex.qty)||0)+1:ED.items.push({id:it.id,name:it.name,price:it.price,qty:1})}
+  if(it){const ex=ED.items.find(x=>x.id===it.id&&x.name===it.name&&x.p===0);ex?ex.qty=(parseInt(ex.qty)||0)+1:ED.items.push({id:it.id,name:it.name,price:it.price,qty:1,p:0})}
   renderEdit();
 }
 function renderEdit(){
-  const y=$('mBox').scrollTop;
-  const rows=ED.items.map((x,i)=>`<div class="er"><input class="nm" value="${esc(x.name)}" placeholder="品名" oninput="ED.items[${i}].name=this.value"><input class="pr" type="number" value="${esc(x.price)}" placeholder="單價" oninput="ED.items[${i}].price=this.value;edUpdate()"><input class="qt" type="number" min="1" value="${esc(x.qty)}" oninput="ED.items[${i}].qty=this.value;edUpdate()"><button class="del-btn" onclick="edDel(${i})">✕</button></div>`).join('');
+  const y=$('mBox').scrollTop,multi=ED.people.length>1;
+  const plab=k=>ED.people[k].name.trim()||'第'+(k+1)+'位';
+  const rows=ED.items.map((x,i)=>`<div class="er"><input class="nm" value="${esc(x.name)}" placeholder="品名" oninput="ED.items[${i}].name=this.value"><input class="pr" type="number" value="${esc(x.price)}" placeholder="單價" oninput="ED.items[${i}].price=this.value;edUpdate()"><input class="qt" type="number" min="1" value="${esc(x.qty)}" oninput="ED.items[${i}].qty=this.value;edUpdate()">${multi?`<select onchange="ED.items[${i}].p=+this.value">${ED.people.map((pp,k)=>`<option value="${k}"${x.p===k?' selected':''}>${esc(plab(k))}</option>`).join('')}</select>`:''}<button class="del-btn" onclick="edDel(${i})">✕</button></div>`).join('');
   const menuOpts=MENU.map(c=>`<optgroup label="${esc(split(c.k)[0])}">${c.items.map(i=>`<option value="${i.id}">${esc(i.name)} $${i.price}</option>`).join('')}</optgroup>`).join('');
+  const pblocks=ED.people.map((pp,i)=>`<div class="fm-sec">
+    ${multi?`<div class="fm-row"><b>第 ${i+1} 位</b><input value="${esc(pp.name)}" placeholder="姓名" oninput="ED.people[${i}].name=this.value"><button class="rb del" onclick="edDelPerson(${i})">移除</button></div>`:''}
+    <div class="fm-row"><b>口味</b><div class="chips">${['原味','蒜味','泰式+5元'].map(v=>edChipP(i,'flavor',v)).join('')}</div></div>
+    <div class="fm-row"><b>辣度</b><div class="chips">${['不辣','小辣','中辣','大辣'].map(v=>edChipP(i,'spice',v)).join('')}</div></div>
+    <div class="fm-row"><b>鹹度</b><div class="chips">${['清淡','正常','重鹹'].map(v=>edChipP(i,'salt',v)).join('')}</div></div>
+    ${multi?`<div class="fm-row"><b>備註</b><input value="${esc(pp.note)}" oninput="ED.people[${i}].note=this.value"></div>`:''}
+   </div>`).join('');
   $('mBox').innerHTML=`
    <div class="oh"><h3>✏️ 編輯訂單 #${esc(ED.no)}</h3><button onclick="backFromEdit()">取消</button></div>
    <div class="fm-sec">
     <div class="fm-row"><b>訂購人</b><input value="${esc(ED.name)}" oninput="ED.name=this.value"></div>
     <div class="fm-row"><b>電話</b><input value="${esc(ED.phone)}" inputmode="numeric" maxlength="12" placeholder="09XX-XXX-XXX（可留空）" oninput="edPhone(this)"></div>
     <div class="fm-row"><b>取餐時間</b><input type="time" value="${esc(ED.time)}" oninput="ED.time=this.value"></div>
-    <div class="fm-row"><b>顧客備註</b><input value="${esc(ED.note)}" oninput="ED.note=this.value"></div>
-    <div class="fm-row"><b>訂單來源</b><div class="chips">${['線上','現場','電話'].map(v=>edChip('src',v)).join('')}</div></div>
+    <div class="fm-row"><b>${multi?'整單備註':'顧客備註'}</b><input value="${esc(ED.note)}" oninput="ED.note=this.value"></div>
+    <div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>edChip('src',v)).join('')}</div></div>
     <div class="fm-row"><b>訂單狀態</b><div class="chips">${Object.entries(ST).map(([k,t])=>`<button class="chip${ED.status===k?' on':''}" onclick="edPick('status','${k}')">${t}</button>`).join('')}</div></div>
    </div>
+   ${pblocks}
    <div class="fm-sec">
-    <div class="fm-row"><b>口味</b><div class="chips">${['原味','蒜味','泰式+5元'].map(v=>edChip('flavor',v)).join('')}</div></div>
-    <div class="fm-row"><b>辣度</b><div class="chips">${['不辣','小辣','中辣','大辣'].map(v=>edChip('spice',v)).join('')}</div></div>
-    <div class="fm-row"><b>鹹度</b><div class="chips">${['清淡','正常','重鹹'].map(v=>edChip('salt',v)).join('')}</div></div>
     <div class="fm-row"><b>配備</b><div class="chips">${['需熱食','需餐具',...NOODLE].map(v=>`<button class="chip${ED.gear.includes(v)?' on':''}" onclick="edGear('${v}')">${v}</button>`).join('')}</div></div>
+    <div class="fm-row"><button class="chip" onclick="edAddPerson()">＋ 新增一位（分開計）</button></div>
    </div>
    <div class="fm-sec">
-    <div class="fm-title">餐點明細（品名 / 單價 / 數量）</div>
+    <div class="fm-title">餐點明細（品名 / 單價 / 數量${multi?' / 歸屬':''}）</div>
     ${rows}
     <div class="fm-row"><select onchange="edAddMenu(this)"><option value="">＋ 從菜單加入品項…</option>${menuOpts}</select><button class="chip" onclick="edAddBlank()">＋ 自訂品項</button></div>
     <div class="fm-line"><span>小計金額:</span><span id="edSub">$${edSub()}</span></div>
@@ -940,6 +1041,7 @@ function renderEdit(){
     <div class="fm-total"><span>應付總額:</span><b id="edTot">$${edTotal()}</b></div>
     <div class="fm-row"><b>付款方式</b><div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>edChip('pay',v)).join('')}</div></div>
    </div>
+   <div class="modal-tip">若修改「取餐時間」或「餐點內容」，儲存後客人的「我的訂單」會即時收到更新提醒。</div>
    <div class="m-btns"><button class="btn-del" onclick="delOrder('${ED.id}','${esc(ED.no)}','edit')">刪除訂單</button><button class="btn-cancel" onclick="backFromEdit()">取消</button><button class="btn-confirm" id="edSave" onclick="saveEdit()">儲存</button></div>`;
   $('mBox').scrollTop=y;
 }
@@ -947,12 +1049,19 @@ function backFromEdit(){EDFROM==='history'?openHistory(true):openOrders()}
 async function saveEdit(){
   if(ED.phone&&!phoneOK(ED.phone)){alert('電話格式需為 09XX-XXX-XXX，或留空');return}
   if(!/^\d{2}:\d{2}$/.test(ED.time)){alert('請選擇取餐時間');return}
-  const items=ED.items.map(x=>({id:x.id||'',name:String(x.name).trim(),price:parseFloat(x.price)||0,qty:Math.max(1,parseInt(x.qty)||1)})).filter(x=>x.name);
+  const multi=ED.people.length>1,o=ED.orig;
+  const items=ED.items.map(x=>({id:x.id||'',name:String(x.name).trim(),price:parseFloat(x.price)||0,qty:Math.max(1,parseInt(x.qty)||1),p:multi?Math.min(parseInt(x.p)||0,ED.people.length-1):0})).filter(x=>x.name);
   if(!items.length){alert('至少要有一項餐點');return}
+  const pp=ED.people.map((x,i)=>({name:x.name.trim()||'第'+(i+1)+'位',flavor:x.flavor||'原味',spice:x.spice||'不辣',salt:x.salt||'正常',note:x.note.trim()}));
   const sub=items.reduce((a,x)=>a+x.price*x.qty,0),adj=parseFloat(ED.adj)||0,total=Math.max(0,sub+adj);
   const data={name:ED.name.trim()||'現場客',phone:ED.phone,time:ED.time,note:ED.note.trim(),src:ED.src,
-    flavor:ED.flavor||'原味',spice:ED.spice||'不辣',salt:ED.salt||'正常',gear:ED.gear.length?ED.gear:null,
+    flavor:pp[0].flavor,spice:pp[0].spice,salt:pp[0].salt,people:multi?pp:null,gear:ED.gear.length?ED.gear:null,
     pay:ED.pay,status:ED.status,items,subtotal:sub,extra:adj>0?adj:0,discount:adj<0?-adj:0,total,updatedAt:Date.now()};
+  const parts=[];
+  if(ED.time!==o.time)parts.push(`取餐時間改為 ${ED.time}（原 ${o.time}）`);
+  const sig=a=>(a||[]).map(x=>`${x.p||0}|${String(x.name).trim()}|${+x.price}|${+x.qty}`).join(';');
+  if(sig(items)!==sig(o.items))parts.push(`餐點內容已調整，應付總額 $${total}`);
+  if(parts.length)data.notice={at:Date.now(),text:parts.join('；')};
   const b=$('edSave');b.disabled=true;b.textContent='儲存中…';
   try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);backFromEdit()}
   catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'}
@@ -983,7 +1092,9 @@ function payChgText(){
 function payChange(){const el=$('payChg');el.textContent=payChgText();el.style.color=payChgText().startsWith('不足')?'var(--bad)':''}
 function renderPay(){
   const o=PAY.o,total=+o.total||0,cash=PAY.pay==='現金';
-  const items=(o.items||[]).map(x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`).join('');
+  const line=x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`;
+  const PP=peopleOf(o);
+  const items=PP?PP.map(pp=>`<div class="fm-title" style="text-align:left">👤 ${esc(pp.name)}</div>${pp.items.map(line).join('')}`).join(''):(o.items||[]).map(line).join('');
   const quick=[total,100,200,500,1000,2000].filter((v,i,a)=>v>0&&a.indexOf(v)===i);
   const was=o.paid?`<div class="modal-tip">此訂單已收款（${esc(o.pay||'')}${o.received?'，收 $'+o.received:''}），可重新結帳修改。</div>`:'';
   $('mBox').innerHTML=`
