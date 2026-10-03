@@ -24,7 +24,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .brand-center .sub{font-size:15px;letter-spacing:3px;color:var(--ac2);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)}
 .brand-center .logo{width:72px;height:72px;object-fit:contain;margin-right:12px;filter:drop-shadow(0 0 10px rgba(255,190,60,.55))}
 .brand-center .sep{color:var(--ac);margin:0 12px;font-size:22px}
-.brand-actions{display:flex;gap:8px;align-items:center}
+.brand-actions{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.ibtn,.pill{white-space:nowrap}
+@media(max-width:1500px){.ibtn{padding:5px 9px}.top{gap:10px;padding-left:14px;padding-right:14px}}
 .top-right{display:flex;align-items:center;gap:10px}
 .clock{color:var(--ac2);font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8)}
 .ibtn{padding:5px 12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;display:none;color:var(--ac2);transition:.15s}
@@ -232,8 +234,8 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
    <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單管理</button>
    <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
-   <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
    <button class="ibtn" id="stockBtn" onclick="openStock()">📦 今日庫存</button>
+   <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
    <button class="ibtn" id="cashBtn" onclick="openCash()">💵 收銀盤點</button>
    <button class="ibtn" id="soundBtn" onclick="toggleSound()">🔔 提示音</button>
    <button class="ibtn" id="logoutBtn" onclick="doLogout()">🚪 登出</button>
@@ -272,7 +274,7 @@ const MENU=[
  {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉:鹹水雞胸 × 2',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"]}]},
 {k:'鏈上綠色資產 (蔬菜)',ic:'🥬',items:mk('v',[["娃娃菜",40],["玉米筍",30],["筍片",25],["水蓮",25],["四季豆",25],["龍鬚菜",25],["花椰菜",25],["鴻喜菇",25],["杏鮑菇",20],["金針菇",20],["小黃瓜",20],["高麗菜",20],["白蘿蔔",20],["黑木耳",20],["洋蔥",20],["海帶",20]])},
 {k:'DAO去中心肉類 (肉類)',ic:'🥩',items:mk('meat',[["松阪豬",75],["牛五花",70],["雞軟骨",40],["雞心",30],["雞胗",30],["雞冠",25],["雞腸",25],["雞皮",25],["珍珠蛋",25],["鑫鑫腸",25]])},
-{k:'節點火鍋料',ic:'🍢',items:mk('f',[["鴨肉丸",30],["貢丸",30],["水晶餃",30],["甜不辣",25],["蟹味棒",25],["皮蛋(溏心)",25],["鹹蛋(碎)",25],["豆干",25],["百頁豆腐",20],["蒟蒻絲",20],["豆皮衣(炸)",20],["豆皮",20],["米血",20]])},
+{k:'節點火鍋料',ic:'🍢',items:mk('f',[["鴨肉丸",30],["貢丸",30],["水晶餃",30],["甜不辣",25],["蟹味棒",25],["皮蛋(溏心)",25],["鹹蛋(碎)",25],["豆干",25],["百頁豆腐",20],["蒟蒻絲",20],["豆皮(炸)",20],["豆皮",20],["米血",20]])},
 {k:'共識滷味協議',ic:'🌶️',items:mk('l',[["無骨鳳爪",45],["豬耳朵",45],["滷脆腸",45]])},
 {k:'自由流通麵 (麵食)',ic:'🍜',items:mk('z',[["王子麵",15],["冬粉",15]])},
 {k:'厝邊溫食(炒麵/燴飯)',ic:'🔥',note:'炒麵類預設使用芥藍菜，若遇缺貨將調整為油菜或高麗菜。\n炒青菜為當季時令蔬菜，恕無法指定。',items:[...mk('w',[["沙茶羊肉炒麵",120],["沙茶牛肉炒麵",120],["沙茶羊肉燴飯",120],["沙茶牛肉燴飯",120],["炒羊肉",150],["炒牛肉",150],["炒青菜",100]]),{id:'w8',name:'當歸羊肉湯',price:80},{id:'w9',name:'當歸清湯',price:40}]}
@@ -799,6 +801,7 @@ async function onAuth(user){
       FB.signOut(FB.auth);return;
     }
     ROLE=r;
+    muted=false;localStorage.removeItem('alarm_muted');
     isAdmin=true;setAdminUI(true);startOrders();startAlarm();keepAwake();updateSoundBtn();
     toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
     setTimeout(checkOpenReminder,5000);
@@ -995,7 +998,7 @@ function openAdminPanel(){
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
 }
-const baseName=n=>String(n).replace(/\s*\(.*\)\s*$/,'');
+const baseName=n=>String(n).replace(/\s+\(.*\)\s*$/,'');
 const money=n=>'$'+Math.round(n).toLocaleString();
 function summarize(list){
   const ok=list.filter(o=>o.status!=='cancelled');
@@ -1378,7 +1381,7 @@ async function restoreOrder(id,from){
 }
 
 /* ===== 提示音 / 螢幕恆亮 / 重複提醒 ===== */
-let muted=localStorage.getItem('alarm_muted')==='1',alarmT=null,wake=null;
+let muted=false,alarmT=null,wake=null;   // 預設開啟；靜音只在這次使用期間有效
 const hasNewOnline=()=>Object.values(ORDERS).some(o=>o.status==='new'&&!o.staff);
 function startAlarm(){stopAlarm();alarmT=setInterval(()=>{if(isAdmin&&!muted&&hasNewOnline())beep()},6000)}
 function stopAlarm(){if(alarmT){clearInterval(alarmT);alarmT=null}}
@@ -1391,7 +1394,7 @@ function toggleSound(){
   const was=actx&&actx.state==='running';
   unlockAudio();
   if(!was&&!muted){setTimeout(()=>{updateSoundBtn();beep()},300);return}
-  muted=!muted;localStorage.setItem('alarm_muted',muted?'1':'0');updateSoundBtn();if(!muted)beep();
+  muted=!muted;updateSoundBtn();if(!muted)beep();
 }
 async function keepAwake(){
   try{if('wakeLock' in navigator&&isAdmin&&document.visibilityState==='visible'&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
