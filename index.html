@@ -1004,7 +1004,7 @@ function renderHist(){
 function exportCSV(){
   if(!HIST.length){alert('請先查詢，且區間內要有訂單');return}
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const head=['日期時間','訂單編號','同單序號','取餐時間','訂購人','電話','用餐者','餐點','口味','辣度','鹹度','配備','備註','本筆小計','整單小計','加價(+)/折扣(-)','整單應付總額','付款方式','收款','來源','狀態'];
+  const head=['日期時間','訂單編號','取餐時間','訂購人','電話','用餐者','餐點','口味','辣度','鹹度','配備','備註','本筆小計','整單小計','加價(+)/折扣(-)','整單應付總額','付款方式','收款','來源','狀態'];
   const rows=[];
   HIST.forEach(o=>{
     const P=peopleOf(o)||[{name:o.name,flavor:o.flavor,spice:o.spice,salt:o.salt,note:'',items:o.items||[]}];
@@ -1013,7 +1013,7 @@ function exportCSV(){
       const first=i===0;
       const sub=pp.items.reduce((a,x)=>a+x.price*x.qty,0);
       const note=n>1?[pp.note,first&&o.note?'整單備註：'+o.note:''].filter(Boolean).join('｜'):(o.note||'');
-      rows.push([fmtDT(o.createdAt),'#'+o.no,n+'人 '+(i+1)+'/'+n,o.time,o.name,o.phone||'',pp.name||o.name,
+      rows.push([fmtDT(o.createdAt),'#'+o.no,o.time,o.name,o.phone||'',pp.name||o.name,
         pp.items.map(x=>x.name+'×'+x.qty).join('；'),pp.flavor||'',pp.spice||'',pp.salt||'',(o.gear||[]).join('、'),note,
         sub,first?o.subtotal:'',first?adj:'',first?o.total:'',
         o.pay,o.paid?'已收款':'未收款',(o.src||'線上')+(o.late?'（補單）':''),ST[o.status]||o.status]);
