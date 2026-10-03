@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>去中心鹹水雞 X 厝邊溫食 POS</title>
+<link rel="manifest" id="mf" href="manifest.json">
+<meta name="theme-color" content="#1a1410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#1a1410;--s1:#2a2118;--s2:#382c20;--ln:#5c4837;--tx:#f4ebd0;--mu:#c2b29f;--ac:#d4af37;--ac2:#f3e5ab;--ok:#4caf7d;--bad:#d9534f;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;-webkit-tap-highlight-color:transparent}
@@ -69,8 +73,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .m-box label{font-size:13px;color:var(--mu);display:flex;flex-direction:column;gap:6px}
 .m-box input{padding:12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:16px}
 .m-box input:focus{border-color:var(--ac);outline:none}
-.m-btns{display:flex;gap:10px;margin-top:4px}
-.m-btns button{flex:1;padding:12px;border-radius:8px;font-weight:700}
+.m-btns{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap}
+.m-btns button{flex:1;min-width:96px;padding:12px;border-radius:8px;font-weight:700}
 .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
 .btn-confirm{background:var(--ac);color:#1a1204}
 .sold-list-container{display:flex;flex-direction:column;gap:10px;max-height:350px;overflow-y:auto;padding-right:4px}
@@ -167,6 +171,9 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
 .xhead{position:sticky;top:-24px;margin:-24px -24px 0;padding:22px 24px 12px;background:var(--s1);z-index:3;text-align:center;border-radius:var(--r) var(--r) 0 0}
 .xbtn{position:absolute;right:14px;top:14px;width:34px;height:34px;border-radius:50%;background:var(--s2);border:1px solid var(--ln);font-size:16px;line-height:1;color:var(--tx)}
 .xbtn:hover{border-color:var(--ac);color:var(--ac2)}
+#netbar{display:none;text-align:center;padding:8px 12px;font-weight:700;font-size:14px}
+#netbar.net-bad{display:block;background:#7a2b28;color:#fff}
+#netbar button{margin-left:8px;padding:4px 12px;border-radius:6px;background:var(--ac);color:#1a1204;font-weight:700}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -189,6 +196,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
    <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
+   <button class="ibtn" id="soundBtn" onclick="toggleSound()">🔔 提示音</button>
    <button class="ibtn" id="logoutBtn" onclick="doLogout()">🚪 登出</button>
   </div>
  </div>
@@ -196,6 +204,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  <div class="top-right"><button class="ibtn" id="trackBtn" style="display:block" onclick="openTrack()">📋 我的訂單</button><div class="clock" id="clock"></div></div>
 </header>
 <div id="banner"></div>
+<div id="netbar"></div>
 <div class="main">
  <nav class="nav" id="nav"></nav>
  <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
@@ -233,6 +242,10 @@ MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'']};
 let cur=0,cart=[],curP=0;
 const ADMIN_PARAM=new URLSearchParams(location.search).get('mode')==='admin';
+const LINE_HOOK='https://script.google.com/macros/s/AKfycbwzKZCv2hvCCMvrczkmpbXkIqgl2grN-miQThQGXoHV3rUvHyAGsu4IiY5UdzWr6gnIHg/exec';/* 貼上 Google Apps Script 網頁應用程式網址，用來把新訂單通知到 LINE 群組；留空則不啟用 */
+const BASE_TITLE=document.title;
+{const mf=document.getElementById('mf');if(mf&&ADMIN_PARAM)mf.href='manifest-admin.json'}
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 let isAdmin=false,isSoldOutMode=false;
 let soldOutItems=JSON.parse(localStorage.getItem('sold_out_items')||'{}');
 let soldOutCats=JSON.parse(localStorage.getItem('sold_out_cats')||'{}');
@@ -241,7 +254,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   updateStatusDisplay();renderNav();renderGrid();renderCart();
   if(ADMIN_PARAM)setTimeout(()=>{if(!window.FB)alert('雲端元件載入失敗，請檢查網路後重新整理')},8000);
 });
-document.addEventListener('click',()=>{if(isAdmin)unlockAudio()});
+document.addEventListener('click',()=>{if(isAdmin){unlockAudio();keepAwake();setTimeout(updateSoundBtn,300)}});
 const isClosed=()=>!isAdmin&&(localStorage.getItem('shop_status')||'營業中')==='休息中';
 const norm=v=>v?Object.assign({},v):{};
 const onlyTrue=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v));
@@ -255,6 +268,11 @@ function fbReady(){
     renderNav();renderGrid();
   });
   loadMy();MY.forEach(m=>watchMy(m.id));
+  FB.onValue(FB.ref(FB.db,'.info/connected'),sn=>{CONNECTED=sn.val()===true;if(CONNECTED)everConnected=true;updateNet();if(CONNECTED)flushOutbox()});
+  window.addEventListener('online',()=>flushOutbox());
+  setInterval(()=>flushOutbox(),20000);
+  setTimeout(()=>{netChecked=true;updateNet()},8000);
+  updateNet();
   FB.onAuthStateChanged(FB.auth,onAuth);
 }
 function saveSold(){
@@ -645,25 +663,37 @@ function renderReceipt(){
 let submitting=false;
 async function confirmOrder(){
   const o=window.pendingOrder;if(!o||submitting)return;
-  if(!window.FB){alert('無法連線到雲端，請檢查網路後重試');return}
   if(isClosed()){alert('店家目前休息中，暫停接單');return}
+  if(!isAdmin&&!window.FB){alert('無法連線到雲端，請檢查網路後重試');return}
   submitting=true;
   const btn=$('cfBtn');if(btn){btn.disabled=true;btn.textContent='送出中…'}
-  try{
-    const ts=o.late?o.lateAt:Date.now(),day=o.late?bizDay(ts):today8();
-    if(o.late&&o.lateNo)o.no=/^\d+$/.test(o.lateNo)?o.lateNo.padStart(3,'0'):o.lateNo;
-    else{const r=await FB.runTransaction(FB.ref(FB.db,'counters/'+day),n=>(n||0)+1);o.no=String(r.snapshot.val()).padStart(3,'0')}
-    o.date=day;o.createdAt=ts;o.status=o.late?(o.lateStatus||'picked'):'new';
-    if(o.late&&o.latePaid){o.paid=true;o.paidAt=ts;o.received=o.total;o.change=0}
-    const nref=FB.push(FB.ref(FB.db,'orders'));
-    const data=JSON.parse(JSON.stringify(o));['lateAt','lateStatus','latePaid','lateNo'].forEach(k=>delete data[k]);
-    await FB.set(nref,data);
-    if(!isAdmin)saveMy(nref.key,o.no);
-    showDone(o);
-  }catch(e){
-    const em=String(e.code||e.message);
-    alert(/PERMISSION/i.test(em)?'訂單無法送出：店家目前可能已暫停接單，請稍後再試。（'+em+'）':'訂單送出失敗，請檢查網路後再試一次。\n（'+em+'）');
-    if(btn){btn.disabled=false;btn.textContent='確認送出'}
+  const ts=o.late?o.lateAt:Date.now(),day=o.late?bizDay(ts):today8();
+  if(o.late&&o.lateNo)o.no=/^\d+$/.test(o.lateNo)?o.lateNo.padStart(3,'0'):o.lateNo;
+  o.date=day;o.createdAt=ts;o.status=o.late?(o.lateStatus||'picked'):'new';
+  if(o.late&&o.latePaid){o.paid=true;o.paidAt=ts;o.received=o.total;o.change=0}
+  const data=JSON.parse(JSON.stringify(o));['lateAt','lateStatus','latePaid','lateNo'].forEach(k=>delete data[k]);
+  if(isAdmin){
+    /* 店家下單：斷線時先暫存在這台裝置，連線後自動補送 */
+    const key='L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    try{
+      if(!window.FB||!CONNECTED)throw new Error('offline');
+      o.no=await withTimeout(sendOrder(key,{...data},day),10000);
+      showDone(o);
+    }catch(e){OUT.push({key,day,data});saveOut();showQueued(o)}
+  }else{
+    try{
+      const r=await FB.runTransaction(FB.ref(FB.db,'counters/'+day),n=>(n||0)+1);
+      o.no=String(r.snapshot.val()).padStart(3,'0');data.no=o.no;
+      const nref=FB.push(FB.ref(FB.db,'orders'));
+      await FB.set(nref,data);
+      saveMy(nref.key,o.no);
+      notifyLine(nref.key);
+      showDone(o);
+    }catch(e){
+      const em=String(e.code||e.message);
+      alert(/PERMISSION/i.test(em)?'訂單無法送出：店家目前可能已暫停接單，請稍後再試。（'+em+'）':'訂單送出失敗，請檢查網路後再試一次。\n（'+em+'）');
+      if(btn){btn.disabled=false;btn.textContent='確認送出'}
+    }
   }
   submitting=false;
 }
@@ -685,19 +715,24 @@ function finishOrder(){
 
 /* ===== 店家登入（Firebase Auth）===== */
 function setAdminUI(on){
-  ['ordersBtn','soldOutModeBtn','soldOutListBtn','adminBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
+  ['ordersBtn','soldOutModeBtn','soldOutListBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
+  $('adminBtn').style.display=on&&isManager()?'block':'none';
+  $('logoutBtn').textContent='🚪 登出（'+(isManager()?'店長':'店員')+'）';
   $('statusPill').classList.toggle('admin-mode',on);
   $('statusPill').onclick=on?openStatusSelector:null;
   if(!on&&isSoldOutMode)toggleSoldOutMode();
   updateStatusDisplay();
 }
-function onAuth(user){
+async function onAuth(user){
   if(!ADMIN_PARAM)return;
   if(user){
-    isAdmin=true;setAdminUI(true);startOrders();
-    if(!actx)toast('已登入店家帳號，請點一下畫面以啟用新單提示音');
+    UID=user.uid;
+    try{const r=await FB.get(FB.ref(FB.db,'roles/'+user.uid));ROLE=r.val()==='manager'?'manager':'staff';localStorage.setItem('role_'+user.uid,ROLE)}
+    catch(e){ROLE=localStorage.getItem('role_'+user.uid)||'staff'}
+    isAdmin=true;setAdminUI(true);startOrders();startAlarm();keepAwake();updateSoundBtn();
+    toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
   }else{
-    isAdmin=false;setAdminUI(false);stopOrders();openAdminLogin();
+    isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();openAdminLogin();
   }
 }
 function openAdminLogin(msg){
@@ -747,7 +782,7 @@ function toast(msg,fn){
 
 /* ===== 訂單列表（店家）===== */
 let ORDERS={},ordStart=0,ordUnsub=null,ordInit=false,viewingOrders=false,viewingStats=false,viewingTrack=false,ordFilter='active';
-const ST={new:'新單',making:'製作中',done:'已完成',picked:'已取餐',cancelled:'已取消'};
+const ST={new:'新單',making:'製作中',done:'已完成',picked:'已取餐',cancelled:'已作廢'};
 const NEXT={new:['making','開始製作'],making:['done','製作完成'],done:['picked','已取餐']};
 function startOrders(){
   stopOrders();
@@ -758,7 +793,7 @@ function startOrders(){
     const fresh=Object.keys(v).filter(id=>!ORDERS[id]&&v[id].status==='new'&&!v[id].staff&&(v[id].src||'線上')==='線上');
     ORDERS=v;
     if(ordInit&&fresh.length){
-      beep();const o=v[fresh[fresh.length-1]];
+      if(!muted)beep();const o=v[fresh[fresh.length-1]];fresh.forEach(notifyLine);
       toast(`🔔 新訂單 #${o.no}　${o.name}　$${o.total}${fresh.length>1?`（共 ${fresh.length} 筆新單）`:''}`);
     }
     ordInit=true;updateOrderBadge();renderOrders();renderStats();
@@ -768,6 +803,7 @@ function stopOrders(){if(ordUnsub){ordUnsub();ordUnsub=null}ORDERS={};ordInit=fa
 function updateOrderBadge(){
   const n=Object.values(ORDERS).filter(o=>o.status==='new').length;
   const b=$('ordersBtn');b.textContent='📦 訂單'+(n?` (${n})`:'');b.classList.toggle('pulse',n>0);
+  document.title=(n?`(${n}) 新訂單｜`:'')+BASE_TITLE;
 }
 function openOrders(){
   if(!isAdmin)return;
@@ -778,7 +814,7 @@ function renderOrders(){
   if(!viewingOrders)return;
   const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
   const cnt=k=>all.filter(o=>o.status===k).length;
-  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已取消',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
+  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已作廢',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
     .sort((a,b)=>String(a.time).localeCompare(String(b.time))||a.createdAt-b.createdAt);
   const cards=list.map(o=>{
@@ -793,12 +829,14 @@ function renderOrders(){
       <div>${items}</div>
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
+      ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">作廢原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
       <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'?(o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':'　<span style="color:var(--bad);font-weight:700">未收款</span>'):''}</div>
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
       ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款':'結帳'}</button>`:''}
-      ${o.status==='new'||o.status==='making'?`<button class="oc-no" onclick="cancelOrder('${o.id}')">取消訂單</button>`:''}
+      ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">作廢</button>`:''}
+      ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
       ${nx?`<button class="oc-go" onclick="setOrderStatus('${o.id}','${nx[0]}')">${nx[1]}</button>`:''}
      </div></div>`;
   }).join('');
@@ -812,7 +850,7 @@ function renderOrders(){
 function setOrderStatus(id,st){
   FB.update(FB.ref(FB.db,'orders/'+id),{status:st,updatedAt:Date.now()}).catch(e=>alert('更新失敗：'+(e.code||e.message)));
 }
-function cancelOrder(id){if(confirm('確定要取消這筆訂單？'))setOrderStatus(id,'cancelled')}
+function cancelOrder(id){openVoid(id,'orders')}
 
 /* ===== 客人：我的訂單（進度查詢）===== */
 const p2=n=>String(n).padStart(2,'0');
@@ -865,13 +903,14 @@ function renderTrack(){
 
 /* ===== 後台管理 ===== */
 function openAdminPanel(){
-  if(!isAdmin)return;
+  if(!isAdmin||!isManager())return;
   viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box';
-  $('mBox').innerHTML=`<h3>⚙ 後台管理</h3>
+  $('mBox').innerHTML=`<h3>⚙ 後台管理（店長）</h3>
    <div class="opt-list">
     <button class="opt-btn" onclick="openStats()">📊 今日營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
+    <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（作廢／刪除／修改）</button>
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
@@ -901,7 +940,7 @@ function renderStats(){
   $('mBox').innerHTML=`<div class="oh"><h3>📊 今日營業統計</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-sec">
     <div class="fm-total" style="border:0;padding:0"><span>今日營收</span><b>${money(S.rev)}</b></div>
-    ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已取消',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
+    ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已作廢',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
     ${line('待處理 / 已完成未取 / 已取餐',`${cnt('new')+cnt('making')} / ${cnt('done')} / ${cnt('picked')}`)}
    </div>
    <div class="fm-sec"><div class="fm-title">付款方式</div>${rows(S.pay)}</div>
@@ -947,7 +986,7 @@ function renderHist(){
   const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${itemsBlock(o,false)}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}${o.late?'<br><span class="mu">補單</span>':''}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
   box.innerHTML=`<div class="fm-sec">
     <div class="fm-line"><span>訂單數（不含已取消）</span><span>${S.ok.length} 單</span></div>
-    <div class="fm-line"><span>已取消</span><span>${S.cancelled} 單</span></div>
+    <div class="fm-line"><span>已作廢</span><span>${S.cancelled} 單</span></div>
     <div class="fm-total"><span>營收</span><b>${money(S.rev)}</b></div></div>
    ${HIST.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>編號</th><th>訂購人</th><th>餐點</th><th>金額</th><th>付款</th><th>收款</th><th>來源</th><th>狀態</th><th>操作</th></tr></thead><tbody>${body}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">此區間沒有訂單</div>'}`;
 }
@@ -1070,7 +1109,7 @@ function renderEdit(){
     <div class="fm-row"><b>付款方式</b><div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>edChip('pay',v)).join('')}</div></div>
    </div>
    <div class="modal-tip">若修改「取餐時間」或「餐點內容」，儲存後客人的「我的訂單」會即時收到更新提醒。</div>
-   <div class="m-btns"><button class="btn-del" onclick="delOrder('${ED.id}','${esc(ED.no)}','edit')">刪除訂單</button><button class="btn-cancel" onclick="backFromEdit()">取消</button><button class="btn-confirm" id="edSave" onclick="saveEdit()">儲存</button></div>`;
+   <div class="m-btns">${ED.status!=='cancelled'?`<button class="btn-del" onclick="openVoid('${ED.id}',EDFROM)">作廢訂單</button>`:''}${isManager()?`<button class="btn-del" onclick="delOrder('${ED.id}','${esc(ED.no)}','edit')">永久刪除</button>`:''}<button class="btn-cancel" onclick="backFromEdit()">取消</button><button class="btn-confirm" id="edSave" onclick="saveEdit()">儲存</button></div>`;
   $('mBox').scrollTop=y;
 }
 function backFromEdit(){EDFROM==='history'?openHistory(true):openOrders()}
@@ -1090,14 +1129,24 @@ async function saveEdit(){
   const sig=a=>(a||[]).map(x=>`${x.p||0}|${String(x.name).trim()}|${+x.price}|${+x.qty}`).join(';');
   if(sig(items)!==sig(o.items))parts.push(`餐點內容已調整，應付總額 $${total}`);
   if(parts.length)data.notice={at:Date.now(),text:parts.join('；')};
+  const ch=[];
+  if(ED.time!==o.time)ch.push(`取餐時間 ${o.time}→${ED.time}`);
+  if(total!==(+o.total||0))ch.push(`金額 $${o.total}→$${total}`);
+  if(sig(items)!==sig(o.items))ch.push('餐點內容');
+  if(ED.pay!==o.pay)ch.push(`付款 ${o.pay}→${ED.pay}`);
+  if(ED.status!==o.status)ch.push(`狀態 ${ST[o.status]||o.status}→${ST[ED.status]||ED.status}`);
+  if(ED.name.trim()!==o.name||ED.phone!==(o.phone||'')||ED.note.trim()!==(o.note||''))ch.push('姓名/電話/備註');
   const b=$('edSave');b.disabled=true;b.textContent='儲存中…';
-  try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);backFromEdit()}
+  try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);if(ch.length)logAct('編輯',ED.id,ED.no,ch.join('；'));backFromEdit()}
   catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'}
 }
 async function delOrder(id,no,from){
-  if(!confirm(`確定要刪除訂單 #${no}？\n刪除後無法復原。`))return;
+  if(!isManager()){alert('只有店長可以永久刪除訂單，請改用「作廢」');return}
+  if(!confirm(`確定要「永久刪除」訂單 #${no}？\n刪除後無法復原（系統會留下刪除紀錄）。`))return;
+  const o=ORDERS[id]||HIST.find(x=>x.id===id)||{};
   try{await FB.remove(FB.ref(FB.db,'orders/'+id))}catch(e){alert('刪除失敗：'+(e.code||e.message));return}
-  if(from==='histlist')loadHistory();else backFromEdit();
+  logAct('永久刪除',id,no,`${o.name||''} $${o.total==null?'':o.total}${o.voidReason?'（先前已作廢：'+o.voidReason+'）':''}`,{name:o.name||'',total:o.total==null?0:o.total,items:(o.items||[]).map(x=>x.name+'×'+x.qty).join('；')});
+  if(from==='histlist')loadHistory();else if(from==='orders')openOrders();else backFromEdit();
 }
 
 /* ===== 結帳（收款 / 找零 / 更改付款方式）===== */
@@ -1148,12 +1197,138 @@ async function confirmPay(){
   const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,updatedAt:Date.now()};
   if(PAY.pick&&PAY.o.status!=='cancelled')data.status='picked';
   const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
-  try{await FB.update(FB.ref(FB.db,'orders/'+PAY.id),data)}
+  try{await FB.update(FB.ref(FB.db,'orders/'+PAY.id),data);logAct('收款',PAY.id,PAY.o.no,`${PAY.pay} $${total}${cash&&chg?'（找零 $'+chg+'）':''}`)}
   catch(e){alert('收款失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認收款';return}
   $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>收款完成 #${esc(PAY.o.no)}</h3>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
     ${cash?`<div class="rc-no">找零 $${chg}</div><div class="rc-row" style="justify-content:center;gap:8px"><span>收到</span><span>$${recv}</span></div>`:''}
    </div><div class="m-btns"><button class="btn-confirm" onclick="openOrders()">完成</button></div>`;
+}
+
+/* ===== 店長 / 店員 ===== */
+let ROLE='staff',UID='';
+const isManager=()=>ROLE==='manager';
+const whoAmI=()=>{try{return FB.auth.currentUser.email||UID}catch(e){return UID}};
+
+/* ===== 操作紀錄 ===== */
+function logAct(action,id,no,detail,snap){
+  if(!window.FB)return;
+  const rec={at:Date.now(),by:whoAmI(),action,id:id||'',no:no||'',detail:detail||''};
+  if(snap)rec.snap=snap;
+  FB.set(FB.push(FB.ref(FB.db,'logs')),rec).catch(()=>{});
+}
+async function openLogs(){
+  if(!isManager())return;
+  viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box xl';
+  $('mBox').innerHTML='<div class="oh"><h3>🧾 操作紀錄</h3><button onclick="openAdminPanel()">返回</button></div><div style="text-align:center;color:var(--mu);padding:20px">讀取中…</div>';
+  $('modal').classList.add('open');
+  try{
+    const sn=await FB.get(FB.query(FB.ref(FB.db,'logs'),FB.orderByChild('at'),FB.limitToLast(200)));
+    const arr=Object.values(sn.val()||{}).sort((a,b)=>b.at-a.at);
+    const rows=arr.map(l=>`<tr><td>${fmtDT(l.at)}</td><td>${esc(l.by||'')}</td><td><b>${esc(l.action)}</b></td><td>${l.no?'#'+esc(l.no):''}</td><td>${esc(l.detail||'')}${l.snap?`<br><span class="mu">原資料：${esc(l.snap.name||'')} $${esc(l.snap.total==null?'':l.snap.total)} ${esc(l.snap.items||'')}</span>`:''}</td></tr>`).join('');
+    $('mBox').innerHTML=`<div class="oh"><h3>🧾 操作紀錄（最近 200 筆）</h3><button onclick="openAdminPanel()">返回</button></div>
+     ${arr.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>單號</th><th>說明</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">目前沒有紀錄</div>'}`;
+  }catch(e){$('mBox').innerHTML=`<div class="oh"><h3>🧾 操作紀錄</h3><button onclick="openAdminPanel()">返回</button></div><div style="color:var(--bad);padding:20px">讀取失敗：${esc(e.code||e.message)}</div>`}
+}
+
+/* ===== 作廢 / 還原 ===== */
+let VD=null;
+const VOID_REASONS=['客人取消','重複下單','打錯單','客人聯絡不上','其他'];
+function openVoid(id,from){
+  const o=from==='history'?HIST.find(x=>x.id===id):ORDERS[id];if(!o)return;
+  VD={id,from,o,reason:'',text:''};viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box';renderVoid();$('modal').classList.add('open');
+}
+function renderVoid(){
+  const o=VD.o;
+  $('mBox').innerHTML=`<h3>作廢訂單 #${esc(o.no)}</h3>
+   <div class="modal-tip">作廢後訂單仍會保留在系統中並標示原因，不計入營收統計。${o.paid?'<br><b style="color:var(--bad)">此單已收款，請記得處理退款。</b>':''}</div>
+   <div class="chips">${VOID_REASONS.map(r=>`<button class="chip${VD.reason===r?' on':''}" onclick="VD.reason='${r}';renderVoid()">${r}</button>`).join('')}</div>
+   <label>補充說明（選填）<input value="${esc(VD.text)}" oninput="VD.text=this.value"></label>
+   <div class="m-btns"><button class="btn-cancel" onclick="backFromVoid()">返回</button><button class="btn-del" id="vdBtn" onclick="confirmVoid()">確認作廢</button></div>`;
+}
+function backFromVoid(){VD.from==='history'?openHistory(true):openOrders()}
+async function confirmVoid(){
+  if(!VD.reason){alert('請選擇作廢原因');return}
+  const o=VD.o,reason=VD.reason+(VD.text.trim()?'：'+VD.text.trim():'');
+  const b=$('vdBtn');b.disabled=true;b.textContent='處理中…';
+  try{await FB.update(FB.ref(FB.db,'orders/'+VD.id),{status:'cancelled',prevStatus:o.status||'new',voidReason:reason,voidAt:Date.now(),voidBy:whoAmI(),updatedAt:Date.now()})}
+  catch(e){alert('作廢失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認作廢';return}
+  logAct('作廢',VD.id,o.no,reason+(o.paid?'（已收款）':''));
+  backFromVoid();
+}
+async function restoreOrder(id,from){
+  if(!isManager()){alert('只有店長可以還原作廢的訂單');return}
+  const o=ORDERS[id]||HIST.find(x=>x.id===id);if(!o||!confirm(`還原訂單 #${o.no}？`))return;
+  try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:o.prevStatus||'new',prevStatus:null,voidReason:null,voidAt:null,voidBy:null,updatedAt:Date.now()})}
+  catch(e){alert('還原失敗：'+(e.code||e.message));return}
+  logAct('還原',id,o.no,'由作廢還原');
+  if(from==='history')loadHistory();
+}
+
+/* ===== 提示音 / 螢幕恆亮 / 重複提醒 ===== */
+let muted=localStorage.getItem('alarm_muted')==='1',alarmT=null,wake=null;
+const hasNewOnline=()=>Object.values(ORDERS).some(o=>o.status==='new'&&!o.staff&&(o.src||'線上')==='線上');
+function startAlarm(){stopAlarm();alarmT=setInterval(()=>{if(isAdmin&&!muted&&hasNewOnline())beep()},6000)}
+function stopAlarm(){if(alarmT){clearInterval(alarmT);alarmT=null}}
+function updateSoundBtn(){
+  const b=$('soundBtn'),ready=actx&&actx.state==='running';
+  b.textContent=muted?'🔕 提示音：關':(ready?'🔔 提示音：開':'🔇 點此啟用提示音');
+  b.classList.toggle('pulse',!muted&&!ready);
+}
+function toggleSound(){
+  const was=actx&&actx.state==='running';
+  unlockAudio();
+  if(!was&&!muted){setTimeout(()=>{updateSoundBtn();beep()},300);return}
+  muted=!muted;localStorage.setItem('alarm_muted',muted?'1':'0');updateSoundBtn();if(!muted)beep();
+}
+async function keepAwake(){
+  try{if('wakeLock' in navigator&&isAdmin&&document.visibilityState==='visible'&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake()});
+
+/* ===== 斷線暫存 / 補送 ===== */
+let CONNECTED=false,everConnected=false,netChecked=false,OUT=[],flushing=false;
+try{OUT=JSON.parse(localStorage.getItem('outbox')||'[]')}catch(e){OUT=[]}
+function saveOut(){localStorage.setItem('outbox',JSON.stringify(OUT));updateNet()}
+function updateNet(){
+  const b=$('netbar');if(!b)return;
+  if(OUT.length){b.className='net-bad';b.innerHTML=`⚠ ${CONNECTED?'正在補送':'網路中斷'}：有 ${OUT.length} 筆訂單暫存在這台裝置　<button onclick="flushOutbox(true)">立即補送</button>`}
+  else if(!CONNECTED&&window.FB&&(everConnected||netChecked)){b.className='net-bad';b.textContent='⚠ 網路連線中斷，恢復後會自動同步'}
+  else{b.className='';b.textContent=''}
+}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+async function sendOrder(key,data,day){
+  const rf=FB.ref(FB.db,'orders/'+key);
+  const ex=await FB.get(rf);
+  if(ex.exists())return ex.val().no;
+  if(!data.no){const r=await FB.runTransaction(FB.ref(FB.db,'counters/'+day),n=>(n||0)+1);data.no=String(r.snapshot.val()).padStart(3,'0')}
+  await FB.set(rf,data);
+  return data.no;
+}
+async function flushOutbox(manual){
+  if(flushing||!OUT.length||!window.FB||!isAdmin)return;
+  if(!CONNECTED&&manual!==true)return;
+  flushing=true;let ok=0;
+  for(const it of [...OUT]){
+    try{await withTimeout(sendOrder(it.key,{...it.data},it.day),12000);OUT=OUT.filter(x=>x.key!==it.key);ok++;saveOut()}
+    catch(e){break}
+  }
+  flushing=false;
+  if(ok)toast(`✅ 已補送 ${ok} 筆暫存訂單`);
+}
+function showQueued(o){
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">⚠️</div><h3>網路中斷，訂單已暫存</h3>
+   <div class="modal-tip" style="text-align:left;margin:8px 0">這筆訂單已暫存在這台裝置（目前共 ${OUT.length} 筆待補送），網路恢復後會自動送出並產生訂單編號。請保持店家頁面開啟。</div>
+   <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>${esc(o.time)}</span></div>
+   <div class="rc-row" style="justify-content:center;gap:8px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div></div>
+   <div class="m-btns"><button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
+}
+
+/* ===== LINE 群組通知（透過 Google Apps Script）===== */
+function notifyLine(id){
+  if(!LINE_HOOK)return;
+  try{fetch(LINE_HOOK,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'order',id})}).catch(()=>{})}catch(e){}
 }
 
 function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
@@ -1162,7 +1337,7 @@ setInterval(()=>{if(isAdmin&&ordUnsub&&bizStart()!==ordStart)startOrders()},6e4)
 </script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import{getDatabase,ref,set,push,update,onValue,get,remove,runTransaction,query,orderByChild,startAt,endAt}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,push,update,onValue,get,remove,runTransaction,query,orderByChild,startAt,endAt,limitToLast}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 const app=initializeApp({
   apiKey:"AIzaSyCw9S0F3IfTvsi-2lP4G32A8XCOzTTuCa4",
@@ -1173,7 +1348,7 @@ const app=initializeApp({
   messagingSenderId:"149561682889",
   appId:"1:149561682889:web:99c8ea9a387788c75a1618"
 });
-window.FB={db:getDatabase(app),auth:getAuth(app),ref,set,push,update,onValue,get,remove,runTransaction,query,orderByChild,startAt,endAt,signIn:signInWithEmailAndPassword,signOut,onAuthStateChanged};
+window.FB={db:getDatabase(app),auth:getAuth(app),ref,set,push,update,onValue,get,remove,runTransaction,query,orderByChild,startAt,endAt,limitToLast,signIn:signInWithEmailAndPassword,signOut,onAuthStateChanged};
 if(typeof fbReady==='function')fbReady();
 </script>
 </body></html>
