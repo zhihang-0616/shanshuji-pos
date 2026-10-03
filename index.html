@@ -138,7 +138,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 #banner.bn-prep{display:block;background:var(--ac);color:#1a1204}
 input[type=date]{color-scheme:dark}
 .tbw{overflow-x:auto;border:1px solid var(--ln);border-radius:var(--r)}
-.tbw table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+.tbw table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
 .tbw th{background:var(--s2);color:var(--ac2);text-align:left;padding:8px 10px;white-space:nowrap}
 .tbw td{padding:8px 10px;border-top:1px solid var(--ln);vertical-align:top}
 .tbw .mu{color:var(--mu);font-size:12px}
@@ -146,6 +146,15 @@ input[type=date]{color-scheme:dark}
 .trk span{flex:1;text-align:center;padding:8px 4px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;color:var(--mu)}
 .trk .ok{background:rgba(76,175,125,.2);border-color:var(--ok);color:var(--tx)}
 .trk .cur{background:var(--ac);color:#1a1204;font-weight:700;border-color:var(--ac2)}
+/* 編輯 / 結帳 */
+.oc-pay{background:var(--ok);color:#fff}
+.btn-del{background:var(--bad);color:#fff}
+.er{display:flex;gap:6px;align-items:center}
+.m-box .er input{padding:8px;font-size:14px;min-width:0}
+.er .nm{flex:1}.er .pr{width:84px}.er .qt{width:62px}
+.rb{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;background:var(--s1);border:1px solid var(--ln);margin:2px;white-space:nowrap}
+.rb.del{color:var(--bad)}
+input[type=time]{color-scheme:dark}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -686,8 +695,8 @@ function renderOrders(){
   if(!viewingOrders)return;
   const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
   const cnt=k=>all.filter(o=>o.status===k).length;
-  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已取消',cnt('cancelled')],['all','全部',all.length]];
-  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
+  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已取消',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
+  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
     .sort((a,b)=>String(a.time).localeCompare(String(b.time))||a.createdAt-b.createdAt);
   const cards=list.map(o=>{
     const items=(o.items||[]).map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>');
@@ -701,9 +710,11 @@ function renderOrders(){
       <div>${items}</div>
       <div class="mu">${esc(opt)}${gear?'｜配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
-      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span></div>
+      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'?(o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':'　<span style="color:var(--bad);font-weight:700">未收款</span>'):''}</div>
      </div>
      <div class="oc-a">
+      <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
+      ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款':'結帳'}</button>`:''}
       ${o.status==='new'||o.status==='making'?`<button class="oc-no" onclick="cancelOrder('${o.id}')">取消訂單</button>`:''}
       ${nx?`<button class="oc-go" onclick="setOrderStatus('${o.id}','${nx[0]}')">${nx[1]}</button>`:''}
      </div></div>`;
@@ -789,7 +800,8 @@ function summarize(list){
     const sr=o.src||'線上';src[sr]=src[sr]||{n:0,s:0};src[sr].n++;src[sr].s+=o.total||0;
     (o.items||[]).forEach(x=>{const k=baseName(x.name);items[k]=items[k]||{q:0,s:0};items[k].q+=x.qty;items[k].s+=x.qty*x.price});
   });
-  return{ok,rev,cancelled:list.length-ok.length,pay,src,items};
+  const un=ok.filter(o=>!o.paid);
+  return{ok,rev,cancelled:list.length-ok.length,pay,src,items,unpaid:{n:un.length,s:un.reduce((a,o)=>a+(o.total||0),0)}};
 }
 function openStats(){viewingOrders=viewingTrack=false;viewingStats=true;$('mBox').className='m-box wide';renderStats();$('modal').classList.add('open')}
 function renderStats(){
@@ -802,7 +814,7 @@ function renderStats(){
   $('mBox').innerHTML=`<div class="oh"><h3>📊 今日營業統計</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-sec">
     <div class="fm-total" style="border:0;padding:0"><span>今日營收</span><b>${money(S.rev)}</b></div>
-    ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已取消',S.cancelled+' 單')}
+    ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已取消',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
     ${line('待處理 / 已完成未取 / 已取餐',`${cnt('new')+cnt('making')} / ${cnt('done')} / ${cnt('picked')}`)}
    </div>
    <div class="fm-sec"><div class="fm-title">付款方式</div>${rows(S.pay)}</div>
@@ -812,25 +824,27 @@ function renderStats(){
 }
 
 /* ===== 歷史訂單與匯出 ===== */
-let HIST=[];
+let HIST=[],HR=null;
 const ymd=d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
 const fmtDT=t=>{const d=new Date(t);return d.getFullYear()+'/'+p2(d.getMonth()+1)+'/'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes())};
-function openHistory(){
+function openHistory(keep){
   viewingOrders=viewingStats=viewingTrack=false;HIST=[];
   const t=new Date(),f=new Date();f.setDate(f.getDate()-6);
   $('mBox').className='m-box xl';
   $('mBox').innerHTML=`<div class="oh"><h3>🗂 歷史訂單與匯出</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-sec">
-    <div class="fm-row"><b>起日</b><input type="date" id="hS" value="${ymd(f)}"><b>迄日</b><input type="date" id="hE" value="${ymd(t)}"></div>
+    <div class="fm-row"><b>起日</b><input type="date" id="hS" value="${HR?HR.s:ymd(f)}"><b>迄日</b><input type="date" id="hE" value="${HR?HR.e:ymd(t)}"></div>
     <div class="m-btns"><button class="btn-confirm" id="hBtn" onclick="loadHistory()">查詢</button><button class="btn-cancel" onclick="exportCSV()">⬇ 匯出 Excel (CSV)</button></div>
    </div>
    <div class="modal-tip">日期以營業日計算：每日 02:00 至隔日 02:00。</div>
    <div id="hRes"><div style="text-align:center;color:var(--mu);padding:20px">請選擇日期後按「查詢」</div></div>`;
   $('modal').classList.add('open');
+  if(keep&&HR)loadHistory();
 }
 async function loadHistory(){
   const s=$('hS').value,e=$('hE').value;
   if(!s||!e||s>e){alert('請選擇正確的日期區間');return}
+  HR={s,e};
   const btn=$('hBtn');btn.disabled=true;btn.textContent='查詢中…';
   try{
     const a=new Date(s+'T02:00:00').getTime(),b=new Date(e+'T02:00:00').getTime()+86400000-1;
@@ -843,23 +857,164 @@ async function loadHistory(){
 function renderHist(){
   const box=$('hRes');if(!box)return;
   const S=summarize(HIST);
-  const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${(o.items||[]).map(x=>esc(x.name)+' ×'+x.qty).join('<br>')}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${esc(o.src||'線上')}</td><td>${ST[o.status]||esc(o.status)}</td></tr>`).join('');
+  const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${(o.items||[]).map(x=>esc(x.name)+' ×'+x.qty).join('<br>')}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
   box.innerHTML=`<div class="fm-sec">
     <div class="fm-line"><span>訂單數（不含已取消）</span><span>${S.ok.length} 單</span></div>
     <div class="fm-line"><span>已取消</span><span>${S.cancelled} 單</span></div>
     <div class="fm-total"><span>營收</span><b>${money(S.rev)}</b></div></div>
-   ${HIST.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>編號</th><th>訂購人</th><th>餐點</th><th>金額</th><th>付款</th><th>來源</th><th>狀態</th></tr></thead><tbody>${body}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">此區間沒有訂單</div>'}`;
+   ${HIST.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>編號</th><th>訂購人</th><th>餐點</th><th>金額</th><th>付款</th><th>收款</th><th>來源</th><th>狀態</th><th>操作</th></tr></thead><tbody>${body}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">此區間沒有訂單</div>'}`;
 }
 function exportCSV(){
   if(!HIST.length){alert('請先查詢，且區間內要有訂單');return}
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const head=['日期時間','訂單編號','取餐時間','訂購人','電話','餐點','口味','辣度','鹹度','配備','備註','小計','折扣','總額','付款方式','來源','狀態'];
-  const rows=HIST.map(o=>[fmtDT(o.createdAt),o.no,o.time,o.name,o.phone||'',(o.items||[]).map(x=>x.name+'×'+x.qty).join('；'),o.flavor,o.spice,o.salt,(o.gear||[]).join('、'),o.note||'',o.subtotal,o.discount||0,o.total,o.pay,o.src||'線上',ST[o.status]||o.status]);
+  const head=['日期時間','訂單編號','取餐時間','訂購人','電話','餐點','口味','辣度','鹹度','配備','備註','小計','折扣','總額','付款方式','收款','來源','狀態'];
+  const rows=HIST.map(o=>[fmtDT(o.createdAt),o.no,o.time,o.name,o.phone||'',(o.items||[]).map(x=>x.name+'×'+x.qty).join('；'),o.flavor,o.spice,o.salt,(o.gear||[]).join('、'),o.note||'',o.subtotal,o.discount||0,o.total,o.pay,o.paid?'已收款':'未收款',o.src||'線上',ST[o.status]||o.status]);
   const csv='\ufeff'+[head,...rows].map(r=>r.map(q).join(',')).join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   a.download='訂單_'+$('hS').value+'_'+$('hE').value+'.csv';
   document.body.appendChild(a);a.click();a.remove();
+}
+
+/* ===== 編輯訂單 ===== */
+let ED=null,EDFROM='orders';
+function openEdit(id,from){
+  const o=from==='history'?HIST.find(x=>x.id===id):ORDERS[id];
+  if(!o)return;
+  const items=(o.items||[]).map(x=>({id:x.id||'',name:x.name,price:+x.price||0,qty:+x.qty||1}));
+  const sub=items.reduce((a,x)=>a+x.price*x.qty,0);
+  ED={id,no:o.no,name:o.name||'',phone:o.phone||'',time:o.time||'',note:o.note||'',src:o.src||'線上',
+    flavor:o.flavor||'',spice:o.spice||'',salt:o.salt||'',gear:[...(o.gear||[])],pay:o.pay||'現金',
+    status:o.status||'new',items,adj:(+o.total||0)-sub};
+  EDFROM=from;viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xl';renderEdit();$('modal').classList.add('open');
+}
+const edChip=(k,v)=>`<button class="chip${ED[k]===v?' on':''}" onclick="edPick('${k}','${v}')">${v}</button>`;
+function edPick(k,v){ED[k]=(ED[k]===v&&!['pay','src','status'].includes(k))?'':v;renderEdit()}
+function edGear(v){
+  if(ED.gear.includes(v))ED.gear=ED.gear.filter(x=>x!==v);
+  else{if(NOODLE.includes(v))ED.gear=ED.gear.filter(x=>!NOODLE.includes(x));ED.gear.push(v)}
+  renderEdit();
+}
+function edPhone(el){
+  const d=el.value.replace(/\D/g,'').slice(0,10);let t=d;
+  if(d.length>7)t=d.slice(0,4)+'-'+d.slice(4,7)+'-'+d.slice(7);else if(d.length>4)t=d.slice(0,4)+'-'+d.slice(4);
+  el.value=t;ED.phone=t;
+}
+const edSub=()=>ED.items.reduce((a,x)=>a+(parseFloat(x.price)||0)*Math.max(0,parseInt(x.qty)||0),0);
+const edTotal=()=>Math.max(0,edSub()+(parseFloat(ED.adj)||0));
+function edUpdate(){$('edSub').textContent='$'+edSub();$('edTot').textContent='$'+edTotal()}
+function edDel(i){ED.items.splice(i,1);renderEdit()}
+function edAddBlank(){ED.items.push({id:'',name:'',price:0,qty:1});renderEdit()}
+function edAddMenu(sel){
+  const it=find(sel.value);
+  if(it){const ex=ED.items.find(x=>x.id===it.id&&x.name===it.name);ex?ex.qty=(parseInt(ex.qty)||0)+1:ED.items.push({id:it.id,name:it.name,price:it.price,qty:1})}
+  renderEdit();
+}
+function renderEdit(){
+  const y=$('mBox').scrollTop;
+  const rows=ED.items.map((x,i)=>`<div class="er"><input class="nm" value="${esc(x.name)}" placeholder="品名" oninput="ED.items[${i}].name=this.value"><input class="pr" type="number" value="${esc(x.price)}" placeholder="單價" oninput="ED.items[${i}].price=this.value;edUpdate()"><input class="qt" type="number" min="1" value="${esc(x.qty)}" oninput="ED.items[${i}].qty=this.value;edUpdate()"><button class="del-btn" onclick="edDel(${i})">✕</button></div>`).join('');
+  const menuOpts=MENU.map(c=>`<optgroup label="${esc(split(c.k)[0])}">${c.items.map(i=>`<option value="${i.id}">${esc(i.name)} $${i.price}</option>`).join('')}</optgroup>`).join('');
+  $('mBox').innerHTML=`
+   <div class="oh"><h3>✏️ 編輯訂單 #${esc(ED.no)}</h3><button onclick="backFromEdit()">取消</button></div>
+   <div class="fm-sec">
+    <div class="fm-row"><b>訂購人</b><input value="${esc(ED.name)}" oninput="ED.name=this.value"></div>
+    <div class="fm-row"><b>電話</b><input value="${esc(ED.phone)}" inputmode="numeric" maxlength="12" placeholder="09XX-XXX-XXX（可留空）" oninput="edPhone(this)"></div>
+    <div class="fm-row"><b>取餐時間</b><input type="time" value="${esc(ED.time)}" oninput="ED.time=this.value"></div>
+    <div class="fm-row"><b>顧客備註</b><input value="${esc(ED.note)}" oninput="ED.note=this.value"></div>
+    <div class="fm-row"><b>訂單來源</b><div class="chips">${['線上','現場','電話'].map(v=>edChip('src',v)).join('')}</div></div>
+    <div class="fm-row"><b>訂單狀態</b><div class="chips">${Object.entries(ST).map(([k,t])=>`<button class="chip${ED.status===k?' on':''}" onclick="edPick('status','${k}')">${t}</button>`).join('')}</div></div>
+   </div>
+   <div class="fm-sec">
+    <div class="fm-row"><b>口味</b><div class="chips">${['原味','蒜味','泰式+5元'].map(v=>edChip('flavor',v)).join('')}</div></div>
+    <div class="fm-row"><b>辣度</b><div class="chips">${['不辣','小辣','中辣','大辣'].map(v=>edChip('spice',v)).join('')}</div></div>
+    <div class="fm-row"><b>鹹度</b><div class="chips">${['清淡','正常','重鹹'].map(v=>edChip('salt',v)).join('')}</div></div>
+    <div class="fm-row"><b>配備</b><div class="chips">${['需熱食','需餐具',...NOODLE].map(v=>`<button class="chip${ED.gear.includes(v)?' on':''}" onclick="edGear('${v}')">${v}</button>`).join('')}</div></div>
+   </div>
+   <div class="fm-sec">
+    <div class="fm-title">餐點明細（品名 / 單價 / 數量）</div>
+    ${rows}
+    <div class="fm-row"><select onchange="edAddMenu(this)"><option value="">＋ 從菜單加入品項…</option>${menuOpts}</select><button class="chip" onclick="edAddBlank()">＋ 自訂品項</button></div>
+    <div class="fm-line"><span>小計金額:</span><span id="edSub">$${edSub()}</span></div>
+    <div class="fm-row"><b style="width:auto">加價 / 折扣調整（折扣請填負數）</b><input type="number" value="${esc(ED.adj)}" oninput="ED.adj=this.value;edUpdate()"></div>
+    <div class="fm-total"><span>應付總額:</span><b id="edTot">$${edTotal()}</b></div>
+    <div class="fm-row"><b>付款方式</b><div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>edChip('pay',v)).join('')}</div></div>
+   </div>
+   <div class="m-btns"><button class="btn-del" onclick="delOrder('${ED.id}','${esc(ED.no)}','edit')">刪除訂單</button><button class="btn-cancel" onclick="backFromEdit()">取消</button><button class="btn-confirm" id="edSave" onclick="saveEdit()">儲存</button></div>`;
+  $('mBox').scrollTop=y;
+}
+function backFromEdit(){EDFROM==='history'?openHistory(true):openOrders()}
+async function saveEdit(){
+  if(ED.phone&&!phoneOK(ED.phone)){alert('電話格式需為 09XX-XXX-XXX，或留空');return}
+  if(!/^\d{2}:\d{2}$/.test(ED.time)){alert('請選擇取餐時間');return}
+  const items=ED.items.map(x=>({id:x.id||'',name:String(x.name).trim(),price:parseFloat(x.price)||0,qty:Math.max(1,parseInt(x.qty)||1)})).filter(x=>x.name);
+  if(!items.length){alert('至少要有一項餐點');return}
+  const sub=items.reduce((a,x)=>a+x.price*x.qty,0),adj=parseFloat(ED.adj)||0,total=Math.max(0,sub+adj);
+  const data={name:ED.name.trim()||'現場客',phone:ED.phone,time:ED.time,note:ED.note.trim(),src:ED.src,
+    flavor:ED.flavor||'原味',spice:ED.spice||'不辣',salt:ED.salt||'正常',gear:ED.gear.length?ED.gear:null,
+    pay:ED.pay,status:ED.status,items,subtotal:sub,extra:adj>0?adj:0,discount:adj<0?-adj:0,total,updatedAt:Date.now()};
+  const b=$('edSave');b.disabled=true;b.textContent='儲存中…';
+  try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);backFromEdit()}
+  catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'}
+}
+async function delOrder(id,no,from){
+  if(!confirm(`確定要刪除訂單 #${no}？\n刪除後無法復原。`))return;
+  try{await FB.remove(FB.ref(FB.db,'orders/'+id))}catch(e){alert('刪除失敗：'+(e.code||e.message));return}
+  if(from==='histlist')loadHistory();else backFromEdit();
+}
+
+/* ===== 結帳（收款 / 找零 / 更改付款方式）===== */
+let PAY=null;
+function openPay(id){
+  const o=ORDERS[id];if(!o)return;
+  PAY={id,o,pay:o.pay||'現金',recv:'',pick:o.status==='done'};
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box wide';renderPay();$('modal').classList.add('open');
+}
+function payMethod(v){PAY.pay=v;if(v!=='現金')PAY.recv='';renderPay()}
+function payRecv(v){PAY.recv=String(v);renderPay()}
+function payTogglePick(){PAY.pick=!PAY.pick;renderPay()}
+function payChgText(){
+  const total=+PAY.o.total||0;
+  if(PAY.recv==='')return'$0';
+  const c=(parseFloat(PAY.recv)||0)-total;
+  return c>=0?'$'+c:'不足 $'+(-c);
+}
+function payChange(){const el=$('payChg');el.textContent=payChgText();el.style.color=payChgText().startsWith('不足')?'var(--bad)':''}
+function renderPay(){
+  const o=PAY.o,total=+o.total||0,cash=PAY.pay==='現金';
+  const items=(o.items||[]).map(x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`).join('');
+  const quick=[total,100,200,500,1000,2000].filter((v,i,a)=>v>0&&a.indexOf(v)===i);
+  const was=o.paid?`<div class="modal-tip">此訂單已收款（${esc(o.pay||'')}${o.received?'，收 $'+o.received:''}），可重新結帳修改。</div>`:'';
+  $('mBox').innerHTML=`
+   <div class="oh"><h3>💰 結帳 #${esc(o.no)}　${esc(o.name)}</h3><button onclick="openOrders()">返回</button></div>
+   ${was}
+   <div class="fm-sec">${items}<div class="fm-total"><span>應付總額</span><b>$${total}</b></div></div>
+   <div class="fm-sec">
+    <div class="fm-title">付款方式${o.pay&&o.pay!==PAY.pay?`（客人原選：${esc(o.pay)}）`:''}</div>
+    <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>`<button class="chip${PAY.pay===v?' on':''}" onclick="payMethod('${v}')">${v}</button>`).join('')}</div>
+    ${cash?`<div class="fm-row"><b style="width:auto">收到金額</b><input id="payRecv" type="number" inputmode="numeric" value="${esc(PAY.recv)}" placeholder="輸入收到的金額" oninput="PAY.recv=this.value;payChange()"></div>
+     <div class="chips">${quick.map((v,i)=>`<button class="chip" onclick="payRecv(${v})">${i===0?'剛好 $'+v:'$'+v}</button>`).join('')}</div>
+     <div class="fm-total"><span>找零</span><b id="payChg" style="${payChgText().startsWith('不足')?'color:var(--bad)':''}">${payChgText()}</b></div>`
+     :`<div style="color:var(--mu);font-size:14px">${esc(PAY.pay)} 無需找零，確認款項已收到即可。</div>`}
+   </div>
+   ${o.status!=='picked'&&o.status!=='cancelled'?`<div class="chips"><button class="chip${PAY.pick?' on':''}" onclick="payTogglePick()">同時標記為已取餐</button></div>`:''}
+   <div class="m-btns"><button class="btn-cancel" onclick="openOrders()">返回</button><button class="btn-confirm" id="payBtn" onclick="confirmPay()">確認收款</button></div>`;
+}
+async function confirmPay(){
+  const total=+PAY.o.total||0,cash=PAY.pay==='現金';
+  let recv=total;
+  if(cash&&PAY.recv!==''){recv=parseFloat(PAY.recv);if(!(recv>=total)){alert('收到的金額不足 $'+total);return}}
+  const chg=cash?recv-total:0;
+  const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,updatedAt:Date.now()};
+  if(PAY.pick&&PAY.o.status!=='cancelled')data.status='picked';
+  const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
+  try{await FB.update(FB.ref(FB.db,'orders/'+PAY.id),data)}
+  catch(e){alert('收款失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認收款';return}
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>收款完成 #${esc(PAY.o.no)}</h3>
+    <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
+    ${cash?`<div class="rc-no">找零 $${chg}</div><div class="rc-row" style="justify-content:center;gap:8px"><span>收到</span><span>$${recv}</span></div>`:''}
+   </div><div class="m-btns"><button class="btn-confirm" onclick="openOrders()">完成</button></div>`;
 }
 
 function tick(){const d=new Date();$('clock').textContent=`${d.getMonth()+1}/${d.getDate()} 週${'日一二三四五六'[d.getDay()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
@@ -868,7 +1023,7 @@ setInterval(()=>{if(isAdmin&&ordUnsub&&bizStart()!==ordStart)startOrders()},6e4)
 </script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import{getDatabase,ref,set,push,update,onValue,get,runTransaction,query,orderByChild,startAt,endAt}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,push,update,onValue,get,remove,runTransaction,query,orderByChild,startAt,endAt}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 const app=initializeApp({
   apiKey:"AIzaSyCw9S0F3IfTvsi-2lP4G32A8XCOzTTuCa4",
@@ -879,7 +1034,7 @@ const app=initializeApp({
   messagingSenderId:"149561682889",
   appId:"1:149561682889:web:99c8ea9a387788c75a1618"
 });
-window.FB={db:getDatabase(app),auth:getAuth(app),ref,set,push,update,onValue,get,runTransaction,query,orderByChild,startAt,endAt,signIn:signInWithEmailAndPassword,signOut,onAuthStateChanged};
+window.FB={db:getDatabase(app),auth:getAuth(app),ref,set,push,update,onValue,get,remove,runTransaction,query,orderByChild,startAt,endAt,signIn:signInWithEmailAndPassword,signOut,onAuthStateChanged};
 if(typeof fbReady==='function')fbReady();
 </script>
 </body></html>
