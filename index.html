@@ -725,17 +725,24 @@ function setAdminUI(on){
   if(!on&&isSoldOutMode)toggleSoldOutMode();
   updateStatusDisplay();
 }
+let authMsg='';
 async function onAuth(user){
   if(!ADMIN_PARAM)return;
   if(user){
     UID=user.uid;
-    try{const r=await FB.get(FB.ref(FB.db,'roles/'+user.uid));ROLE=r.val()==='manager'?'manager':'staff';localStorage.setItem('role_'+user.uid,ROLE)}
-    catch(e){ROLE=localStorage.getItem('role_'+user.uid)||'staff'}
+    let r=null;
+    try{r=(await FB.get(FB.ref(FB.db,'roles/'+user.uid))).val();localStorage.setItem('role_'+user.uid,r||'')}
+    catch(e){r=localStorage.getItem('role_'+user.uid)||null}
+    if(r!=='manager'&&r!=='staff'){
+      authMsg='此帳號尚未被授權。請店長到 Firebase 資料庫 roles 新增這個帳號：名稱貼 '+user.uid+'，值填 staff（或 manager）。';
+      FB.signOut(FB.auth);return;
+    }
+    ROLE=r;
     isAdmin=true;setAdminUI(true);startOrders();startAlarm();keepAwake();updateSoundBtn();
     toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
     setTimeout(checkOpenReminder,5000);
   }else{
-    isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();openAdminLogin();
+    isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();const m=authMsg;authMsg='';openAdminLogin(m);
   }
 }
 function openAdminLogin(msg){
