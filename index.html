@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>去中心鹹水雞 X 厝邊溫食 POS</title>
 <link rel="manifest" id="mf" href="manifest.json">
 <meta name="theme-color" content="#140a04">
@@ -44,6 +44,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,.15)}.card:active{transform:scale(.98)}
 .card.sold-out{opacity:.85;filter:grayscale(100%) brightness(.8)}
 .card.sold-out .n{padding-right:66px}
+.stk{font-size:12px;font-weight:700;color:#ffd77a;background:rgba(224,176,64,.14);border:1px solid #a87a2a;border-radius:99px;padding:1px 8px;white-space:nowrap}
+.stk.low{color:#ffb4a8;border-color:#b5483f;background:rgba(217,83,79,.18)}
 .card.sold-out:after{content:"已售完";position:absolute;top:8px;right:10px;background:#8a2b27;color:#fff;font-size:12px;font-weight:800;padding:2px 10px;border-radius:99px;letter-spacing:1px}
 .card .n{font-size:16px;font-weight:700;line-height:1.35;color:var(--tx)}
 .card .d{font-size:12.5px;color:var(--mu);line-height:1.6}
@@ -190,6 +192,34 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  .brand-center .shop{font-size:19px;letter-spacing:1px}.brand-center .logo{width:44px;height:44px;margin-right:6px}.brand-center .sub{font-size:12px;letter-spacing:1px}.brand-center .sep{margin:0 6px}
  .fm-row{flex-wrap:wrap}.fm-err{margin-left:0}
 }
+/* 手機（直式）：精簡標題列、2 欄餐點、底部精簡購物車 */
+@media(max-width:600px){
+ html{-webkit-text-size-adjust:100%}
+ .top{display:grid;grid-template-columns:1fr auto;grid-template-areas:"brand brand" "left right";align-items:center;gap:6px 8px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px}
+ .top .sp{display:none}
+ .brand-center{grid-area:brand;gap:4px}.top-left{grid-area:left}.top-right{grid-area:right;justify-self:end;gap:6px}
+ .brand-center .brand-row{justify-content:center}
+ .brand-center .shop{font-size:16px;letter-spacing:0}
+ .brand-center .logo{width:34px;height:34px;margin-right:6px}
+ .brand-center .sep,.brand-center .sub{display:none}
+ .brand-actions{flex-wrap:wrap;justify-content:center;gap:5px}
+ .pill{padding:4px 10px;font-size:12px}.ibtn{padding:4px 10px;font-size:12px}.clock{font-size:11px}
+ .nav{padding:6px 8px;gap:4px}.nv{min-width:74px;padding:6px 8px;gap:1px}.nv i{font-size:20px}.nv b{font-size:12px}
+ .ph{margin:8px 10px 2px;padding:8px 12px}.ph h2{font-size:19px}.ph p{font-size:12px;margin-top:2px}
+ .sec{font-size:13px;padding:4px 14px;letter-spacing:3px}
+ .grid{grid-template-columns:repeat(2,1fr);gap:8px;padding:8px 10px 14px}.grid.wide{grid-template-columns:1fr}
+ .card{padding:10px;gap:6px}.card .n{font-size:14px}.card .d{font-size:11.5px}.price{font-size:17px}.add{width:30px;height:30px;font-size:19px}
+ .cart{max-height:80vh;padding-bottom:env(safe-area-inset-bottom,0px)}
+ .cart .ch,.cart .pbar,.cart .cl{display:none}
+ .cart.cart-open .ch{display:flex}.cart.cart-open .pbar{display:flex}
+ .cart.cart-open .cl{display:block;max-height:46vh;overflow-y:auto}
+ .cf{padding:10px 14px;gap:8px}.sum{cursor:pointer}.sum b{font-size:22px}
+ .sum #cnt:after{content:"　▲ 展開明細";color:var(--ac);font-size:12px}
+ .cart.cart-open .sum #cnt:after{content:"　▼ 收合"}
+ .go{padding:12px;font-size:16px}.hint{font-size:11px}
+ .m-box{padding:16px;max-height:92vh}.m-box.wide,.m-box.xl{max-width:100%}
+ .tbw table{min-width:560px}
+}
 </style></head>
 <body id="bodyRoot">
 <header class="top">
@@ -202,6 +232,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
    <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
    <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
    <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
+   <button class="ibtn" id="stockBtn" onclick="openStock()">📦 今日庫存</button>
    <button class="ibtn" id="cashBtn" onclick="openCash()">💵 收銀盤點</button>
    <button class="ibtn" id="soundBtn" onclick="toggleSound()">🔔 提示音</button>
    <button class="ibtn" id="logoutBtn" onclick="doLogout()">🚪 登出</button>
@@ -219,7 +250,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
   <div class="ch"><h3>📦 訂單明細</h3><button onclick="clearCart()">清空</button></div>
   <div class="pbar" id="pbar"></div>
   <div class="cl" id="cl"></div>
-  <div class="cf"><div class="sum"><span id="cnt">共 0 項</span><b id="tot">$0</b></div>
+  <div class="cf"><div class="sum" onclick="toggleCart()"><span id="cnt">共 0 項</span><b id="tot">$0</b></div>
    <button class="go" id="go" disabled onclick="openCheckout()">下一步：填寫取餐資訊</button></div>
  </aside>
 </div>
@@ -275,6 +306,7 @@ function fbReady(){
     renderNav();renderGrid();
   });
   loadMy();MY.forEach(m=>watchMy(m.id));
+  subStock();setInterval(()=>{if(today8()!==stockDay)subStock()},60000);
   FB.onValue(FB.ref(FB.db,'.info/connected'),sn=>{CONNECTED=sn.val()===true;if(CONNECTED)everConnected=true;updateNet();if(CONNECTED)flushOutbox()});
   window.addEventListener('online',()=>flushOutbox());
   setInterval(()=>flushOutbox(),20000);
@@ -373,11 +405,11 @@ function renderGrid(){
   $('grid').className='grid'+(c.combo?' wide':'');
   const card=(it,extra)=>{
     const q=cart.filter(x=>x.id.split('_')[0]===it.id&&x.p===curP).reduce((a,x)=>a+x.qty,0);
-    const sold=catSold||soldOutItems[it.id];
+    const left=stockLeft(it.id),sold=catSold||soldOutItems[it.id]||left<=0;
     return `<div class="card${c.combo?' wd':''}${sold?' sold-out':''}" onclick="handleCardClick('${it.id}')">
       ${q?`<i class="qb">${q}</i>`:''}
       <div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div>
-      <div class="f"><span class="price">${it.price}</span><span class="add">+</span></div></div>`;
+      <div class="f"><span class="price">${it.price}</span>${left!==Infinity&&left>0?`<span class="stk${left<=3?' low':''}">剩 ${left}</span>`:''}<span class="add">+</span></div></div>`;
   };
   let h='';
   if(c.two){
@@ -390,7 +422,7 @@ function handleCardClick(id){
   if(isSoldOutMode){toggleItemSoldOut(id);return}
   if(isClosed()){toast('目前休息中，暫停接單');return}
   const item=find(id);
-  if(soldOutItems[id]||soldOutCats[cur])return;
+  if(soldOutItems[id]||soldOutCats[cur]||stockLeft(id)<=0)return;
   if(['s1','s2','s3'].includes(id))showComboOptions(item);
   else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id))showStirFryOptions(item);
   else if(['w8','w9'].includes(id))showSoupOptions(item);
@@ -449,11 +481,12 @@ function confirmSoup(id,name,price){
 function addComboWithFlavor(id,name,price,flavor){add(`${name} (${flavor})`,price,`${id}_${flavor}`);closeModal()}
 
 function add(name,price,id){
+  if(!canAdd(id)){toast(`「${itemName(id)}」今日數量不足，無法再增加`);return}
   const e=cart.find(x=>x.id===id&&x.p===curP);
   e?e.qty++:cart.push({id,name,price,qty:1,p:curP});
   renderCart();renderGrid();
 }
-function qty(j,d){const e=cart[j];if(!e)return;e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
+function qty(j,d){const e=cart[j];if(!e)return;if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
 function removeItem(j){cart.splice(j,1);renderCart();renderGrid()}
 function clearCart(){cart=[];CK.people=[newP()];curP=0;renderCart();renderGrid()}
 function selPerson(i){curP=i;renderCart();renderGrid()}
@@ -492,14 +525,14 @@ function renderCart(){
   }).join('');
   $('cl').innerHTML=h;
   const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
-  $('cnt').textContent=`共 ${n} 項`;$('tot').textContent='$'+t;$('go').disabled=!n||isClosed();
+  $('cnt').textContent=`共 ${n} 項`+(multi?`・正在幫「${plabel(curP)}」點餐`:'');$('tot').textContent='$'+t;$('go').disabled=!n||isClosed();
 }
-function closeModal(){viewingOrders=viewingStats=viewingTrack=false;$('modal').classList.remove('open');$('mBox').className='m-box'}
+function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('modal').classList.remove('open');$('mBox').className='m-box'}
 
 /* ===== 取餐資訊 ===== */
 const NOODLE=['麵食分開裝','麵食裝一起','多數麵分開裝'];
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
-const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:''};
+const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 function timeSlots(){
@@ -539,8 +572,10 @@ function fmtPhone(el){
   el.value=s;CK.phone=s;
 }
 const phoneOK=p=>/^09\d{2}-\d{3}-\d{3}$/.test(p);
-const nameValid=()=>isAdmin||!!CK.name.trim();
-const phoneValid=()=>CK.phone?phoneOK(CK.phone):isAdmin;
+const loose=()=>isAdmin||CK.walkin;
+const nameValid=()=>loose()||!!CK.name.trim();
+const phoneValid=()=>CK.phone?phoneOK(CK.phone):loose();
+function setWalkin(v){CK.walkin=!!v;CK.err=false;renderCheckout()}
 
 function calcTotals(){
   const sub=cart.reduce((a,x)=>a+x.qty*x.price,0);
@@ -585,14 +620,15 @@ function lateBlock(){
 }
 function renderCheckout(){
   const slots=timeSlots();
-  if(!(isAdmin&&CK.late)&&!slots.includes(CK.time))CK.time=isAdmin?(slots[0]||''):'';
+  if(!(isAdmin&&CK.late)&&!slots.includes(CK.time))CK.time=loose()?(slots[0]||''):'';
   const t=calcTotals(),e=CK.err;
   $('mBox').innerHTML=`
    <div class="xhead"><h3>填寫取餐資訊</h3><button class="xbtn" onclick="closeModal()" title="關閉">✕</button></div>
    <div class="fm-sec">
-    <div class="fm-row${e&&!nameValid()?' err':''}"><b>訂購人${isAdmin?'':'*'}</b><input value="${esc(CK.name)}" placeholder="${isAdmin?'姓名（選填，預設「現場客」）':'請輸入訂購人姓名 (必填)'}" oninput="CK.name=this.value"></div>
+    ${isAdmin?'':`<div class="fm-row"><b>用餐方式</b><div class="chips"><button class="chip${CK.walkin?'':' on'}" onclick="setWalkin(false)">線上預訂</button><button class="chip${CK.walkin?' on':''}" onclick="setWalkin(true)">現場客（免填姓名電話）</button></div></div>`}
+    <div class="fm-row${e&&!nameValid()?' err':''}"><b>訂購人${loose()?'':'*'}</b><input value="${esc(CK.name)}" placeholder="${loose()?'選填（預設現場客）':'請輸入訂購人姓名 (必填)'}" oninput="CK.name=this.value"></div>
     <div class="fm-err">請輸入訂購人姓名</div>
-    <div class="fm-row${e&&!phoneValid()?' err':''}"><b>電話${isAdmin?'':'*'}</b><input value="${esc(CK.phone)}" inputmode="numeric" maxlength="12" placeholder="${isAdmin?'選填，例如: 0912-345-678':'例如: 0912-345-678'}" oninput="fmtPhone(this)"></div>
+    <div class="fm-row${e&&!phoneValid()?' err':''}"><b>電話${loose()?'':'*'}</b><input value="${esc(CK.phone)}" inputmode="numeric" maxlength="12" placeholder="${loose()?'選填 0912-345-678':'例如: 0912-345-678'}" oninput="fmtPhone(this)"></div>
     <div class="fm-err">電話格式需為 09XX-XXX-XXX</div>
     <div class="fm-row${e&&!CK.time?' err':''}"><b>取餐時間*</b>
      ${isAdmin&&CK.late?`<input type="time" value="${esc(CK.time)}" oninput="CK.time=this.value">`:`<select onchange="CK.time=this.value"><option value="">請選擇取餐時間</option>${slots.map(s=>`<option value="${s}"${CK.time===s?' selected':''}>${s}</option>`).join('')}</select>`}</div>
@@ -623,7 +659,7 @@ function submitCheckout(){
   if(!nameValid()||!phoneValid()||!CK.time){renderCheckout();return}
   const t=calcTotals();
   window.pendingOrder={
-    name:CK.name.trim()||'現場客',phone:CK.phone,src:isAdmin?(CK.src||'現場'):'線上',time:CK.time,note:CK.note.trim(),
+    name:CK.name.trim()||'現場客',phone:CK.phone,src:isAdmin?(CK.src||'現場'):(CK.walkin?'現場':'線上'),time:CK.time,note:CK.note.trim(),
     flavor:CK.people[0].flavor||'原味',spice:CK.people[0].spice||'不辣',salt:CK.people[0].salt||'正常',
     gear:[...CK.gear],pay:CK.pay,items:JSON.parse(JSON.stringify(cart)),
     subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
@@ -684,20 +720,38 @@ async function confirmOrder(){
     const key='L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
     try{
       if(!window.FB||!CONNECTED)throw new Error('offline');
-      o.no=await withTimeout(sendOrder(key,{...data},day),10000);
+      let held=[];
+      if(!o.late){
+        let rs=await withTimeout(reserveStock(o.items,false),10000);
+        if(!rs.ok){
+          if(!confirm(`「${rs.name}」庫存只剩 ${rs.left} 份，仍要送出這張單嗎？`)){if(btn){btn.disabled=false;btn.textContent='確認送出'}submitting=false;return}
+          rs=await withTimeout(reserveStock(o.items,true),10000);
+        }
+        held=rs.done||[];
+      }
+      try{o.no=await withTimeout(sendOrder(key,{...data},day),10000)}catch(er){await releaseStock(held);throw er}
       if(!o.late)notifyLine(key);
       showDone(o);
     }catch(e){OUT.push({key,day,data});saveOut();showQueued(o)}
   }else{
+    let held=[],written=false;
     try{
+      const rs=await reserveStock(o.items,false);
+      if(!rs.ok){
+        alert(`「${rs.name}」目前只剩 ${rs.left} 份，請調整數量後再送出。`);
+        if(btn){btn.disabled=false;btn.textContent='確認送出'}
+        submitting=false;return;
+      }
+      held=rs.done;
       const r=await FB.runTransaction(FB.ref(FB.db,'counters/'+day),n=>(n||0)+1);
       o.no=String(r.snapshot.val()).padStart(3,'0');data.no=o.no;
       const nref=FB.push(FB.ref(FB.db,'orders'));
-      await FB.set(nref,data);
+      await FB.set(nref,data);written=true;
       saveMy(nref.key,o.no);
       notifyLine(nref.key);
       showDone(o);
     }catch(e){
+      if(!written)await releaseStock(held);
       const em=String(e.code||e.message);
       alert(/PERMISSION/i.test(em)?'訂單無法送出：店家目前可能已暫停接單，請稍後再試。（'+em+'）':'訂單送出失敗，請檢查網路後再試一次。\n（'+em+'）');
       if(btn){btn.disabled=false;btn.textContent='確認送出'}
@@ -716,14 +770,14 @@ function showDone(o){
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 function finishOrder(){
-  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:''});curP=0;
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false});curP=0;
   window.pendingOrder=null;
   cart=[];renderCart();renderGrid();closeModal();
 }
 
 /* ===== 店家登入（Firebase Auth）===== */
 function setAdminUI(on){
-  ['ordersBtn','soldOutModeBtn','soldOutListBtn','cashBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
+  ['ordersBtn','soldOutModeBtn','soldOutListBtn','stockBtn','cashBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
   $('adminBtn').style.display=on&&isManager()?'block':'none';
   $('logoutBtn').textContent='🚪 登出（'+(isManager()?'店長':'店員')+'）';
   $('statusPill').classList.toggle('admin-mode',on);
@@ -806,7 +860,7 @@ function startOrders(){
   const q=FB.query(FB.ref(FB.db,'orders'),FB.orderByChild('createdAt'),FB.startAt(ordStart));
   ordUnsub=FB.onValue(q,sn=>{
     const v=sn.val()||{};
-    const fresh=Object.keys(v).filter(id=>!ORDERS[id]&&v[id].status==='new'&&!v[id].staff&&(v[id].src||'線上')==='線上');
+    const fresh=Object.keys(v).filter(id=>!ORDERS[id]&&v[id].status==='new'&&!v[id].staff);
     ORDERS=v;
     if(ordInit&&fresh.length){
       if(!muted)beep();const o=v[fresh[fresh.length-1]];fresh.forEach(notifyLine);
@@ -832,7 +886,7 @@ function renderOrders(){
   const cnt=k=>all.filter(o=>o.status===k).length;
   const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
-    .sort((a,b)=>String(a.time).localeCompare(String(b.time))||a.createdAt-b.createdAt);
+    .sort((a,b)=>{const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
   const cards=list.map(o=>{
     const items=itemsBlock(o,true);
     const opt=o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
@@ -1271,6 +1325,7 @@ async function confirmVoid(){
   const b=$('vdBtn');b.disabled=true;b.textContent='處理中…';
   try{await FB.update(FB.ref(FB.db,'orders/'+VD.id),{status:'cancelled',prevStatus:o.status||'new',voidReason:reason,voidAt:Date.now(),voidBy:whoAmI(),updatedAt:Date.now()})}
   catch(e){alert('拒單失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認拒單';return}
+  adjustStockForOrder(o,-1);
   logAct('拒單',VD.id,o.no,reason+(o.paid?'（已收款）':''));
   backFromVoid();
 }
@@ -1279,13 +1334,14 @@ async function restoreOrder(id,from){
   const o=ORDERS[id]||HIST.find(x=>x.id===id);if(!o||!confirm(`還原訂單 #${o.no}？`))return;
   try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:o.prevStatus||'new',prevStatus:null,voidReason:null,voidAt:null,voidBy:null,updatedAt:Date.now()})}
   catch(e){alert('還原失敗：'+(e.code||e.message));return}
+  adjustStockForOrder(o,1);
   logAct('還原',id,o.no,'由拒單還原');
   if(from==='history')loadHistory();
 }
 
 /* ===== 提示音 / 螢幕恆亮 / 重複提醒 ===== */
 let muted=localStorage.getItem('alarm_muted')==='1',alarmT=null,wake=null;
-const hasNewOnline=()=>Object.values(ORDERS).some(o=>o.status==='new'&&!o.staff&&(o.src||'線上')==='線上');
+const hasNewOnline=()=>Object.values(ORDERS).some(o=>o.status==='new'&&!o.staff);
 function startAlarm(){stopAlarm();alarmT=setInterval(()=>{if(isAdmin&&!muted&&hasNewOnline())beep()},6000)}
 function stopAlarm(){if(alarmT){clearInterval(alarmT);alarmT=null}}
 function updateSoundBtn(){
@@ -1328,7 +1384,9 @@ async function flushOutbox(manual){
   if(!CONNECTED&&manual!==true)return;
   flushing=true;let ok=0;
   for(const it of [...OUT]){
-    try{await withTimeout(sendOrder(it.key,{...it.data},it.day),12000);OUT=OUT.filter(x=>x.key!==it.key);ok++;saveOut();if(!it.data.late)notifyLine(it.key)}
+    try{
+      if(!it.reserved&&!it.data.late&&it.day===today8()){await withTimeout(reserveStock(it.data.items,true),12000);it.reserved=true;saveOut()}
+      await withTimeout(sendOrder(it.key,{...it.data},it.day),12000);OUT=OUT.filter(x=>x.key!==it.key);ok++;saveOut();if(!it.data.late)notifyLine(it.key)}
     catch(e){break}
   }
   flushing=false;
@@ -1604,7 +1662,136 @@ async function exportCashbook(){
   if(btn){btn.disabled=false;btn.textContent='📥 匯出彙整 Excel（全部日期）'}
 }
 
-function tick(){const d=new Date(),z=n=>String(n).padStart(2,'0');$('clock').textContent=`${d.getFullYear()}年${z(d.getMonth()+1)}月${z(d.getDate())}日 週${'日一二三四五六'[d.getDay()]} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`}
+/* ===== 當日庫存（賣完為止）===== */
+const baseId=id=>String(id).split('_')[0];
+let STOCK={},stockDay='',stockUnsub=null,STK={rows:{}},STKopen=false;
+function subStock(){
+  if(!window.FB)return;
+  const d=today8();
+  if(d===stockDay&&stockUnsub)return;
+  if(stockUnsub){stockUnsub();stockUnsub=null}
+  stockDay=d;STOCK={};
+  stockUnsub=FB.onValue(FB.ref(FB.db,'stock/'+d),sn=>{STOCK=sn.val()||{};renderGrid();renderCart();if(STKopen)refreshStockCells()},()=>{});
+}
+const stockInfo=id=>{const r=STOCK[baseId(id)];return r&&r.limit!=null&&r.limit!==''?{limit:+r.limit,sold:+r.sold||0}:null};
+const stockLeft=id=>{const s=stockInfo(id);return s?Math.max(0,s.limit-s.sold):Infinity};
+const canAdd=id=>{
+  const l=stockLeft(id);if(l===Infinity)return true;
+  const b=baseId(id);return cart.filter(x=>baseId(x.id)===b).reduce((a,x)=>a+x.qty,0)<l;
+};
+const itemName=id=>((find(baseId(id))||{}).name)||id;
+const needOf=items=>{const need={};(items||[]).forEach(x=>{const b=baseId(x.id);need[b]=(need[b]||0)+(+x.qty||0)});return need};
+const soldRef=b=>FB.ref(FB.db,'stock/'+today8()+'/'+b+'/sold');
+
+/* 下單時先「預留」庫存；不夠就擋下（force=true 時強制扣，店家可選擇仍要送出） */
+async function reserveStock(items,force){
+  const done=[];
+  for(const [b,q] of Object.entries(needOf(items))){
+    const info=STOCK[b];if(!info||info.limit==null)continue;
+    const lim=+info.limit;let r;
+    try{r=await FB.runTransaction(soldRef(b),cur=>{cur=+cur||0;if(!force&&cur+q>lim)return;return cur+q})}
+    catch(e){await releaseStock(done);throw e}
+    if(!r.committed){await releaseStock(done);return{ok:false,name:itemName(b),left:Math.max(0,lim-(+r.snapshot.val()||0))}}
+    done.push([b,q]);
+  }
+  return{ok:true,done};
+}
+async function releaseStock(done){
+  for(const [b,q] of done){try{await FB.runTransaction(soldRef(b),c=>Math.max(0,(+c||0)-q))}catch(e){}}
+}
+/* 拒單 → 把庫存還回去；還原 → 再扣掉 */
+async function adjustStockForOrder(o,sign){
+  if(!window.FB||!o||o.late||o.date!==today8())return;
+  for(const [b,q] of Object.entries(needOf(o.items))){
+    const info=STOCK[b];if(!info||info.limit==null)continue;
+    try{await FB.runTransaction(soldRef(b),c=>Math.max(0,(+c||0)+sign*q))}catch(e){}
+  }
+}
+
+/* --- 庫存設定畫面（店員、店長都能用）--- */
+function openStock(){
+  STK={rows:{}};
+  Object.entries(STOCK).forEach(([id,r])=>{if(r&&r.limit!=null)STK.rows[id]=String(r.limit)});
+  STKopen=true;viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xl';renderStock();$('modal').classList.add('open');
+}
+const stkSold=id=>+((STOCK[id]||{}).sold)||0;
+function renderStock(){
+  const ids=Object.keys(STK.rows);
+  const opts=MENU.map(c=>`<optgroup label="${esc(split(c.k)[0])}">${c.items.filter(i=>!(i.id in STK.rows)).map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('')}</optgroup>`).join('');
+  const rows=ids.map(id=>{
+    const it=find(id)||{name:id},sold=stkSold(id),lim=parseInt(STK.rows[id]);
+    return `<div class="er"><span style="flex:1;font-weight:700">${esc(it.name)}</span><span style="width:76px;color:var(--mu)">已售 <b id="ss_${id}">${sold}</b></span><span style="width:70px">剩 <b id="sl_${id}">${lim>=0?Math.max(0,lim-sold):'-'}</b></span><input class="qt" style="width:96px" type="number" min="0" inputmode="numeric" value="${esc(STK.rows[id])}" placeholder="限量" oninput="stkInput('${id}',this.value)"><button class="del-btn" onclick="stkDel('${id}')" title="移除限量">✕</button></div>`;
+  }).join('');
+  $('mBox').innerHTML=`<div class="oh"><h3>📦 今日庫存（限量品項）</h3><button onclick="closeModal()">關閉</button></div>
+   <div class="modal-tip">沒有設定限量的品項＝不限量。限量品項賣完會<b>自動反黑、不能點選</b>，客人頁面也會顯示「剩 N」。營業日（每日 02:00 換日）換日後庫存會自動重新開始。</div>
+   <div class="fm-sec"><div class="fm-title">${dayLabel(today8())}</div>
+    ${rows||'<div style="text-align:center;color:var(--mu);padding:14px">今天還沒有設定任何限量品項</div>'}
+    <div class="fm-row"><select onchange="stkAdd(this.value)"><option value="">＋ 加入限量品項…</option>${opts}</select></div></div>
+   <div class="m-btns"><button class="btn-confirm" onclick="stkSave()">儲存庫存設定</button></div>
+   <div class="m-btns"><button class="btn-cancel" onclick="stkCopy()">沿用昨天的限量</button><button class="btn-cancel" onclick="stkRecalc()">依今日訂單重算已售</button><button class="btn-cancel" onclick="stkClear()">清空今日庫存設定</button></div>`;
+}
+function stkInput(id,v){
+  STK.rows[id]=v;const el=$('sl_'+id),n=parseInt(v);
+  if(el)el.textContent=n>=0?Math.max(0,n-stkSold(id)):'-';
+}
+function refreshStockCells(){
+  Object.keys(STK.rows).forEach(id=>{
+    const a=$('ss_'+id),b=$('sl_'+id),n=parseInt(STK.rows[id]);
+    if(a)a.textContent=stkSold(id);if(b)b.textContent=n>=0?Math.max(0,n-stkSold(id)):'-';
+  });
+}
+function stkAdd(id){if(id){STK.rows[id]='';renderStock()}}
+async function stkDel(id){
+  const saved=STOCK[id]&&STOCK[id].limit!=null;
+  if(saved){
+    if(!confirm(`移除「${(find(id)||{}).name||id}」的限量（改成不限量）？`))return;
+    try{await FB.remove(FB.ref(FB.db,'stock/'+today8()+'/'+id))}catch(e){alert('移除失敗：'+(e.code||e.message));return}
+  }
+  delete STK.rows[id];renderStock();
+}
+async function stkSave(){
+  const ids=Object.keys(STK.rows);
+  for(const id of ids){if(!(parseInt(STK.rows[id])>=0)){alert(`「${(find(id)||{}).name||id}」請輸入限量數字（0 以上）`);return}}
+  try{
+    for(const id of ids){
+      const v=parseInt(STK.rows[id]),cur=STOCK[id];
+      await FB.update(FB.ref(FB.db,'stock/'+today8()+'/'+id),cur&&cur.sold!=null?{limit:v}:{limit:v,sold:0});
+    }
+  }catch(e){alert('儲存失敗：'+(e.code||e.message));return}
+  logAct('設定庫存',null,'',ids.map(id=>`${(find(id)||{}).name||id}×${STK.rows[id]}`).join('、')||'（無）');
+  toast('✅ 庫存設定已儲存');
+}
+async function stkRecalc(){
+  if(!confirm('依今日所有訂單（不含已拒單）重新計算每個限量品項的「已售」數量？'))return;
+  try{
+    const list=(await fetchDayOrders(today8())).filter(o=>o.status!=='cancelled');
+    const sold={};list.forEach(o=>Object.entries(needOf(o.items)).forEach(([b,q])=>sold[b]=(sold[b]||0)+q));
+    for(const id of Object.keys(STOCK)){
+      if(STOCK[id]&&STOCK[id].limit!=null)await FB.update(FB.ref(FB.db,'stock/'+today8()+'/'+id),{sold:sold[id]||0});
+    }
+  }catch(e){alert('重新計算失敗：'+(e.code||e.message));return}
+  logAct('重算庫存已售',null,'',dayPlain(today8()));
+  toast('✅ 已重新計算已售數量');
+}
+async function stkClear(){
+  if(!confirm('清空今天所有限量設定？（全部品項改成不限量）'))return;
+  try{await FB.remove(FB.ref(FB.db,'stock/'+today8()))}catch(e){alert('清空失敗：'+(e.code||e.message));return}
+  STK.rows={};renderStock();
+}
+async function stkCopy(){
+  try{
+    const y=(await FB.get(FB.ref(FB.db,'stock/'+shiftDay(today8(),-1)))).val()||{};
+    const ids=Object.keys(y).filter(id=>y[id]&&y[id].limit!=null);
+    if(!ids.length){alert('昨天沒有限量設定可沿用');return}
+    for(const id of ids)await FB.update(FB.ref(FB.db,'stock/'+today8()+'/'+id),{limit:+y[id].limit,sold:0});
+    ids.forEach(id=>STK.rows[id]=String(y[id].limit));
+  }catch(e){alert('沿用失敗：'+(e.code||e.message));return}
+  toast('✅ 已沿用昨天的限量（已售歸零）');renderStock();
+}
+
+function tick(){const d=new Date(),z=n=>String(n).padStart(2,'0'),w='週'+'日一二三四五六'[d.getDay()],t=`${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;$('clock').textContent=innerWidth<600?`${d.getFullYear()}/${z(d.getMonth()+1)}/${z(d.getDate())} ${w} ${t}`:`${d.getFullYear()}年${z(d.getMonth()+1)}月${z(d.getDate())}日 ${w} ${t}`}
+function toggleCart(){document.querySelector('.cart').classList.toggle('cart-open')}
 tick();setInterval(tick,1e3);
 setInterval(()=>{if(isAdmin&&ordUnsub&&bizStart()!==ordStart)startOrders()},6e4);
 </script>
