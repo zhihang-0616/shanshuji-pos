@@ -616,7 +616,7 @@ function lateBlock(){
   return `<div class="modal-tip">補單會用你指定的「下單時間」入帳，營收與統計會算在該時間所屬的營業日（02:00 換日）。取餐時間可自由填寫。</div>
    <div class="fm-row"><b>下單時間</b><input type="datetime-local" value="${esc(CK.lateAt)}" oninput="CK.lateAt=this.value"></div>
    <div class="fm-row"><b>紙本單號</b><input value="${esc(CK.lateNo)}" placeholder="選填，空白則自動編號" oninput="CK.lateNo=this.value"></div>
-   <div class="fm-row"><b>訂單狀態</b><div class="chips">${[['picked','已取餐'],['done','已完成'],['making','製作中'],['new','新單']].map(([k,t])=>`<button class="chip${CK.lateStatus===k?' on':''}" onclick="CK.lateStatus='${k}';renderCheckout()">${t}</button>`).join('')}</div></div>
+   <div class="fm-row"><b>訂單狀態</b><div class="chips">${[['picked','已取餐'],['done','待取餐'],['making','製作中'],['new','新單']].map(([k,t])=>`<button class="chip${CK.lateStatus===k?' on':''}" onclick="CK.lateStatus='${k}';renderCheckout()">${t}</button>`).join('')}</div></div>
    <div class="fm-row"><b>收款</b><div class="chips"><button class="chip${CK.latePaid?' on':''}" onclick="CK.latePaid=!CK.latePaid;renderCheckout()">已收款（付款方式請在下方選擇）</button></div></div>`;
 }
 function renderCheckout(){
@@ -853,8 +853,8 @@ function toast(msg,fn){
 
 /* ===== 訂單列表（店家）===== */
 let ORDERS={},ordStart=0,ordUnsub=null,ordInit=false,viewingOrders=false,viewingStats=false,viewingTrack=false,ordFilter='active';
-const ST={new:'新單',making:'製作中',done:'已完成',picked:'已取餐',cancelled:'已拒單'};
-const NEXT={new:['making','開始製作'],making:['done','製作完成'],done:['picked','已取餐']};
+const ST={new:'待接單',making:'製作中',done:'待取餐',picked:'已取餐',cancelled:'已拒單'};
+const NEXT={new:['making','接單'],making:['done','完成'],done:['picked','取餐']};
 function startOrders(){
   stopOrders();
   ordStart=bizStart();
@@ -885,8 +885,8 @@ function renderOrders(){
   if(!viewingOrders)return;
   const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
   const cnt=k=>all.filter(o=>o.status===k).length;
-  const F=[['active','待處理',cnt('new')+cnt('making')],['done','已完成',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
-  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'):o.status===ordFilter))
+  const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
+  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
     .sort((a,b)=>{const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
   const cards=list.map(o=>{
     const items=itemsBlock(o,true);
@@ -905,10 +905,10 @@ function renderOrders(){
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
-      ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款':'結帳'}</button>`:''}
+      ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">拒單</button>`:''}
       ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
-      ${nx?`<button class="oc-go" onclick="setOrderStatus('${o.id}','${nx[0]}')">${nx[1]}</button>`:''}
+      ${nx?`<button class="oc-go" onclick="${nx[0]==='picked'?`pickup('${o.id}')`:`setOrderStatus('${o.id}','${nx[0]}')`}">${nx[1]}</button>`:''}
      </div></div>`;
   }).join('');
   const y=$('mBox').scrollTop;
@@ -919,7 +919,8 @@ function renderOrders(){
   $('mBox').scrollTop=y;
 }
 function setOrderStatus(id,st){
-  FB.update(FB.ref(FB.db,'orders/'+id),{status:st,updatedAt:Date.now()}).catch(e=>alert('更新失敗：'+(e.code||e.message)));
+  const data={status:st,updatedAt:Date.now()},k={making:'acceptedAt',done:'doneAt',picked:'pickedAt'}[st];if(k)data[k]=Date.now();
+  FB.update(FB.ref(FB.db,'orders/'+id),data).catch(e=>alert('更新失敗：'+(e.code||e.message)));
 }
 function cancelOrder(id){openVoid(id,'orders')}
 
@@ -930,9 +931,11 @@ const bizStart=()=>bizStartOf(Date.now());
 const bizDay=t=>{const d=new Date(bizStartOf(t));return d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())};
 const today8=()=>bizDay(Date.now());
 let MY=[],MYD={},myUn={};
-const STEPS=[['new','已收單'],['making','製作中'],['done','可取餐'],['picked','已取餐']];
-function loadMy(){try{MY=JSON.parse(localStorage.getItem('my_orders')||'[]').filter(m=>m.date===today8())}catch(e){MY=[]}}
-function saveMy(id,no){MY.push({id,no,date:today8()});MY=MY.slice(-8);localStorage.setItem('my_orders',JSON.stringify(MY));watchMy(id)}
+const STEPS=[['new','等待接單'],['making','製作中'],['done','待取餐'],['picked','已取餐']];
+const fmtTS=t=>{const d=new Date(t);return p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())};
+const TRK_MSG={new:'訂單已送出，等待店家接單',making:'店家已接單，正在製作中',done:'餐點完成了，請前往取餐',picked:'訂單已完成，謝謝光臨！'};
+function loadMy(){try{MY=JSON.parse(localStorage.getItem('my_orders')||'[]').filter(m=>m.at?Date.now()-m.at<43200000:m.date===today8())}catch(e){MY=[]}}
+function saveMy(id,no){MY.push({id,no,date:today8(),at:Date.now()});MY=MY.slice(-8);localStorage.setItem('my_orders',JSON.stringify(MY));watchMy(id)}
 function watchMy(id){
   if(myUn[id]||!window.FB)return;
   myUn[id]=FB.onValue(FB.ref(FB.db,'orders/'+id),sn=>{
@@ -940,7 +943,8 @@ function watchMy(id){
     MYD[id]=v||{gone:true};
     if(v&&v.notice){try{const seen=JSON.parse(localStorage.getItem('seen_notice')||'{}');if(seen[id]!==v.notice.at){seen[id]=v.notice.at;localStorage.setItem('seen_notice',JSON.stringify(seen));toast(`📢 訂單 #${v.no}：${v.notice.text}`,openTrack)}}catch(e){}}
     if(v&&prev&&prev!==v.status){
-      if(v.status==='done')toast(`🍱 訂單 #${v.no} 已完成，請前往取餐`,openTrack);
+      if(v.status==='making')toast(`🍳 訂單 #${v.no} 店家已接單，製作中`,openTrack);
+      else if(v.status==='done')toast(`🍱 訂單 #${v.no} 餐點完成（待取餐），請前往取餐`,openTrack);
       else if(v.status==='cancelled')toast(`訂單 #${v.no} 店家無法接單（已拒單）${v.voidReason?'：'+v.voidReason:''}，如有疑問請洽店家`,openTrack);
     }
     renderTrack();
@@ -957,11 +961,13 @@ function renderTrack(){
     if(!o)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">讀取中…</div></div>`;
     if(o.gone)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">找不到此訂單，請洽店家</div></div>`;
     const cur=STEPS.findIndex(x=>x[0]===o.status);
+    const msg=o.status==='cancelled'?'':`<div style="text-align:center;font-weight:800;color:var(--ac2);font-size:15px">${TRK_MSG[o.status]||''}</div><div style="text-align:center;font-size:12px;color:var(--mu)">● 即時更新中　狀態更新於 ${fmtTS(o.updatedAt||o.createdAt)}</div>`;
     const prog=o.status==='cancelled'?`<div style="color:var(--bad);font-weight:700;text-align:center">店家無法接受此訂單（已拒單）${o.voidReason?'<br>原因：'+esc(o.voidReason):''}<br>如有疑問請洽店家</div>`
       :`<div class="trk">${STEPS.map((x,i)=>`<span class="${i<cur?'ok':i===cur?'cur':''}">${x[1]}</span>`).join('')}</div>`;
     return `<div class="fm-sec">
      <div class="oc-h"><b style="font-size:20px;color:var(--ac)">#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span></div>
      ${prog}
+     ${msg}
      ${o.notice?`<div class="modal-tip" style="border-left-color:var(--bad)">📢 店家更新（${fmtT(o.notice.at)}）：${esc(o.notice.text)}</div>`:''}
      <div class="rc-row"><span>訂購人</span><span>${esc(o.name)}</span></div>
      <div style="font-size:14px;line-height:1.7">${itemsBlock(o,true)}</div>
@@ -969,7 +975,8 @@ function renderTrack(){
   }).join('');
   $('mBox').innerHTML=`<div class="oh"><h3>📋 我的訂單</h3><button onclick="closeModal()">關閉</button></div>
    ${cards||'<div style="text-align:center;color:var(--mu);padding:30px">今日在這個裝置上還沒有訂單</div>'}
-   <div class="modal-tip">狀態會即時更新，餐點完成時會跳出提醒。只顯示今日在此裝置送出的訂單。</div>`;
+   ${(!CONNECTED&&everConnected)?'<div class="modal-tip" style="border-left-color:var(--bad)">⚠ 目前網路連線中斷，下面的狀態可能不是最新的，連上網路後會自動更新。</div>':''}
+   <div class="modal-tip">狀態會即時更新，餐點完成時會跳出提醒。只顯示最近 12 小時內、在這個裝置送出的訂單。</div>`;
 }
 
 /* ===== 後台管理 ===== */
@@ -1014,7 +1021,7 @@ function renderStats(){
    <div class="fm-sec">
     <div class="fm-total" style="border:0;padding:0"><span>今日營收</span><b>${money(S.rev)}</b></div>
     ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已拒單',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
-    ${line('待處理 / 已完成未取 / 已取餐',`${cnt('new')+cnt('making')} / ${cnt('done')} / ${cnt('picked')}`)}
+    ${line('待處理 / 待取餐 / 已取餐',`${cnt('new')+cnt('making')} / ${cnt('done')} / ${cnt('picked')}`)}
    </div>
    <div class="fm-sec"><div class="fm-title">付款方式</div>${rows(S.pay)}</div>
    <div class="fm-sec"><div class="fm-title">訂單來源</div>${rows(S.src)}</div>
@@ -1222,59 +1229,88 @@ async function delOrder(id,no,from){
   if(from==='histlist')loadHistory();else if(from==='orders')openOrders();else backFromEdit();
 }
 
-/* ===== 結帳（收款 / 找零 / 更改付款方式）===== */
+/* ===== 取餐 → 自動結帳完成，並跳出結帳畫面（可改付款方式、折扣、折讓）===== */
 let PAY=null;
-function openPay(id){
+const payBase=o=>{const sub=+o.subtotal;return(sub>0?sub:(o.items||[]).reduce((a,x)=>a+(+x.price||0)*(+x.qty||0),0))+(+o.extra||0)};
+const payTotal=()=>{
+  let p=parseFloat(PAY.pct);if(isNaN(p))p=100;p=Math.min(100,Math.max(0,p));
+  const off=Math.max(0,parseFloat(PAY.off)||0);
+  return Math.max(0,Math.round(PAY.base*p/100)-off);
+};
+async function pickup(id){
   const o=ORDERS[id];if(!o)return;
-  PAY={id,o,pay:o.pay||'現金',recv:'',pick:o.status==='done'};
+  const data={status:'picked',pickedAt:Date.now(),updatedAt:Date.now()};
+  try{await FB.update(FB.ref(FB.db,'orders/'+id),data)}
+  catch(e){alert('取餐失敗：'+(e.code||e.message));return}
+  logAct('取餐',id,o.no,o.paid?'已取餐（原本已收款）':'已取餐，進入結帳');
+  if(o.paid){toast(`✅ #${o.no} 已取餐（原本已收款，訂單結束）`);return}
+  openPay(id,true,{...o,...data});
+}
+function openPay(id,after,fresh){
+  const o=fresh||ORDERS[id];if(!o)return;
+  PAY={id,o,after:!!after,pay:o.pay||'現金',recv:'',pct:'100',off:String(+o.discount||0),base:payBase(o)};
   viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box wide';renderPay();$('modal').classList.add('open');
 }
+function payBack(){
+  if(PAY&&PAY.after&&!PAY.o.paid&&!confirm('這筆訂單還沒結帳。\n確定先離開嗎？離開後可在「訂單管理 → 未收款」找到它。'))return;
+  openOrders();
+}
 function payMethod(v){PAY.pay=v;if(v!=='現金')PAY.recv='';renderPay()}
 function payRecv(v){PAY.recv=String(v);renderPay()}
-function payTogglePick(){PAY.pick=!PAY.pick;renderPay()}
 function payChgText(){
-  const total=+PAY.o.total||0;
+  const total=payTotal();
   if(PAY.recv==='')return'$0';
   const c=(parseFloat(PAY.recv)||0)-total;
   return c>=0?'$'+c:'不足 $'+(-c);
 }
-function payChange(){const el=$('payChg');el.textContent=payChgText();el.style.color=payChgText().startsWith('不足')?'var(--bad)':''}
+function payCalc(){
+  const t=$('payTotal');if(t)t.textContent='$'+payTotal();
+  const el=$('payChg');if(el){el.textContent=payChgText();el.style.color=payChgText().startsWith('不足')?'var(--bad)':''}
+}
 function renderPay(){
-  const o=PAY.o,total=+o.total||0,cash=PAY.pay==='現金';
+  const o=PAY.o,total=payTotal(),cash=PAY.pay==='現金';
   const line=x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`;
   const PP=peopleOf(o);
   const items=PP?PP.map(pp=>`<div class="fm-title" style="text-align:left">👤 ${esc(pp.name)}</div>${pp.items.map(line).join('')}`).join(''):(o.items||[]).map(line).join('');
   const quick=[total,100,200,500,1000,2000].filter((v,i,a)=>v>0&&a.indexOf(v)===i);
-  const was=o.paid?`<div class="modal-tip">此訂單已收款（${esc(o.pay||'')}${o.received?'，收 $'+o.received:''}），可重新結帳修改。</div>`:'';
+  const tip=PAY.after?`<div class="modal-tip">✅ 客人已取餐。請確認金額與付款方式（可修改<b>付款方式、折扣、折讓</b>），按下「<b>結帳</b>」才算收款，這筆訂單就結束了。</div>`
+    :(o.paid?`<div class="modal-tip">此訂單已收款（${esc(o.pay||'')}${o.received?'，收 $'+o.received:''}），可重新結帳修改。</div>`:'');
   $('mBox').innerHTML=`
-   <div class="oh"><h3>💰 結帳 #${esc(o.no)}　${esc(o.name)}</h3><button onclick="openOrders()">返回</button></div>
-   ${was}
-   <div class="fm-sec">${items}<div class="fm-total"><span>應付總額</span><b>$${total}</b></div></div>
+   <div class="oh"><h3>💰 結帳 #${esc(o.no)}　${esc(o.name)}</h3><button onclick="payBack()">返回</button></div>
+   ${tip}
+   <div class="fm-sec">${items}
+    <div class="fm-line" style="border-top:1px dashed var(--ln);padding-top:8px"><span>小計金額</span><span>$${PAY.base}</span></div>
+    <div class="fm-row"><b style="width:auto">折扣（%數）</b><input type="number" min="0" max="100" inputmode="decimal" value="${esc(PAY.pct)}" placeholder="100＝不打折" oninput="PAY.pct=this.value;payCalc()" onchange="renderPay()"><b style="width:auto">折讓（－$）</b><input type="number" min="0" inputmode="numeric" value="${esc(PAY.off)}" placeholder="0" oninput="PAY.off=this.value;payCalc()" onchange="renderPay()"></div>
+    <div style="text-align:left;font-size:12px;color:var(--mu);line-height:1.5">折扣：打 9 折請輸入 90、打 85 折輸入 85；折讓是直接扣掉的金額。</div>
+    <div class="fm-total"><span>應付總額</span><b id="payTotal">$${total}</b></div></div>
    <div class="fm-sec">
     <div class="fm-title">付款方式${o.pay&&o.pay!==PAY.pay?`（客人原選：${esc(o.pay)}）`:''}</div>
     <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>`<button class="chip${PAY.pay===v?' on':''}" onclick="payMethod('${v}')">${v}</button>`).join('')}</div>
-    ${cash?`<div class="fm-row"><b style="width:auto">收到金額</b><input id="payRecv" type="number" inputmode="numeric" value="${esc(PAY.recv)}" placeholder="輸入收到的金額" oninput="PAY.recv=this.value;payChange()"></div>
+    ${cash?`<div class="fm-row"><b style="width:auto">收到金額</b><input id="payRecv" type="number" inputmode="numeric" value="${esc(PAY.recv)}" placeholder="輸入收到的金額" oninput="PAY.recv=this.value;payCalc()"></div>
      <div class="chips">${quick.map((v,i)=>`<button class="chip" onclick="payRecv(${v})">${i===0?'剛好 $'+v:'$'+v}</button>`).join('')}</div>
      <div class="fm-total"><span>找零</span><b id="payChg" style="${payChgText().startsWith('不足')?'color:var(--bad)':''}">${payChgText()}</b></div>`
      :`<div style="color:var(--mu);font-size:14px">${esc(PAY.pay)} 無需找零，確認款項已收到即可。</div>`}
    </div>
-   ${o.status!=='picked'&&o.status!=='cancelled'?`<div class="chips"><button class="chip${PAY.pick?' on':''}" onclick="payTogglePick()">同時標記為已取餐</button></div>`:''}
-   <div class="m-btns"><button class="btn-cancel" onclick="openOrders()">返回</button><button class="btn-confirm" id="payBtn" onclick="confirmPay()">確認收款</button></div>`;
+   <div class="m-btns"><button class="btn-cancel" onclick="payBack()">返回</button><button class="btn-confirm" id="payBtn" onclick="confirmPay()">結帳</button></div>`;
 }
 async function confirmPay(){
-  const total=+PAY.o.total||0,cash=PAY.pay==='現金';
+  const total=payTotal(),cash=PAY.pay==='現金',o=PAY.o;
   let recv=total;
   if(cash&&PAY.recv!==''){recv=parseFloat(PAY.recv);if(!(recv>=total)){alert('收到的金額不足 $'+total);return}}
   const chg=cash?recv-total:0;
-  const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,updatedAt:Date.now()};
-  if(PAY.pick&&PAY.o.status!=='cancelled')data.status='picked';
+  const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,total,discount:Math.max(0,PAY.base-total),updatedAt:Date.now()};
+  if(o.status==='done')data.status='picked';          // 待取餐的單，結帳＝客人取餐，訂單結束
   const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
-  try{await FB.update(FB.ref(FB.db,'orders/'+PAY.id),data);logAct('收款',PAY.id,PAY.o.no,`${PAY.pay} $${total}${cash&&chg?'（找零 $'+chg+'）':''}`)}
-  catch(e){alert('收款失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認收款';return}
-  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>收款完成 #${esc(PAY.o.no)}</h3>
+  try{
+    await FB.update(FB.ref(FB.db,'orders/'+PAY.id),data);
+    const chgTxt=total!==(+o.total||0)?`｜金額 $${o.total}→$${total}`:'';
+    logAct('結帳',PAY.id,o.no,`${PAY.pay} $${total}${cash&&chg?'（找零 $'+chg+'）':''}${chgTxt}`);
+  }catch(e){alert('結帳失敗：'+(e.code||e.message));b.disabled=false;b.textContent='結帳';return}
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>結帳完成 #${esc(o.no)}</h3>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
     ${cash?`<div class="rc-no">找零 $${chg}</div><div class="rc-row" style="justify-content:center;gap:8px"><span>收到</span><span>$${recv}</span></div>`:''}
+    <div class="modal-tip" style="text-align:left;margin-top:10px">這筆訂單已結束。</div>
    </div><div class="m-btns"><button class="btn-confirm" onclick="openOrders()">完成</button></div>`;
 }
 
