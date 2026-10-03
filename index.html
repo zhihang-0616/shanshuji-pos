@@ -678,6 +678,7 @@ async function confirmOrder(){
     try{
       if(!window.FB||!CONNECTED)throw new Error('offline');
       o.no=await withTimeout(sendOrder(key,{...data},day),10000);
+      if(!o.late)notifyLine(key);
       showDone(o);
     }catch(e){OUT.push({key,day,data});saveOut();showQueued(o)}
   }else{
@@ -1311,7 +1312,7 @@ async function flushOutbox(manual){
   if(!CONNECTED&&manual!==true)return;
   flushing=true;let ok=0;
   for(const it of [...OUT]){
-    try{await withTimeout(sendOrder(it.key,{...it.data},it.day),12000);OUT=OUT.filter(x=>x.key!==it.key);ok++;saveOut()}
+    try{await withTimeout(sendOrder(it.key,{...it.data},it.day),12000);OUT=OUT.filter(x=>x.key!==it.key);ok++;saveOut();if(!it.data.late)notifyLine(it.key)}
     catch(e){break}
   }
   flushing=false;
