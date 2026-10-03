@@ -164,6 +164,9 @@ input[type=time]{color-scheme:dark}
 .pg{margin:6px 0;padding:6px 8px;border-left:3px solid var(--ln);background:rgba(0,0,0,.15);border-radius:4px}
 .pg .mu{color:var(--mu);font-size:13px}
 .er select{padding:8px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:14px;width:96px}
+.xhead{position:sticky;top:-24px;margin:-24px -24px 0;padding:22px 24px 12px;background:var(--s1);z-index:3;text-align:center;border-radius:var(--r) var(--r) 0 0}
+.xbtn{position:absolute;right:14px;top:14px;width:34px;height:34px;border-radius:50%;background:var(--s2);border:1px solid var(--ln);font-size:16px;line-height:1;color:var(--tx)}
+.xbtn:hover{border-color:var(--ac);color:var(--ac2)}
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--ln);border-radius:4px}
 @media(max-width:900px){
  body{overflow:auto;height:auto}.main{grid-template-columns:1fr;display:flex;flex-direction:column}
@@ -527,16 +530,6 @@ function calcTotals(){
 }
 function updateTotal(){$('fmTot').textContent='$'+calcTotals().total}
 
-const NOTE_QUICK=['不要香菜','不要蔥','不要蒜','多蒜','少油','切小塊','醬料分開'];
-function quickNote(t,txt){
-  const cur=t==='g'?CK.note:CK.people[t].note;
-  const parts=cur?cur.split('、').filter(Boolean):[];
-  const k=parts.indexOf(txt);k>=0?parts.splice(k,1):parts.push(txt);
-  const v=parts.join('、');
-  if(t==='g')CK.note=v;else CK.people[t].note=v;
-  renderCheckout();
-}
-const qnChips=(t,cur)=>`<div class="chips" style="margin-left:88px">${NOTE_QUICK.map(x=>`<button class="chip${(cur||'').split('、').includes(x)?' on':''}" onclick="quickNote(${typeof t==='number'?t:"'g'"},'${x}')">${x}</button>`).join('')}</div>`;
 const pchip=(i,k,v)=>`<button class="chip${CK.people[i][k]===v?' on':''}" onclick="pickP(${i},'${k}','${v}')">${v}</button>`;
 function pickP(i,k,v){CK.people[i][k]=CK.people[i][k]===v?'':v;renderCheckout()}
 function personBlock(i){
@@ -547,7 +540,7 @@ function personBlock(i){
     <div class="fm-row"><b>口味:</b><div class="chips">${['原味','蒜味','泰式+5元'].map(v=>pchip(i,'flavor',v)).join('')}</div></div>
     <div class="fm-row"><b>辣度:</b><div class="chips">${['不辣','小辣','中辣','大辣'].map(v=>pchip(i,'spice',v)).join('')}</div></div>
     <div class="fm-row"><b>鹹度:</b><div class="chips">${['清淡','正常','重鹹'].map(v=>pchip(i,'salt',v)).join('')}</div></div>
-    ${multi?`<div class="fm-row"><b>備註:</b><input value="${esc(pp.note)}" placeholder="這位的特殊需求（例如：不要香菜）" oninput="CK.people[${i}].note=this.value"></div>${qnChips(i,pp.note)}`:''}
+    ${multi?`<div class="fm-row"><b>備註:</b><input value="${esc(pp.note)}" placeholder="這位的特殊需求（例如：不要香菜）" oninput="CK.people[${i}].note=this.value"></div>`:''}
    </div>`;
 }
 function renderCheckout(){
@@ -555,7 +548,7 @@ function renderCheckout(){
   if(!slots.includes(CK.time))CK.time=isAdmin?(slots[0]||''):'';
   const t=calcTotals(),e=CK.err;
   $('mBox').innerHTML=`
-   <h3 style="text-align:center">填寫取餐資訊</h3>
+   <div class="xhead"><h3>填寫取餐資訊</h3><button class="xbtn" onclick="closeModal()" title="關閉">✕</button></div>
    <div class="fm-sec">
     <div class="fm-row${e&&!nameValid()?' err':''}"><b>訂購人${isAdmin?'':'*'}</b><input value="${esc(CK.name)}" placeholder="${isAdmin?'姓名（選填，預設「現場客」）':'請輸入訂購人姓名 (必填)'}" oninput="CK.name=this.value"></div>
     <div class="fm-err">請輸入訂購人姓名</div>
@@ -566,7 +559,6 @@ function renderCheckout(){
     <div class="fm-err">請選擇取餐時間</div>
     ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>chip('src',v)).join('')}</div></div>`:''}
     <div class="fm-row"><b>${CK.people.length>1?'整單備註':'顧客備註'}</b><input value="${esc(CK.note)}" placeholder="特殊需求 (例如:多蒜、少雞油)" oninput="CK.note=this.value"></div>
-    ${qnChips('g',CK.note)}
    </div>
    ${CK.people.map((pp,i)=>personBlock(i)).join('')}
    <div class="fm-sec">
