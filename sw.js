@@ -1,6 +1,6 @@
 /* 離線快取：讓店家 POS 在網路不穩時仍可開啟，也讓頁面可安裝成 App */
-const V='pos-v3';
-const SHELL=['./','./index.html','./manifest.json','./manifest-admin.json','./icon-192.png','./icon-512.png','./logo.png','./bg-parchment.jpg','./bg-wave.jpg'];
+const V='pos-v4';
+const SHELL=['./','./index.html','./admin.html','./manifest.json','./manifest-admin.json','./icon-192.png','./icon-512.png','./logo.png','./bg-parchment.jpg','./bg-wave.jpg'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(u=>c.add(u).catch(()=>{})))).then(()=>self.skipWaiting()));
 });
