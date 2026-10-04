@@ -1028,6 +1028,7 @@ function openAdminPanel(){
     <button class="opt-btn" onclick="openStats()">📊 今日營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表（收銀對帳）</button>
+    <button class="opt-btn" onclick="openBackfill()">🗓 補登歷史日報（有 POS 之前的紀錄）</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表（含手續費）與彙整匯出</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
    </div>
@@ -1632,7 +1633,7 @@ async function saveCount(kind){
   const b=$('cashSave');b.disabled=true;b.textContent='儲存中…';
   try{
     await FB.set(FB.ref(FB.db,'cashbook/'+CASH.day+'/'+kind),{counts,total,at:Date.now(),by:whoAmI()});
-    if(kind==='close'){
+    if(kind==='close'&&!(CASH.data.summary&&CASH.data.summary.manual)){
       const sm=salesOf(await fetchDayOrders(CASH.day));sm.at=Date.now();
       await FB.set(FB.ref(FB.db,'cashbook/'+CASH.day+'/summary'),sm);
     }
@@ -1721,6 +1722,7 @@ async function renderDayReport(){
   $('mBox').innerHTML=`<div class="oh"><h3>💵 日報表　${dayLabel(day)}</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-row"><button class="rb" onclick="gotoReport('${shiftDay(day,-1)}')">◀ 前一天</button><input type="date" value="${day.slice(0,4)}-${day.slice(4,6)}-${day.slice(6,8)}" onchange="gotoReport(this.value.replace(/-/g,''))"><button class="rb" onclick="gotoReport('${shiftDay(day,1)}')">後一天 ▶</button></div>
    ${live?'<div class="modal-tip">這一天尚未收班盤點，銷售數字為即時計算（收班盤點後會固定下來）。</div>':''}
+   ${sales.manual?'<div class="modal-tip">此日銷售為<b>手動補登</b>的彙總資料（沒有逐筆訂單明細）。</div>':''}
    <div class="fm-sec"><div class="fm-title">銷售</div>
     <div class="fm-total" style="border:0;padding:0"><span>營收合計</span><b>${money(sales.revenue)}</b></div>
     ${L('有效訂單',sales.count+' 單')}${L('已拒單',sales.voided+' 單')}
@@ -1743,6 +1745,7 @@ async function recalcSales(day){
   try{
     const sm=salesOf(await fetchDayOrders(day));sm.at=Date.now();
     const cb=(await FB.get(FB.ref(FB.db,'cashbook/'+day))).val()||{};
+    if(cb.summary&&cb.summary.manual){alert('這一天是手動補登的彙總資料，不能用訂單重新計算。');return}
     if(cb.close){await FB.set(FB.ref(FB.db,'cashbook/'+day+'/summary'),sm);logAct('重算日報銷售',null,'',dayPlain(day))}
   }catch(e){alert('重新計算失敗：'+(e.code||e.message));return}
   renderDayReport();
@@ -1768,7 +1771,7 @@ async function buildCashbookSheets(){
     const {day,cb,sales,c}=f;
     cumRev+=sales.revenue;cumNet+=f.net;cumFee+=f.fee;
     const diffOk=c.hasOpen&&c.hasClose;if(diffOk)cumDiff+=c.diff;
-    daily.push([dayPlain(day),dayWeek(day),c.hasClose?'已收班':(f.hasCb?'未收班':'無收銀紀錄'),sales.count,sales.voided,sales.revenue,sales.cash,sales.transfer,sales.linepay,sales.allpay,
+    daily.push([dayPlain(day),dayWeek(day),sales.manual?'手動補登':(c.hasClose?'已收班':(f.hasCb?'未收班':'無收銀紀錄')),sales.count,sales.voided,sales.revenue,sales.cash,sales.transfer,sales.linepay,sales.allpay,
       f.fl,f.fa,f.fee,f.net,sales.unpaid,c.hasOpen?c.open:'',c.expense,c.deposit,c.hasOpen?c.expected:'',c.hasClose?c.close:'',diffOk?c.diff:'',cumRev,cumFee,cumNet,cumDiff]);
     (byMonth[day.slice(0,6)]=byMonth[day.slice(0,6)]||[]).push(f);
     Object.values(cb.expenses||{}).sort((a,b)=>a.at-b.at).forEach(e=>exps.push([dayPlain(day),fmtDT(e.at),expLabel(e.type),+e.amount||0,e.note||'',e.by||'']));
@@ -1941,6 +1944,52 @@ async function stkCopy(){
     ids.forEach(id=>STK.rows[id]=String(y[id].limit));
   }catch(e){alert('沿用失敗：'+(e.code||e.message));return}
   toast('✅ 已沿用昨天的限量（已售歸零）');renderStock();
+}
+
+/* --- 補登歷史日報（開店前、還沒有 POS 時的紀錄，只要填當天彙總）--- */
+let BF=null;
+async function openBackfill(day){
+  if(!isManager())return;
+  day=day||shiftDay(today8(),-1);
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box wide';$('modal').classList.add('open');
+  $('mBox').innerHTML='<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+  let ex=null,hasOrders=0;
+  try{
+    ex=(await FB.get(FB.ref(FB.db,'cashbook/'+day+'/summary'))).val();
+    hasOrders=(await fetchDayOrders(day)).length;
+  }catch(e){}
+  const g=k=>ex&&ex[k]!=null?ex[k]:'';
+  BF={day,hasOrders,existing:ex,v:{count:g('count'),voided:g('voided'),cash:g('cash'),transfer:g('transfer'),linepay:g('linepay'),allpay:g('allpay'),unpaid:g('unpaid')}};
+  renderBackfill();
+}
+const bfNum=k=>Math.max(0,parseFloat(BF.v[k])||0);
+const bfTotal=()=>bfNum('cash')+bfNum('transfer')+bfNum('linepay')+bfNum('allpay')+bfNum('unpaid');
+function bfSet(k,val){BF.v[k]=val;$('bfTot').textContent=money(bfTotal())}
+function renderBackfill(){
+  const d=BF.day,inp=(k,label)=>`<div class="fm-row"><b style="width:auto;min-width:104px">${label}</b><input type="number" inputmode="numeric" min="0" value="${esc(BF.v[k])}" placeholder="0" oninput="bfSet('${k}',this.value)"></div>`;
+  $('mBox').innerHTML=`<div class="oh"><h3>🗓 補登歷史日報</h3><button onclick="openAdminPanel()">返回</button></div>
+   <div class="modal-tip">用來補登「還沒有 POS 之前」的日子。只要填當天的<b>彙總數字</b>，不用逐筆訂單。補登後會出現在日報表、月報表和 Excel 彙整裡。</div>
+   <div class="fm-row"><b style="width:auto;min-width:104px">營業日</b><input type="date" value="${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}" onchange="openBackfill(this.value.replace(/-/g,''))"></div>
+   ${BF.existing?'<div class="modal-tip" style="border-left-color:var(--bad)">這一天已經有資料，儲存會<b>覆蓋</b>。</div>':''}
+   ${BF.hasOrders?`<div class="modal-tip" style="border-left-color:var(--bad)">這一天在 POS 裡已有 ${BF.hasOrders} 筆訂單。補登的彙總會取代它們出現在報表裡（訂單本身不會被刪）。通常有 POS 訂單的日子不需要補登。</div>`:''}
+   <div class="fm-sec"><div class="fm-title">${dayLabel(d)}</div>
+    ${inp('count','有效訂單數')}${inp('voided','取消／退單數')}
+    ${inp('cash','現金收入')}${inp('transfer','轉帳')}${inp('linepay','Linepay')}${inp('allpay','全支付')}${inp('unpaid','未收款金額')}
+    <div class="fm-total"><span>營收合計</span><b id="bfTot">${money(bfTotal())}</b></div></div>
+   <div class="m-btns"><button class="btn-confirm" onclick="bfSave()">儲存這一天</button></div>`;
+}
+async function bfSave(){
+  if(BF.day>=today8()){alert('補登只能選「今天以前」的日期；今天以後請直接用 POS 下單。');return}
+  const rev=bfTotal();
+  if(rev<=0&&!confirm('這一天的營收是 $0，確定要儲存嗎？'))return;
+  const sm={count:Math.round(bfNum('count')),voided:Math.round(bfNum('voided')),revenue:rev,cash:bfNum('cash'),transfer:bfNum('transfer'),linepay:bfNum('linepay'),allpay:bfNum('allpay'),unpaid:bfNum('unpaid'),unpaidN:bfNum('unpaid')>0?1:0,at:Date.now(),manual:true,by:whoAmI()};
+  try{await FB.set(FB.ref(FB.db,'cashbook/'+BF.day+'/summary'),sm)}
+  catch(e){alert('儲存失敗：'+(e.code||e.message));return}
+  logAct('補登歷史日報',null,'',`${dayPlain(BF.day)} 營收 $${rev}（現金 ${sm.cash}／轉帳 ${sm.transfer}／Linepay ${sm.linepay}／全支付 ${sm.allpay}）`);
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>${dayLabel(BF.day)} 已補登</h3><div class="rc-no">${money(rev)}</div></div>
+   <div class="modal-tip">如果你還有這一天的「開店現金、收班現金、支出」紀錄，可以接著補。</div>
+   <div class="m-btns"><button class="btn-cancel" onclick="openBackfill('${shiftDay(BF.day,1)}')">補下一天</button><button class="btn-cancel" onclick="openCash('${BF.day}')">補開店／收班現金與支出</button><button class="btn-confirm" onclick="openDayReport('${BF.day}')">看這天的日報表</button></div>`;
 }
 
 function tick(){const d=new Date(),z=n=>String(n).padStart(2,'0'),w='週'+'日一二三四五六'[d.getDay()],t=`${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;$('clock').textContent=innerWidth<600?`${d.getFullYear()}/${z(d.getMonth()+1)}/${z(d.getDate())} ${w} ${t}`:`${d.getFullYear()}年${z(d.getMonth()+1)}月${z(d.getDate())}日 ${w} ${t}`}
