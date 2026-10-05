@@ -415,7 +415,7 @@ function renderGrid(){
   const card=(it,extra)=>{
     const q=cart.filter(x=>x.id.split('_')[0]===it.id&&x.p===curP).reduce((a,x)=>a+x.qty,0);
     const left=stockLeft(it.id),sold=catSold||soldOutItems[it.id]||left<=0;
-    return `<div class="card${c.combo?' wd':''}${sold?' sold-out':''}" onclick="handleCardClick('${it.id}')">
+    return `<div class="card${c.combo?' wd':''}${sold?' sold-out':''}" onclick="handleCardClick('${it.id}')"${isAdmin&&sold?' title="已售完：點一下可強制加入（補單用）"':''}>
       ${q?`<i class="qb">${q}</i>`:''}
       <div class="m"><div class="n">${esc(it.name)}</div>${extra||''}</div>
       <div class="f"><span class="price">${it.price}</span>${left!==Infinity&&left>0?`<span class="stk${left<=3?' low':''}">剩 ${left}</span>`:''}<span class="add">+</span></div></div>`;
@@ -431,7 +431,12 @@ function handleCardClick(id){
   if(isSoldOutMode){toggleItemSoldOut(id);return}
   if(isClosed()){toast('目前休息中，暫停接單');return}
   const item=find(id);
-  if(soldOutItems[id]||soldOutCats[cur]||stockLeft(id)<=0)return;
+  if((soldOutItems[id]||soldOutCats[cur]||stockLeft(id)<=0)&&!OVR[baseId(id)]){
+    if(!isAdmin)return;
+    const why=(soldOutItems[id]||soldOutCats[cur])?'已標示售完':'今日庫存已賣完';
+    if(!confirm(`「${item.name}」${why}。\n\n要強制加入這張單嗎？（補登過去的單、或特殊情況才需要）`))return;
+    OVR[baseId(id)]=true;
+  }
   if(['s1','s2','s3'].includes(id))showComboOptions(item);
   else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id))showStirFryOptions(item);
   else if(['w8','w9'].includes(id))showSoupOptions(item);
@@ -531,7 +536,7 @@ function add(name,price,id){
 }
 function qty(j,d){const e=cart[j];if(!e)return;if(d<0&&isMultiNoodle(e)&&prodQty(baseId(e.id),e.p||0)+d<2){toast(`「${itemName(e.id)}」選了「多數麵食獨立分開裝」，同商品需要 2 份以上；要減少請先刪除這一項，再重新選擇包裝方式`);return}if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
 function removeItem(j){cart.splice(j,1);renderCart();renderGrid()}
-function clearCart(){cart=[];CK.people=[newP()];curP=0;renderCart();renderGrid()}
+function clearCart(){OVR={};cart=[];CK.people=[newP()];curP=0;renderCart();renderGrid()}
 function selPerson(i){curP=i;renderCart();renderGrid()}
 function addPerson(){CK.people.push(newP());curP=CK.people.length-1;renderCart();renderGrid()}
 function delPerson(i){
@@ -855,7 +860,7 @@ function showDone(o){
 function finishOrder(){
   Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false});curP=0;
   window.pendingOrder=null;
-  cart=[];renderCart();renderGrid();closeModal();
+  OVR={};cart=[];renderCart();renderGrid();closeModal();
 }
 
 /* ===== 店家登入（Firebase Auth）===== */
@@ -1876,7 +1881,9 @@ function subStock(){
 }
 const stockInfo=id=>{const r=STOCK[baseId(id)];return r&&r.limit!=null&&r.limit!==''?{limit:+r.limit,sold:+r.sold||0}:null};
 const stockLeft=id=>{const s=stockInfo(id);return s?Math.max(0,s.limit-s.sold):Infinity};
+let OVR={};   // 店家這張單「強制加入」的售完品項（補登過去的單、或特殊情況用）
 const canAdd=id=>{
+  if(OVR[baseId(id)])return true;
   const l=stockLeft(id);if(l===Infinity)return true;
   const b=baseId(id);return cart.filter(x=>baseId(x.id)===b).reduce((a,x)=>a+x.qty,0)<l;
 };
