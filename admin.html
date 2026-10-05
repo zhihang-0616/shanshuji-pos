@@ -174,6 +174,9 @@ input[type=date]{color-scheme:dark}
 .rb{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;background:var(--s1);border:1px solid var(--ln);margin:2px;white-space:nowrap}
 .rb.del{color:var(--bad)}
 input[type=time],input[type=datetime-local]{color-scheme:dark}
+.tf{display:flex;gap:6px;flex:1;min-width:0}
+.tf input{flex:1;min-width:0}
+.tf select{flex:none;width:92px;padding:10px 6px}
 /* 多人點餐 */
 .pbar{padding:8px 14px;border-bottom:1px solid var(--ln);display:flex;flex-direction:column;gap:8px}
 .pbar .chips{gap:6px}.pbar .chip{padding:6px 10px;font-size:13px}
@@ -572,7 +575,7 @@ function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('m
 
 /* ===== 取餐資訊 ===== */
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
-const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false};
+const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 function timeSlots(full){
@@ -648,22 +651,59 @@ function personBlock(i){
 }
 const pad2=n=>String(n).padStart(2,'0');
 const nowLocal=()=>{const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes())};
+/* ===== 24 小時制時間欄位：可以手動輸入，也可以從清單快選 ===== */
+const pad2t=n=>String(n).padStart(2,'0');
+function fmt24(raw){
+  const v=String(raw).replace(/：/g,':').replace(/[^\d:]/g,'');
+  const i=v.indexOf(':');
+  if(i>=0)return v.slice(0,i).slice(0,2)+':'+v.slice(i+1).replace(/:/g,'').slice(0,2);
+  if(v.length<=2)return v;
+  const hl=(+v[0]>2)?1:2;                       // 930 → 9:30；1235 → 12:35
+  return v.slice(0,hl)+':'+v.slice(hl,hl+2);
+}
+function normTime(v){
+  const m=/^(\d{1,2}):(\d{1,2})$/.exec(String(v||'').trim());
+  if(!m)return '';
+  const h=+m[1],mi=+m[2];
+  return(h>23||mi>59)?'':pad2t(h)+':'+pad2t(mi);
+}
+const TF={
+  ck:{get:()=>CK.time,set:v=>{CK.time=v}},
+  late:{get:()=>CK.lateT,set:v=>{CK.lateT=v}},
+  ed:{get:()=>ED.time,set:v=>{ED.time=v}}
+};
+function tfInput(el,key){el.value=fmt24(el.value);TF[key].set(el.value)}
+function tfBlur(el,key){const n=normTime(el.value);if(n){el.value=n;TF[key].set(n)}}
+function tfPick(sel,key,id){if(!sel.value)return;const el=$(id);el.value=sel.value;TF[key].set(sel.value);sel.value=''}
+function timeField(key,id,slots){
+  const val=TF[key].get()||'';
+  return `<div class="tf"><input id="${id}" class="t24" type="text" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="例 17:30" value="${esc(val)}" oninput="tfInput(this,'${key}')" onblur="tfBlur(this,'${key}')"><select onchange="tfPick(this,'${key}','${id}')"><option value="">快選 ▼</option>${slots.map(s=>`<option value="${s}">${s}</option>`).join('')}</select></div>`;
+}
+/* 客人：時間要正確，而且不能早於現在；店家：只要格式正確 */
+function timeOK(){
+  const t=normTime(CK.time);
+  if(!t)return false;
+  if(!isAdmin&&!CK.late&&t<new Date().toTimeString().slice(0,5))return false;
+  return true;
+}
+const lateMs=()=>{const t=normTime(CK.lateT);return(CK.lateD&&t)?new Date(CK.lateD+'T'+t+':00').getTime():NaN};
+
 function toggleLate(){
   CK.late=!CK.late;
-  if(CK.late){CK.lateAt=CK.lateAt||nowLocal();CK.time=CK.lateAt.slice(11,16)}
+  if(CK.late){const n=new Date();CK.lateD=CK.lateD||`${n.getFullYear()}-${pad2t(n.getMonth()+1)}-${pad2t(n.getDate())}`;CK.lateT=CK.lateT||n.toTimeString().slice(0,5);CK.time=CK.lateT}
   else CK.time='';
   renderCheckout();
 }
 function lateBlock(){
-  return `<div class="modal-tip">補單會用你指定的「下單時間」入帳，營收與統計會算在該時間所屬的營業日（02:00 換日）。取餐時間可自由填寫。<br>要補 10/1 的單，請把「下單時間」的日期改成 10/1（點右邊的日曆圖示選日期）。</div>
-   <div class="fm-row"><b>下單時間</b><input type="datetime-local" value="${esc(CK.lateAt)}" oninput="CK.lateAt=this.value"></div>
+  return `<div class="modal-tip">補單會用你指定的「下單時間」入帳，營收與統計會算在該時間所屬的營業日（02:00 換日）。取餐時間可自由填寫。<br>要補 10/1 的單，請把「下單時間」的日期改成 10/1（點日期欄選日期）；時間用 24 小時制，可直接輸入，例如 1235 會變成 12:35。</div>
+   <div class="fm-row"><b>下單時間</b><input type="date" style="flex:1.1" value="${esc(CK.lateD)}" oninput="CK.lateD=this.value">${timeField('late','lateT24',timeSlots(true)).replace('<div class="tf">','<div class="tf" style="flex:1.4">')}</div>
    <div class="fm-row"><b>紙本單號</b><input value="${esc(CK.lateNo)}" placeholder="選填，空白則自動編號" oninput="CK.lateNo=this.value"></div>
    <div class="fm-row"><b>訂單狀態</b><div class="chips">${[['picked','已取餐'],['done','待取餐'],['making','製作中'],['new','新單']].map(([k,t])=>`<button class="chip${CK.lateStatus===k?' on':''}" onclick="CK.lateStatus='${k}';renderCheckout()">${t}</button>`).join('')}</div></div>
    <div class="fm-row"><b>收款</b><div class="chips"><button class="chip${CK.latePaid?' on':''}" onclick="CK.latePaid=!CK.latePaid;renderCheckout()">已收款（付款方式請在下方選擇）</button></div></div>`;
 }
 function renderCheckout(){
   const slots=timeSlots(isAdmin),nowS=new Date().toTimeString().slice(0,5);
-  if(!(isAdmin&&CK.late)&&!slots.includes(CK.time))CK.time=loose()?(slots.find(x=>x>nowS)||slots[slots.length-1]||''):'';
+  if(!CK.time&&!(isAdmin&&CK.late))CK.time=loose()?(slots.find(x=>x>nowS)||slots[slots.length-1]||''):'';
   const t=calcTotals(),e=CK.err;
   $('mBox').innerHTML=`
    <div class="xhead"><h3>填寫取餐資訊</h3><button class="xbtn" onclick="closeModal()" title="關閉">✕</button></div>
@@ -673,9 +713,9 @@ function renderCheckout(){
     <div class="fm-err">請輸入訂購人姓名</div>
     <div class="fm-row${e&&!phoneValid()?' err':''}"><b>電話${loose()?'':'*'}</b><input value="${esc(CK.phone)}" inputmode="numeric" maxlength="12" placeholder="${loose()?'選填 0912-345-678':'例如: 0912-345-678'}" oninput="fmtPhone(this)"></div>
     <div class="fm-err">電話格式需為 09XX-XXX-XXX</div>
-    <div class="fm-row${e&&!CK.time?' err':''}"><b>取餐時間*</b>
-     ${isAdmin&&CK.late?`<input type="time" value="${esc(CK.time)}" oninput="CK.time=this.value">`:`<select onchange="CK.time=this.value"><option value="">請選擇取餐時間</option>${slots.map(s=>`<option value="${s}"${CK.time===s?' selected':''}>${s}</option>`).join('')}</select>`}</div>
-    <div class="fm-err">請選擇取餐時間</div>
+    <div class="fm-row${e&&!timeOK()?' err':''}"><b>取餐時間*</b>
+     ${timeField('ck','ckTime24',slots)}</div>
+    <div class="fm-err">${isAdmin?'請輸入正確的取餐時間（24 小時制，例如 17:30）':'請輸入正確的取餐時間（24 小時制，例如 17:30），不能早於現在'}</div>
     ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>chip('src',v)).join('')}</div></div>
     <div class="fm-row"><b>補單</b><div class="chips"><button class="chip${CK.late?' on':''}" onclick="toggleLate()">📝 這是補單（事後補登）</button></div></div>${CK.late?lateBlock():''}`:''}
     <div class="fm-row"><b>${CK.people.length>1?'整單備註':'顧客備註'}</b><input value="${esc(CK.note)}" placeholder="特殊需求 (例如:多蒜、少雞油)" oninput="CK.note=this.value"></div>
@@ -698,8 +738,9 @@ function renderCheckout(){
 function submitCheckout(){
   if(isClosed()){alert('店家目前休息中，暫停接單');return}
   CK.err=true;
-  if(isAdmin&&CK.late&&!(new Date(CK.lateAt).getTime()>0)){alert('請選擇補單的實際下單時間');return}
-  if(!nameValid()||!phoneValid()||!CK.time){renderCheckout();return}
+  if(isAdmin&&CK.late&&!(lateMs()>0)){alert('請輸入補單的下單日期與時間（時間為 24 小時制，例如 12:35）');return}
+  if(normTime(CK.time))CK.time=normTime(CK.time);
+  if(!nameValid()||!phoneValid()||!timeOK()){renderCheckout();return}
   const t=calcTotals();
   window.pendingOrder={
     name:CK.name.trim()||'現場客',phone:CK.phone,src:isAdmin?(CK.src||'現場'):(CK.walkin?'現場':'線上'),time:CK.time,note:CK.note.trim(),
@@ -708,7 +749,7 @@ function submitCheckout(){
     subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
   };
   if(isAdmin)window.pendingOrder.staff=true;
-  if(isAdmin&&CK.late)Object.assign(window.pendingOrder,{late:true,lateAt:new Date(CK.lateAt).getTime(),lateStatus:CK.lateStatus,latePaid:CK.latePaid,lateNo:CK.lateNo.trim()});
+  if(isAdmin&&CK.late)Object.assign(window.pendingOrder,{late:true,lateAt:lateMs(),lateStatus:CK.lateStatus,latePaid:CK.latePaid,lateNo:CK.lateNo.trim()});
   if(CK.people.length>1)window.pendingOrder.people=CK.people.map((x,i)=>({name:x.name.trim()||'第'+(i+1)+'位',flavor:x.flavor||'原味',spice:x.spice||'不辣',salt:x.salt||'正常',note:x.note.trim()}));
   renderReceipt();
 }
@@ -813,7 +854,7 @@ function showDone(o){
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 function finishOrder(){
-  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false});curP=0;
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false});curP=0;
   window.pendingOrder=null;
   cart=[];renderCart();renderGrid();closeModal();
 }
@@ -1212,7 +1253,7 @@ function renderEdit(){
    <div class="fm-sec">
     <div class="fm-row"><b>訂購人</b><input value="${esc(ED.name)}" oninput="ED.name=this.value"></div>
     <div class="fm-row"><b>電話</b><input value="${esc(ED.phone)}" inputmode="numeric" maxlength="12" placeholder="09XX-XXX-XXX（可留空）" oninput="edPhone(this)"></div>
-    <div class="fm-row"><b>取餐時間</b><input type="time" value="${esc(ED.time)}" oninput="ED.time=this.value"></div>
+    <div class="fm-row"><b>取餐時間</b>${timeField('ed','edTime24',timeSlots(true))}</div>
     <div class="fm-row"><b>${multi?'整單備註':'顧客備註'}</b><input value="${esc(ED.note)}" oninput="ED.note=this.value"></div>
     <div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>edChip('src',v)).join('')}</div></div>
     <div class="fm-row"><b>訂單狀態</b><div class="chips">${Object.entries(ST).map(([k,t])=>`<button class="chip${ED.status===k?' on':''}" onclick="edPick('status','${k}')">${t}</button>`).join('')}</div></div>
@@ -1238,7 +1279,9 @@ function renderEdit(){
 function backFromEdit(){EDFROM==='history'?openHistory(true):openOrders()}
 async function saveEdit(){
   if(ED.phone&&!phoneOK(ED.phone)){alert('電話格式需為 09XX-XXX-XXX，或留空');return}
-  if(!/^\d{2}:\d{2}$/.test(ED.time)){alert('請選擇取餐時間');return}
+  const tm24=normTime(ED.time);
+  if(!tm24){alert('請輸入正確的取餐時間（24 小時制，例如 17:30）');return}
+  ED.time=tm24;
   const multi=ED.people.length>1,o=ED.orig;
   const items=ED.items.map(x=>({id:x.id||'',name:String(x.name).trim(),price:parseFloat(x.price)||0,qty:Math.max(1,parseInt(x.qty)||1),p:multi?Math.min(parseInt(x.p)||0,ED.people.length-1):0})).filter(x=>x.name);
   if(!items.length){alert('至少要有一項餐點');return}
