@@ -47,6 +47,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 12px rgba(212,175,55,.15)}.card:active{transform:scale(.98)}
 .card.sold-out{opacity:.85;filter:grayscale(100%) brightness(.8)}
 .card.sold-out .n{padding-right:66px}
+.pchip{display:inline-flex;gap:2px}
 .stk{font-size:12px;font-weight:700;color:#ffd77a;background:rgba(224,176,64,.14);border:1px solid #a87a2a;border-radius:99px;padding:1px 8px;white-space:nowrap}
 .stk.low{color:#ffb4a8;border-color:#b5483f;background:rgba(217,83,79,.18)}
 .card.sold-out:after{content:"已售完";position:absolute;top:8px;right:10px;background:#8a2b27;color:#fff;font-size:12px;font-weight:800;padding:2px 10px;border-radius:99px;letter-spacing:1px}
@@ -1687,6 +1688,7 @@ async function renderMonthReport(){
 let CASH={day:'',data:{},tab:null,cnt:null,ex:{type:'進貨',amount:'',note:''}};
 async function openCash(day,tab){
   CASH={day:day||today8(),data:{},tab:tab||null,cnt:null,ex:{type:'進貨',amount:'',note:''}};
+  PLAN={day:'',groups:{},catalog:{},ok:false};
   viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box xl';
   $('mBox').innerHTML='<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
   $('modal').classList.add('open');
@@ -1698,7 +1700,7 @@ async function reloadCash(){
   if(!CASH.tab)CASH.tab=!CASH.data.open?'open':(!CASH.data.close?'exp':'close');
   CASH.cnt=null;renderCash();
 }
-function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';renderCash()}
+function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';if(k==='plan')PLAN.ok=false;renderCash()}
 function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=(+src['d'+d]||0)*d)}   // CASH.cnt[面額] ＝ 這個面額的「金額」
 const cashTotal=()=>DENOMS.reduce((a,d)=>a+(CASH.cnt[d]||0),0);
 const cntNote=d=>{const a=CASH.cnt[d]||0;return a%d===0?`＝ ${a/d} ${d>=100?'張':'枚'}`:`⚠ 需為 ${d} 的倍數`};
@@ -1711,7 +1713,7 @@ function cashCnt(d,v){
 function cashNext(d){const i=DENOMS.indexOf(d),n=DENOMS[i+1],el=$(n?'ca'+n:'cashSave');if(el)el.focus()}
 function renderCash(){
   const D=CASH.data||{},t=CASH.tab,day=CASH.day;
-  const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['close','收店盤點',!!D.close]];
+  const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['plan','採購清單',false],['close','收店盤點',!!D.close]];
   let body='';
   if(t==='open'||t==='close'){
     if(!CASH.cnt)cntInit(t);
@@ -1722,7 +1724,8 @@ function renderCash(){
       <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
       ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「支出／存鈔」記一筆「<b>補入收銀機</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
-  }else body=expHtml();
+  }else if(t==='plan')body=planBody();
+  else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
    <div class="modal-tip">營業日：${dayLabel(day)}（每日 02:00 換日）</div>
    <div class="chips">${tabs.map(([k,n,ok])=>`<button class="chip${t===k?' on':''}" onclick="cashTab('${k}')">${ok?'✔ ':''}${n}</button>`).join('')}</div>${body}`;
@@ -1827,6 +1830,178 @@ async function delExpense(id){
 async function checkOpenReminder(){
   if(!isAdmin||!window.FB)return;
   try{const sn=await FB.get(FB.ref(FB.db,'cashbook/'+today8()+'/open'));if(!sn.exists())toast('💵 今天還沒有開店盤點，點這裡輸入收銀台金額',()=>openCash(null,'open'))}catch(e){}
+}
+
+/* ===== 採購清單：先列好明天要買的東西，填了花費就直接算入當天的支出 ===== */
+let PLAN={day:'',groups:{},catalog:{},ok:false};
+const dashDay=d=>d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
+const planMD=d=>d.slice(4,6)+'/'+d.slice(6,8);
+const planTxt=i=>`${i.name} ${i.qty||''}${i.unit||''}`.trim();
+const planNote=g=>'【採購】'+g.name+'｜'+(Object.values(g.items||{}).map(planTxt).join('、')||'（尚未列品項）');
+async function planLoad(day){
+  PLAN.day=day;PLAN.ok=false;
+  try{
+    const [p,c]=await Promise.all([FB.get(FB.ref(FB.db,'shopPlan/'+day)),FB.get(FB.ref(FB.db,'shopCatalog'))]);
+    PLAN.groups=p.val()||{};PLAN.catalog=c.val()||{};
+  }catch(e){PLAN.groups={};PLAN.catalog={};alert('讀取採購清單失敗：'+(e.code||e.message))}
+  PLAN.ok=true;
+}
+function planBody(){
+  if(!PLAN.ok){
+    planLoad(PLAN.day||shiftDay(CASH.day,1)).then(()=>{if(CASH.tab==='plan')renderCash()});
+    return '<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+  }
+  const d=PLAN.day;
+  return `<div class="fm-sec">
+    <div class="fm-row"><b>採購日期</b><input type="date" value="${dashDay(d)}" onchange="planDay(this.value)"></div>
+    <div class="modal-tip" style="text-align:left">先把要買的東西分群組列好。在群組裡填「<b>花費金額</b>」，就會<b>直接算入 ${planMD(d)} 的支出</b>（類別：進貨/材料）。新增過的群組和品項會記起來，下次直接點選。</div>
+    <div class="fm-row"><b>新增群組</b><input id="pgName" lang="zh-TW" list="pgList" placeholder="例如：大市場（打新的會自動記起來）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddGroup()}"><button class="chip" onclick="planAddGroup()">＋ 加入</button></div>
+    <datalist id="pgList">${Object.values(PLAN.catalog).map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
+    <div class="chips" id="pgChips">${planGroupChips()}</div>
+    <div class="fm-line"><span>預計支出合計（${planMD(d)}）</span><span id="planTotal">${money(planTotal())}</span></div>
+  </div>
+  <div id="planGroups">${Object.entries(PLAN.groups).map(([gid,g])=>planCard(gid,g)).join('')}</div>`;
+}
+const planTotal=()=>Object.values(PLAN.groups).reduce((a,g)=>a+(+g.amount||0),0);
+function planGroupChips(){
+  const list=Object.entries(PLAN.catalog).filter(([id])=>!PLAN.groups[id]);
+  if(!list.length)return '';
+  return '<span style="color:var(--mu);font-size:13px;align-self:center">常用群組：</span>'+list.map(([id,c])=>`<span class="pchip"><button class="chip" onclick="planAddGroup('${id}')">＋ ${esc(c.name)}</button><button class="chip" style="padding:8px 9px;color:var(--bad)" title="從常用群組移除" onclick="planForgetGroup('${id}')">✕</button></span>`).join('');
+}
+function planItemsHtml(gid){
+  const g=PLAN.groups[gid]||{},its=Object.entries(g.items||{});
+  if(!its.length)return '<div style="color:var(--mu);font-size:13px;padding:4px 2px">還沒有品項，請在下面輸入或點選常用品項</div>';
+  return its.map(([iid,i])=>`<div class="er"><span style="flex:1;font-weight:700">${esc(i.name)}</span><input class="qt" style="width:72px" inputmode="decimal" value="${esc(i.qty||'')}" placeholder="數量" onchange="planItemEdit('${gid}','${iid}','qty',this.value)"><input class="qt" style="width:72px" lang="zh-TW" value="${esc(i.unit||'')}" placeholder="單位" onchange="planItemEdit('${gid}','${iid}','unit',this.value)"><button class="del-btn" title="刪除" onclick="planDelItem('${gid}','${iid}')">✕</button></div>`).join('');
+}
+function planItemChips(gid){
+  const g=PLAN.groups[gid]||{},cat=PLAN.catalog[g.cid]||{},have=g.items||{};
+  const list=Object.entries(cat.items||{}).filter(([id])=>!have[id]);
+  if(!list.length)return '';
+  return '<span style="color:var(--mu);font-size:13px;align-self:center">常用品項：</span>'+list.map(([id,i])=>`<span class="pchip"><button class="chip" onclick="planChip('${gid}','${id}')">＋ ${esc(i.name)}${i.unit?'<small style="opacity:.7"> '+esc(i.unit)+'</small>':''}</button><button class="chip" style="padding:8px 9px;color:var(--bad)" title="從常用品項移除" onclick="planForgetItem('${g.cid}','${id}')">✕</button></span>`).join('');
+}
+const planStatus=g=>(+g.amount||0)>0?`<span style="color:var(--ok);font-weight:700">✅ 已算入 ${planMD(PLAN.day)} 的支出 ${money(g.amount)}</span>`:`尚未填花費金額，填了就會直接算入 ${planMD(PLAN.day)} 的支出`;
+function planCard(gid,g){
+  const cat=PLAN.catalog[g.cid]||{};
+  return `<div class="fm-sec" id="pg_${gid}">
+   <div class="oh"><h3 style="font-size:17px">🛒 ${esc(g.name)}</h3><button onclick="planDelGroup('${gid}')">移除群組</button></div>
+   <div id="pi_${gid}">${planItemsHtml(gid)}</div>
+   <div class="er"><input id="pn_${gid}" class="nm" lang="zh-TW" list="pl_${gid}" placeholder="品名（打新的會自動記起來）" oninput="planNameIn('${gid}')" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddItem('${gid}')}"><input id="pq_${gid}" class="qt" style="width:72px" inputmode="decimal" placeholder="數量"><input id="pu_${gid}" class="qt" style="width:72px" lang="zh-TW" placeholder="單位" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddItem('${gid}')}"><button class="chip" onclick="planAddItem('${gid}')">＋ 加入</button>
+    <datalist id="pl_${gid}">${Object.values(cat.items||{}).map(i=>`<option value="${esc(i.name)}">`).join('')}</datalist></div>
+   <div class="chips" id="pc_${gid}">${planItemChips(gid)}</div>
+   <div class="fm-row"><b style="width:auto">花費金額</b><input id="pa_${gid}" type="number" inputmode="numeric" min="0" value="${(+g.amount||0)||''}" placeholder="買完填，會直接算入支出" onchange="planAmount('${gid}',this.value)"></div>
+   <div id="ps_${gid}" style="font-size:13px;color:var(--mu)">${planStatus(g)}</div>
+  </div>`;
+}
+function planRefresh(gid){
+  const a=$('pi_'+gid),b=$('pc_'+gid),c=$('ps_'+gid),t=$('planTotal'),g=$('pgChips'),g2=PLAN.groups[gid];
+  if(a)a.innerHTML=planItemsHtml(gid);if(b)b.innerHTML=planItemChips(gid);if(c&&g2)c.innerHTML=planStatus(g2);
+  if(t)t.textContent=money(planTotal());if(g)g.innerHTML=planGroupChips();
+}
+async function planDay(v){const d=String(v).replace(/-/g,'');if(/^\d{8}$/.test(d)){PLAN.day=d;PLAN.ok=false;renderCash()}}
+/* 把這個群組的花費同步成「那一天」的一筆支出（key 固定 plan_群組，所以改金額、改品項都是更新同一筆） */
+async function syncPlanExpense(gid){
+  const g=PLAN.groups[gid];if(!g)return;
+  const rf=FB.ref(FB.db,'cashbook/'+PLAN.day+'/expenses/plan_'+gid),amt=+g.amount||0;
+  try{
+    if(amt>0){
+      if(!g.expAt){g.expAt=Date.now();await FB.update(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid),{expAt:g.expAt})}
+      await FB.set(rf,{at:g.expAt,type:'進貨',amount:amt,note:planNote(g),by:whoAmI(),plan:true});
+    }else await FB.remove(rf);
+  }catch(e){alert('同步支出失敗：'+(e.code||e.message))}
+}
+async function planAddGroup(arg){
+  let cid=null,name='';
+  if(arg&&PLAN.catalog[arg]){cid=arg;name=PLAN.catalog[arg].name}
+  else{const el=$('pgName');name=(el?el.value:'').trim();if(!name){if(el)el.focus();return}
+    cid=Object.keys(PLAN.catalog).find(k=>PLAN.catalog[k].name===name)||null}
+  try{
+    if(!cid){const r=FB.push(FB.ref(FB.db,'shopCatalog'));await FB.set(r,{name});cid=r.key;PLAN.catalog[cid]={name,items:{}}}
+    if(PLAN.groups[cid]){toast('「'+name+'」已經在清單裡了');return}
+    const g={name,cid,amount:0,items:{}};
+    await FB.set(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+cid),g);
+    PLAN.groups[cid]=g;
+  }catch(e){alert('新增群組失敗：'+(e.code||e.message));return}
+  const el=$('pgName');if(el)el.value='';
+  $('planGroups').insertAdjacentHTML('beforeend',planCard(cid,PLAN.groups[cid]));
+  planRefresh(cid);
+  const n=$('pn_'+cid);if(n)n.focus();
+}
+function planNameIn(gid){      // 打到已經記過的品名，單位自動帶出
+  const g=PLAN.groups[gid],cat=PLAN.catalog[g.cid]||{},nm=$('pn_'+gid).value.trim();
+  const it=Object.values(cat.items||{}).find(i=>i.name===nm);
+  if(it){const u=$('pu_'+gid),q=$('pq_'+gid);if(u&&!u.value)u.value=it.unit||'';if(q&&!q.value)q.value=it.qty||''}
+}
+async function planAddItem(gid){
+  const g=PLAN.groups[gid];if(!g)return;
+  const ne=$('pn_'+gid),name=ne.value.trim();
+  if(!name){ne.focus();return}
+  const qty=($('pq_'+gid).value.trim())||'1',unit0=$('pu_'+gid).value.trim();
+  const cat=PLAN.catalog[g.cid]||(PLAN.catalog[g.cid]={name:g.name,items:{}});cat.items=cat.items||{};
+  let iid=Object.keys(cat.items).find(k=>cat.items[k].name===name),unit=unit0;
+  try{
+    if(!iid){                                   // 沒記過的新品項 → 記進常用清單
+      const r=FB.push(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items'));iid=r.key;
+      cat.items[iid]={name,unit,qty};await FB.set(r,cat.items[iid]);
+    }else{
+      unit=unit0||cat.items[iid].unit||'';cat.items[iid]={...cat.items[iid],unit,qty};
+      await FB.update(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items/'+iid),{unit,qty});
+    }
+    const it={name,qty,unit};
+    await FB.set(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid+'/items/'+iid),it);
+    (g.items=g.items||{})[iid]=it;
+  }catch(e){alert('新增品項失敗：'+(e.code||e.message));return}
+  ['pn_','pq_','pu_'].forEach(p=>{const el=$(p+gid);if(el)el.value=''});
+  planRefresh(gid);
+  if((+g.amount||0)>0)await syncPlanExpense(gid);
+  ne.focus();
+}
+function planChip(gid,iid){
+  const g=PLAN.groups[gid],it=(PLAN.catalog[g.cid]||{}).items[iid];if(!it)return;
+  $('pn_'+gid).value=it.name;$('pq_'+gid).value=it.qty||'1';$('pu_'+gid).value=it.unit||'';
+  planAddItem(gid);
+}
+async function planItemEdit(gid,iid,key,v){
+  const g=PLAN.groups[gid];if(!g||!g.items[iid])return;
+  g.items[iid][key]=String(v).trim();
+  const cat=(PLAN.catalog[g.cid]||{}).items||{};
+  try{
+    await FB.update(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid+'/items/'+iid),{[key]:g.items[iid][key]});
+    if(cat[iid]){cat[iid][key]=g.items[iid][key];await FB.update(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items/'+iid),{[key]:g.items[iid][key]})}
+  }catch(e){alert('修改失敗：'+(e.code||e.message));return}
+  if((+g.amount||0)>0)await syncPlanExpense(gid);
+}
+async function planDelItem(gid,iid){
+  const g=PLAN.groups[gid];if(!g)return;
+  try{await FB.remove(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid+'/items/'+iid))}catch(e){alert('刪除失敗：'+(e.code||e.message));return}
+  delete g.items[iid];planRefresh(gid);
+  if((+g.amount||0)>0)await syncPlanExpense(gid);
+}
+async function planAmount(gid,v){
+  const g=PLAN.groups[gid];if(!g)return;
+  const a=Math.max(0,Math.round((parseFloat(v)||0)*100)/100);
+  try{await FB.update(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid),{amount:a})}catch(e){alert('儲存失敗：'+(e.code||e.message));return}
+  g.amount=a;await syncPlanExpense(gid);planRefresh(gid);
+  if(a>0){logAct('採購支出',null,'',`${planMD(PLAN.day)} ${g.name} $${a}`);toast(`✅ 「${g.name}」$${a} 已算入 ${planMD(PLAN.day)} 的支出`)}
+  else toast(`「${g.name}」的支出已移除`);
+}
+async function planDelGroup(gid){
+  const g=PLAN.groups[gid];if(!g)return;
+  if(!confirm(`移除「${g.name}」這個群組？${(+g.amount||0)>0?'\n已經算入的支出也會一併移除。':''}`))return;
+  try{
+    await FB.remove(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid));
+    await FB.remove(FB.ref(FB.db,'cashbook/'+PLAN.day+'/expenses/plan_'+gid));
+  }catch(e){alert('移除失敗：'+(e.code||e.message));return}
+  delete PLAN.groups[gid];const el=$('pg_'+gid);if(el)el.remove();planRefresh(gid);
+}
+async function planForgetItem(cid,iid){
+  const it=((PLAN.catalog[cid]||{}).items||{})[iid];if(!it||!confirm(`把「${it.name}」從常用品項移除？（不影響已經列在清單上的）`))return;
+  try{await FB.remove(FB.ref(FB.db,'shopCatalog/'+cid+'/items/'+iid))}catch(e){alert('移除失敗：'+(e.code||e.message));return}
+  delete PLAN.catalog[cid].items[iid];Object.keys(PLAN.groups).forEach(planRefresh);
+}
+async function planForgetGroup(cid){
+  const c=PLAN.catalog[cid];if(!c||!confirm(`把「${c.name}」從常用群組移除？（它底下記住的品項也會一起移除）`))return;
+  try{await FB.remove(FB.ref(FB.db,'shopCatalog/'+cid))}catch(e){alert('移除失敗：'+(e.code||e.message));return}
+  delete PLAN.catalog[cid];const g=$('pgChips');if(g)g.innerHTML=planGroupChips();
 }
 
 /* --- 日報表（店長）--- */
