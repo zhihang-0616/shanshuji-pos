@@ -1584,7 +1584,7 @@ function notifyLine(id){
 
 /* ===== 收銀盤點 / 日報表 / 彙整匯出 ===== */
 const DENOMS=[1000,500,100,50,10,5,1];
-const EXP_TYPES=[['進貨','進貨/材料'],['雜支','雜支'],['退款','退款'],['其他','其他支出'],['存鈔','存鈔（存起來）']];
+const EXP_TYPES=[['進貨','進貨/材料'],['雜支','雜支'],['退款','退款'],['其他','其他支出'],['存鈔','存鈔（存起來）'],['補入','補入收銀機']];
 const expLabel=k=>(EXP_TYPES.find(x=>x[0]===k)||[k,k])[1];
 const dayStartMs=day=>new Date(+day.slice(0,4),+day.slice(4,6)-1,+day.slice(6,8),2,0,0,0).getTime();
 const dayPlain=day=>day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8);
@@ -1610,11 +1610,11 @@ function salesOf(list){
 function calcDay(cb,sales){
   const exps=Object.values(cb.expenses||{});
   const sum=f=>exps.filter(f).reduce((a,e)=>a+(+e.amount||0),0);
-  const expense=sum(e=>e.type!=='存鈔'),deposit=sum(e=>e.type==='存鈔');
+  const expense=sum(e=>e.type!=='存鈔'&&e.type!=='補入'),deposit=sum(e=>e.type==='存鈔'),topup=sum(e=>e.type==='補入');
   const hasOpen=!!cb.open,hasClose=!!cb.close,open=hasOpen?(+cb.open.total||0):0;
-  const expected=open+sales.cash-expense-deposit;
+  const expected=open+sales.cash+topup-expense-deposit;
   const close=hasClose?(+cb.close.total||0):null;
-  return{expense,deposit,hasOpen,hasClose,open,expected,close,diff:hasClose?Math.round((close-expected)*100)/100:null};
+  return{expense,deposit,topup,hasOpen,hasClose,open,expected,close,diff:hasClose?Math.round((close-expected)*100)/100:null};
 }
 
 /* --- 手續費、彙整計算、月報表 --- */
@@ -1632,11 +1632,11 @@ function figsFrom(orders,all,filter){
   });
 }
 function monthAgg(figs){
-  const t={days:0,count:0,voided:0,revenue:0,cash:0,transfer:0,linepay:0,allpay:0,unpaid:0,fl:0,fa:0,fee:0,net:0,expense:0,deposit:0,diff:0,diffDays:0};
+  const t={days:0,count:0,voided:0,revenue:0,cash:0,transfer:0,linepay:0,allpay:0,unpaid:0,fl:0,fa:0,fee:0,net:0,expense:0,deposit:0,topup:0,diff:0,diffDays:0};
   figs.forEach(f=>{
     const s=f.sales;if(s.count>0)t.days++;
     t.count+=s.count;t.voided+=s.voided;t.revenue+=s.revenue;t.cash+=s.cash;t.transfer+=s.transfer;t.linepay+=s.linepay;t.allpay+=s.allpay;t.unpaid+=s.unpaid;
-    t.fl+=f.fl;t.fa+=f.fa;t.fee+=f.fee;t.net+=f.net;t.expense+=f.c.expense;t.deposit+=f.c.deposit;
+    t.fl+=f.fl;t.fa+=f.fa;t.fee+=f.fee;t.net+=f.net;t.expense+=f.c.expense;t.deposit+=f.c.deposit;t.topup+=f.c.topup;
     if(f.c.hasOpen&&f.c.hasClose){t.diff+=f.c.diff;t.diffDays++}
   });
   return t;
@@ -1677,7 +1677,7 @@ async function renderMonthReport(){
     <div class="fm-total"><span>扣除手續費後營收</span><b>${money(t.net)}</b></div>
     ${L('未收款',money(t.unpaid),t.unpaid?'color:var(--bad)':'')}</div>
    <div class="fm-sec"><div class="fm-title">本月現金進出</div>
-    ${L('支出合計',money(t.expense))}${L('存鈔合計（非支出）',money(t.deposit))}
+    ${L('支出合計',money(t.expense))}${L('存鈔合計（非支出）',money(t.deposit))}${L('補入收銀機合計',money(t.topup))}
     ${L(`現金差額合計（${t.diffDays} 天有開店＋收店盤點）`,Math.abs(t.diff)<0.5?'$0（帳實相符）':(t.diff>0?'多 ':'短 ')+money(Math.abs(t.diff)),Math.abs(t.diff)<0.5?'color:var(--ok);font-weight:800':'color:var(--bad);font-weight:800')}</div>
    ${figs.length?`<div class="tbw"><table><thead><tr><th>日期</th><th>單數</th><th>營收</th><th>現金</th><th>轉帳</th><th>Linepay</th><th>全支付</th><th>手續費</th><th>淨營收</th><th>支出</th><th>存鈔</th><th>現金差額</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">這個月還沒有任何訂單或收銀紀錄</div>'}
    <div class="modal-tip">手續費只計算<b>已收款</b>的 Linepay、全支付訂單，以「每天的金額 × 費率」四捨五入到整數，月合計是每天加總。已拒單不計入。</div>
@@ -1718,7 +1718,7 @@ function renderCash(){
       ${rec?`<div class="modal-tip">已盤點：$${rec.total}（${fmtDT(rec.at)}　${esc(rec.by||'')}）。重新輸入後按儲存即可修改。</div>`:''}
       ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input class="qt" style="width:100px" type="number" min="0" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="0" oninput="cashCnt(${d},this.value)"><span style="flex:1;text-align:right;color:var(--mu)" id="cs${d}">$${d*(CASH.cnt[d]||0)}</span></div>`).join('')}
       <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
-      ${t==='open'?`<div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
+      ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「支出／存鈔」記一筆「<b>補入收銀機</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
   }else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
@@ -1767,13 +1767,15 @@ function expListHtml(){
   const rows=list.map(e=>`<tr><td>${fmtT(e.at)}</td><td>${esc(expLabel(e.type))}</td><td>$${e.amount}</td><td>${esc(e.note||'')}</td><td>${esc(e.by||'')}</td>${mg?`<td><button class="rb" onclick="editExpense('${e.id}')">修改</button><button class="rb del" onclick="delExpense('${e.id}')">刪除</button></td>`:''}</tr>`).join('');
   return `<div class="fm-title">當日紀錄</div>
     ${list.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th>${mg?'<th>操作</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:12px">今天還沒有支出或存鈔紀錄</div>'}
-    <div class="fm-line"><span>支出合計</span><span>$${sum(e=>e.type!=='存鈔')}</span></div>
-    <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div>`;
+    <div class="fm-line"><span>支出合計</span><span>$${sum(e=>e.type!=='存鈔'&&e.type!=='補入')}</span></div>
+    <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div>
+    <div class="fm-line"><span>補入收銀機合計（增加收銀機現金）</span><span>$${sum(e=>e.type==='補入')}</span></div>`;
 }
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
-  return `<div class="fm-sec"><div class="fm-title">新增一筆（從收銀機拿出去的錢）</div>
+  return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出</div>
     <div class="chips" id="exChips">${EXP_TYPES.map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
+    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：選進貨、雜支、退款、其他支出或存鈔。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋「進貨/材料 $3988」（收銀機實際只增加 $12）。</div>
     <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
     <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2" oninput="CASH.ex.note=this.value" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
     <div class="m-btns"><button class="btn-confirm" onclick="addExpense()">＋ 新增</button></div></div>
@@ -1791,7 +1793,7 @@ async function addExpense(){
   const nref=FB.push(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses'));
   try{await FB.set(nref,rec)}
   catch(e){alert('新增失敗：'+(e.code||e.message));return}
-  logAct('收銀'+(rec.type==='存鈔'?'存鈔':'支出'),null,'',`${expLabel(rec.type)} $${amt}${rec.note?'｜'+rec.note:''}`);
+  logAct('收銀'+(rec.type==='存鈔'?'存鈔':rec.type==='補入'?'補入':'支出'),null,'',`${expLabel(rec.type)} $${amt}${rec.note?'｜'+rec.note:''}`);
   (CASH.data.expenses=CASH.data.expenses||{})[nref.key]=rec;      // 直接加進畫面上的清單，不重新整頁
   CASH.ex.amount='';CASH.ex.note='';
   const a=$('exAmt'),n=$('exNote');
@@ -1846,7 +1848,7 @@ async function renderDayReport(){
   const c=calcDay(cb,sales),F=feesOf(sales);
   const L=(k,v,st)=>`<div class="fm-line"><span>${k}</span><span${st?` style="${st}"`:''}>${v}</span></div>`;
   const byType={};Object.values(cb.expenses||{}).forEach(e=>{byType[e.type]=(byType[e.type]||0)+(+e.amount||0)});
-  const typeLines=EXP_TYPES.filter(([k])=>byType[k]).map(([k,n])=>L('　'+n,'$'+byType[k])).join('');
+  const typeLines=EXP_TYPES.filter(([k])=>byType[k]&&k!=='存鈔'&&k!=='補入').map(([k,n])=>L('　'+n,'$'+byType[k])).join('');
   const dcol=c.diff==null?'':(c.diff===0?'color:var(--ok);font-weight:800':'color:var(--bad);font-weight:800');
   const dtxt=c.diff==null?'尚未收店盤點':(c.diff===0?'$0（帳實相符）':(c.diff>0?'多 $'+c.diff:'短 $'+(-c.diff)));
   $('mBox').innerHTML=`<div class="oh"><h3>💵 日報表　${dayLabel(day)}</h3><button onclick="openAdminPanel()">返回</button></div>
@@ -1862,6 +1864,7 @@ async function renderDayReport(){
    <div class="fm-sec"><div class="fm-title">收銀台現金對帳</div>
     ${L('開店現金',c.hasOpen?money(c.open):'尚未開店盤點',c.hasOpen?'':'color:var(--bad)')}
     ${L('＋ 現金收入',money(sales.cash))}
+    ${L('＋ 補入收銀機',money(c.topup))}
     ${L('－ 支出合計',money(c.expense))}${typeLines}
     ${L('－ 存鈔合計',money(c.deposit))}
     ${L('＝ 理論應有現金',money(c.expected),'font-weight:800')}
@@ -1892,7 +1895,7 @@ async function buildCashbookSheets(){
     cumRev+=sales.revenue;cumNet+=f.net;cumFee+=f.fee;
     const diffOk=c.hasOpen&&c.hasClose;if(diffOk)cumDiff+=c.diff;
     daily.push([dayPlain(day),dayWeek(day),sales.manual?'手動補登':(c.hasClose?'已收店':(f.hasCb?'未收店':'無收銀紀錄')),sales.count,sales.voided,sales.revenue,sales.cash,sales.transfer,sales.linepay,sales.allpay,
-      f.fl,f.fa,f.fee,f.net,sales.unpaid,c.hasOpen?c.open:'',c.expense,c.deposit,c.hasOpen?c.expected:'',c.hasClose?c.close:'',diffOk?c.diff:'',cumRev,cumFee,cumNet,cumDiff]);
+      f.fl,f.fa,f.fee,f.net,sales.unpaid,c.hasOpen?c.open:'',c.topup,c.expense,c.deposit,c.hasOpen?c.expected:'',c.hasClose?c.close:'',diffOk?c.diff:'',cumRev,cumFee,cumNet,cumDiff]);
     (byMonth[day.slice(0,6)]=byMonth[day.slice(0,6)]||[]).push(f);
     Object.values(cb.expenses||{}).sort((a,b)=>a.at-b.at).forEach(e=>exps.push([dayPlain(day),fmtDT(e.at),expLabel(e.type),+e.amount||0,e.note||'',e.by||'']));
     [['open','開店'],['close','收店']].forEach(([k,nm])=>{
@@ -1903,11 +1906,11 @@ async function buildCashbookSheets(){
   const monthly=[];let mRev=0,mNet=0;
   Object.keys(byMonth).sort().forEach(ym=>{
     const t=monthAgg(byMonth[ym]);mRev+=t.revenue;mNet+=t.net;
-    monthly.push([ym.slice(0,4)+'年'+ym.slice(4,6)+'月',t.days,t.count,t.voided,t.revenue,t.cash,t.transfer,t.linepay,t.allpay,t.fl,t.fa,t.fee,t.net,t.days?Math.round(t.revenue/t.days):0,t.unpaid,t.expense,t.deposit,t.diffDays?t.diff:'',mRev,mNet]);
+    monthly.push([ym.slice(0,4)+'年'+ym.slice(4,6)+'月',t.days,t.count,t.voided,t.revenue,t.cash,t.transfer,t.linepay,t.allpay,t.fl,t.fa,t.fee,t.net,t.days?Math.round(t.revenue/t.days):0,t.unpaid,t.expense,t.deposit,t.topup,t.diffDays?t.diff:'',mRev,mNet]);
   });
   return{
-    daily:[['營業日','星期','狀態','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費('+rateTxt('Linepay')+')','全支付手續費('+rateTxt('全支付')+')','手續費合計','扣手續費後營收','未收款','開店現金','支出合計','存鈔合計','理論應有現金','收店現金','差額','累計營收','累計手續費','累計淨營收','累計差額'],...daily],
-    monthly:[['月份','營業天數','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費','全支付手續費','手續費合計','扣手續費後營收','日均營收','未收款','支出合計','存鈔合計','現金差額合計','累計營收','累計淨營收'],...monthly],
+    daily:[['營業日','星期','狀態','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費('+rateTxt('Linepay')+')','全支付手續費('+rateTxt('全支付')+')','手續費合計','扣手續費後營收','未收款','開店現金','補入收銀機','支出合計','存鈔合計','理論應有現金','收店現金','差額','累計營收','累計手續費','累計淨營收','累計差額'],...daily],
+    monthly:[['月份','營業天數','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費','全支付手續費','手續費合計','扣手續費後營收','日均營收','未收款','支出合計','存鈔合計','補入收銀機合計','現金差額合計','累計營收','累計淨營收'],...monthly],
     exps:[['營業日','時間','類別','金額','說明','登錄人'],...exps],
     cnts:[['營業日','類型','時間','登錄人',...DENOMS.map(d=>'$'+d),'合計'],...cnts]
   };
