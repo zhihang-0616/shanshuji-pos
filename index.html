@@ -1699,13 +1699,16 @@ async function reloadCash(){
   CASH.cnt=null;renderCash();
 }
 function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';renderCash()}
-function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=+src['d'+d]||0)}
-const cashTotal=()=>DENOMS.reduce((a,d)=>a+d*(CASH.cnt[d]||0),0);
+function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=(+src['d'+d]||0)*d)}   // CASH.cnt[面額] ＝ 這個面額的「金額」
+const cashTotal=()=>DENOMS.reduce((a,d)=>a+(CASH.cnt[d]||0),0);
+const cntNote=d=>{const a=CASH.cnt[d]||0;return a%d===0?`＝ ${a/d} ${d>=100?'張':'枚'}`:`⚠ 需為 ${d} 的倍數`};
 function cashCnt(d,v){
-  CASH.cnt[d]=Math.max(0,parseInt(v)||0);
-  const el=$('cs'+d);if(el)el.textContent='$'+d*CASH.cnt[d];
+  CASH.cnt[d]=Math.max(0,Math.round(parseFloat(v)||0));
+  const el=$('cs'+d);
+  if(el){el.textContent=cntNote(d);el.style.color=(CASH.cnt[d]%d===0)?'var(--mu)':'var(--bad)'}
   const t=$('cashTot');if(t)t.textContent='$'+cashTotal();
 }
+function cashNext(d){const i=DENOMS.indexOf(d),n=DENOMS[i+1],el=$(n?'ca'+n:'cashSave');if(el)el.focus()}
 function renderCash(){
   const D=CASH.data||{},t=CASH.tab,day=CASH.day;
   const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['close','收店盤點',!!D.close]];
@@ -1713,9 +1716,9 @@ function renderCash(){
   if(t==='open'||t==='close'){
     if(!CASH.cnt)cntInit(t);
     const rec=D[t],nm=t==='open'?'開店':'收店';
-    body=`<div class="fm-sec"><div class="fm-title">${nm}時收銀台內的現金（輸入每種面額的張數／枚數）</div>
+    body=`<div class="fm-sec"><div class="fm-title">${nm}時收銀台內的現金（直接輸入每種面額的<b>總金額</b>，例如 100 元的有 $8800 就輸入 8800）</div>
       ${rec?`<div class="modal-tip">已盤點：$${rec.total}（${fmtDT(rec.at)}　${esc(rec.by||'')}）。重新輸入後按儲存即可修改。</div>`:''}
-      ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input class="qt" style="width:100px" type="number" min="0" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="0" oninput="cashCnt(${d},this.value)"><span style="flex:1;text-align:right;color:var(--mu)" id="cs${d}">$${d*(CASH.cnt[d]||0)}</span></div>`).join('')}
+      ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input id="ca${d}" class="qt" style="width:130px" type="number" min="0" step="${d}" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="金額" oninput="cashCnt(${d},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();cashNext(${d})}"><span style="flex:1;text-align:right;color:${(CASH.cnt[d]||0)%d===0?'var(--mu)':'var(--bad)'}" id="cs${d}">${cntNote(d)}</span></div>`).join('')}
       <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
       ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「支出／存鈔」記一筆「<b>補入收銀機</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
@@ -1740,13 +1743,15 @@ async function inheritClose(){
       Object.values(ex).forEach(e=>{moved+=(+e.amount||0)});
     }
     if(!CASH.cnt)cntInit('open');
-    DENOMS.forEach(x=>{CASH.cnt[x]=+((found.rec.counts||{})['d'+x])||0});
+    DENOMS.forEach(x=>{CASH.cnt[x]=(+((found.rec.counts||{})['d'+x])||0)*x});
     CASH.inh=`已帶入 ${dayLabel(found.day)} 的收店盤點 $${found.rec.total}（${fmtDT(found.rec.at)}）。${moved?`<b>這段期間另有支出／存鈔共 $${moved}</b>，如果錢已經從收銀機拿出去，請把張數修正後再儲存。`:''}確認無誤後按「儲存開店盤點」。`;
   }catch(e){alert('讀取失敗：'+(e.code||e.message));return}
   renderCash();
 }
 async function saveCount(kind){
-  const total=cashTotal(),counts={};DENOMS.forEach(d=>counts['d'+d]=CASH.cnt[d]||0);
+  const bad=DENOMS.filter(d=>(CASH.cnt[d]||0)%d!==0);
+  if(bad.length){alert('下面的金額不是該面額的倍數，請檢查：\n'+bad.map(d=>`$${d} 的金額 ${CASH.cnt[d]}`).join('\n'));const el=$('ca'+bad[0]);if(el)el.focus();return}
+  const total=cashTotal(),counts={};DENOMS.forEach(d=>counts['d'+d]=(CASH.cnt[d]||0)/d);
   const old=CASH.data[kind],nm=kind==='open'?'開店':'收店';
   if(total===0&&!confirm(`${nm}盤點合計是 $0，確定要儲存嗎？`))return;
   const b=$('cashSave');b.disabled=true;b.textContent='儲存中…';
@@ -1899,7 +1904,7 @@ async function buildCashbookSheets(){
     Object.values(cb.expenses||{}).sort((a,b)=>a.at-b.at).forEach(e=>exps.push([dayPlain(day),fmtDT(e.at),expLabel(e.type),+e.amount||0,e.note||'',e.by||'']));
     [['open','開店'],['close','收店']].forEach(([k,nm])=>{
       const r=cb[k];if(!r)return;
-      cnts.push([dayPlain(day),nm+'盤點',fmtDT(r.at),r.by||'',...DENOMS.map(d=>+((r.counts||{})['d'+d])||0),+r.total||0]);
+      cnts.push([dayPlain(day),nm+'盤點',fmtDT(r.at),r.by||'',...DENOMS.map(d=>(+((r.counts||{})['d'+d])||0)*d),+r.total||0]);
     });
   });
   const monthly=[];let mRev=0,mNet=0;
@@ -1911,7 +1916,7 @@ async function buildCashbookSheets(){
     daily:[['營業日','星期','狀態','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費('+rateTxt('Linepay')+')','全支付手續費('+rateTxt('全支付')+')','手續費合計','扣手續費後營收','未收款','開店現金','補入收銀機','支出合計','存鈔合計','理論應有現金','收店現金','差額','累計營收','累計手續費','累計淨營收','累計差額'],...daily],
     monthly:[['月份','營業天數','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費','全支付手續費','手續費合計','扣手續費後營收','日均營收','未收款','支出合計','存鈔合計','補入收銀機合計','現金差額合計','累計營收','累計淨營收'],...monthly],
     exps:[['營業日','時間','類別','金額','說明','登錄人'],...exps],
-    cnts:[['營業日','類型','時間','登錄人',...DENOMS.map(d=>'$'+d),'合計'],...cnts]
+    cnts:[['營業日','類型','時間','登錄人',...DENOMS.map(d=>'$'+d+' 金額'),'合計'],...cnts]
   };
 }
 async function exportCashbook(){
