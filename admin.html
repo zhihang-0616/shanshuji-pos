@@ -1086,12 +1086,12 @@ function openAdminPanel(){
   if(!isAdmin||!isManager())return;
   viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box';
-  $('mBox').innerHTML=`<h3>⚙ 後台管理（店長）</h3>
+  $('mBox').innerHTML=`<h3>⚙ 後台管理</h3>
    <div class="opt-list">
-    <button class="opt-btn" onclick="openStats()">📊 營業統計（可看每一天）</button>
+    <button class="opt-btn" onclick="openStats()">📊 營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
-    <button class="opt-btn" onclick="openDayReport()">💵 日報表（收銀對帳）</button>
-    <button class="opt-btn" onclick="openMonthReport()">📅 月報表（含手續費）與彙整匯出</button>
+    <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
+    <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
