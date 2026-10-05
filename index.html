@@ -674,7 +674,8 @@ function normTime(v){
 const TF={
   ck:{get:()=>CK.time,set:v=>{CK.time=v}},
   late:{get:()=>CK.lateT,set:v=>{CK.lateT=v}},
-  ed:{get:()=>ED.time,set:v=>{ED.time=v}}
+  ed:{get:()=>ED.time,set:v=>{ED.time=v}},
+  edAt:{get:()=>ED.at,set:v=>{ED.at=v}}
 };
 function tfInput(el,key){el.value=fmt24(el.value);TF[key].set(el.value)}
 function tfBlur(el,key){const n=normTime(el.value);if(n){el.value=n;TF[key].set(n)}}
@@ -1208,6 +1209,7 @@ function openEdit(id,from){
   const sub=items.reduce((a,x)=>a+x.price*x.qty,0);
   ED={id,no:o.no,orig:o,name:o.name||'',phone:o.phone||'',time:o.time||'',note:o.note||'',src:o.src||'線上',
     gear:[...(o.gear||[])],pay:o.pay||'現金',status:o.status||'new',people,items,adj:(+o.total||0)-sub};
+  {const c=new Date(o.createdAt||Date.now());ED.d=ED.d0=`${c.getFullYear()}-${pad2t(c.getMonth()+1)}-${pad2t(c.getDate())}`;ED.at=ED.t0=`${pad2t(c.getHours())}:${pad2t(c.getMinutes())}`}
   EDFROM=from;viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box xl';renderEdit();$('modal').classList.add('open');
 }
@@ -1257,6 +1259,7 @@ function renderEdit(){
    <div class="fm-sec">
     <div class="fm-row"><b>訂購人</b><input value="${esc(ED.name)}" oninput="ED.name=this.value"></div>
     <div class="fm-row"><b>電話</b><input value="${esc(ED.phone)}" inputmode="numeric" maxlength="12" placeholder="09XX-XXX-XXX（可留空）" oninput="edPhone(this)"></div>
+    <div class="fm-row"><b>下單日期</b>${isManager()?`<div class="tf"><input type="date" id="edD" style="flex:1.2" value="${esc(ED.d)}" oninput="ED.d=this.value">${timeField('edAt','edAt24',timeSlots(true))}</div>`:`<span style="color:var(--mu)">${esc(ED.d)} ${esc(ED.at)}（只有店長可以修改）</span>`}</div>
     <div class="fm-row"><b>取餐時間</b>${timeField('ed','edTime24',timeSlots(true))}</div>
     <div class="fm-row"><b>${multi?'整單備註':'顧客備註'}</b><input value="${esc(ED.note)}" oninput="ED.note=this.value"></div>
     <div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>edChip('src',v)).join('')}</div></div>
@@ -1286,6 +1289,13 @@ async function saveEdit(){
   const tm24=normTime(ED.time);
   if(!tm24){alert('請輸入正確的取餐時間（24 小時制，例如 17:30）');return}
   ED.time=tm24;
+  let newTs=null;
+  if(isManager()){
+    const t2=normTime(ED.at);
+    if(!ED.d||!t2){alert('請輸入正確的下單日期與時間（時間為 24 小時制，例如 12:35）');return}
+    ED.at=t2;
+    if(ED.d!==ED.d0||t2!==ED.t0){newTs=new Date(ED.d+'T'+t2+':00').getTime();if(!(newTs>0)){alert('下單日期或時間不正確');return}}
+  }
   const multi=ED.people.length>1,o=ED.orig;
   const items=ED.items.map(x=>({id:x.id||'',name:String(x.name).trim(),price:parseFloat(x.price)||0,qty:Math.max(1,parseInt(x.qty)||1),p:multi?Math.min(parseInt(x.p)||0,ED.people.length-1):0})).filter(x=>x.name);
   if(!items.length){alert('至少要有一項餐點');return}
@@ -1294,12 +1304,14 @@ async function saveEdit(){
   const data={name:ED.name.trim()||'現場客',phone:ED.phone,time:ED.time,note:ED.note.trim(),src:ED.src,
     flavor:pp[0].flavor,spice:pp[0].spice,salt:pp[0].salt,people:multi?pp:null,gear:ED.gear.length?ED.gear:null,
     pay:ED.pay,status:ED.status,items,subtotal:sub,extra:adj>0?adj:0,discount:adj<0?-adj:0,total,updatedAt:Date.now()};
+  if(newTs){data.createdAt=newTs;data.date=bizDay(newTs)}
   const parts=[];
   if(ED.time!==o.time)parts.push(`取餐時間改為 ${ED.time}（原 ${o.time}）`);
   const sig=a=>(a||[]).map(x=>`${x.p||0}|${String(x.name).trim()}|${+x.price}|${+x.qty}`).join(';');
   if(sig(items)!==sig(o.items))parts.push(`餐點內容已調整，應付總額 $${total}`);
   if(parts.length)data.notice={at:Date.now(),text:parts.join('；')};
   const ch=[];
+  if(newTs)ch.push(`下單日期 ${ED.d0} ${ED.t0}→${ED.d} ${ED.at}`);
   if(ED.time!==o.time)ch.push(`取餐時間 ${o.time}→${ED.time}`);
   if(total!==(+o.total||0))ch.push(`金額 $${o.total}→$${total}`);
   if(sig(items)!==sig(o.items))ch.push('餐點內容');
@@ -1307,7 +1319,9 @@ async function saveEdit(){
   if(ED.status!==o.status)ch.push(`狀態 ${ST[o.status]||o.status}→${ST[ED.status]||ED.status}`);
   if(ED.name.trim()!==o.name||ED.phone!==(o.phone||'')||ED.note.trim()!==(o.note||''))ch.push('姓名/電話/備註');
   const b=$('edSave');b.disabled=true;b.textContent='儲存中…';
-  try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);if(ch.length)logAct('編輯',ED.id,ED.no,ch.join('；'));backFromEdit()}
+  try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);if(ch.length)logAct('編輯',ED.id,ED.no,ch.join('；'));
+    if(newTs&&bizDay(newTs)!==today8())toast(`✅ 已移到 ${dayPlain(bizDay(newTs)).slice(5)} 的營業日，可在「歷史訂單」或日報表查看`);
+    backFromEdit()}
   catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'}
 }
 async function delOrder(id,no,from){
