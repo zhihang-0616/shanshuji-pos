@@ -1580,7 +1580,7 @@ function figsFrom(orders,all,filter){
   orders.forEach(o=>{if(!o||!o.createdAt)return;const d=bizDay(o.createdAt);(by[d]=by[d]||[]).push(o)});
   const days=[...new Set([...Object.keys(by),...Object.keys(all)])].filter(d=>/^\d{8}$/.test(d)&&(!filter||filter(d))).sort();
   return days.map(day=>{
-    const cb=all[day]||{},sales=cb.summary||salesOf(by[day]||[]);
+    const cb=all[day]||{},sales=(cb.summary&&cb.summary.manual)?cb.summary:salesOf(by[day]||[]);
     return{day,cb,sales,c:calcDay(cb,sales),...feesOf(sales),hasCb:!!all[day]};
   });
 }
@@ -1684,10 +1684,6 @@ async function saveCount(kind){
   const b=$('cashSave');b.disabled=true;b.textContent='儲存中…';
   try{
     await FB.set(FB.ref(FB.db,'cashbook/'+CASH.day+'/'+kind),{counts,total,at:Date.now(),by:whoAmI()});
-    if(kind==='close'&&!(CASH.data.summary&&CASH.data.summary.manual)){
-      const sm=salesOf(await fetchDayOrders(CASH.day));sm.at=Date.now();
-      await FB.set(FB.ref(FB.db,'cashbook/'+CASH.day+'/summary'),sm);
-    }
     logAct(nm+'盤點',null,'',`${dayPlain(CASH.day)} 合計 $${total}${old?'（原 $'+old.total+'）':''}`);
   }catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'+nm+'盤點';return}
   CASH.tab=kind==='open'?'exp':'close';
@@ -1768,9 +1764,9 @@ async function openDayReport(day){
 }
 async function loadDay(day){
   const cb=(await FB.get(FB.ref(FB.db,'cashbook/'+day))).val()||{};
-  let sales=cb.summary,live=false;
-  if(!sales){sales=salesOf(await fetchDayOrders(day));live=true}
-  return{cb,sales,live};
+  const manual=cb.summary&&cb.summary.manual;   // 只有「手動補登的彙總」才直接用；其他一律由訂單即時計算，補單、修改、拒單都會立刻反映
+  const sales=manual?cb.summary:salesOf(await fetchDayOrders(day));
+  return{cb,sales,live:!manual};
 }
 async function renderDayReport(){
   const day=RP.day;
@@ -1786,7 +1782,6 @@ async function renderDayReport(){
   const dtxt=c.diff==null?'尚未收班盤點':(c.diff===0?'$0（帳實相符）':(c.diff>0?'多 $'+c.diff:'短 $'+(-c.diff)));
   $('mBox').innerHTML=`<div class="oh"><h3>💵 日報表　${dayLabel(day)}</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-row"><button class="rb" onclick="gotoReport('${shiftDay(day,-1)}')">◀ 前一天</button><input type="date" value="${day.slice(0,4)}-${day.slice(4,6)}-${day.slice(6,8)}" onchange="gotoReport(this.value.replace(/-/g,''))"><button class="rb" onclick="gotoReport('${shiftDay(day,1)}')">後一天 ▶</button></div>
-   ${live?'<div class="modal-tip">這一天尚未收班盤點，銷售數字為即時計算（收班盤點後會固定下來）。</div>':''}
    ${sales.manual?'<div class="modal-tip">此日銷售為<b>手動補登</b>的彙總資料（沒有逐筆訂單明細）。</div>':''}
    <div class="fm-sec"><div class="fm-title">銷售</div>
     <div class="fm-total" style="border:0;padding:0"><span>營收合計</span><b>${money(sales.revenue)}</b></div>
@@ -1803,18 +1798,9 @@ async function renderDayReport(){
     ${L('＝ 理論應有現金',money(c.expected),'font-weight:800')}
     ${L('收班實際現金',c.hasClose?money(c.close):'尚未收班盤點')}
     <div class="fm-total"><span>差額</span><b style="${dcol}">${dtxt}</b></div></div>
-   <div class="m-btns"><button class="btn-cancel" onclick="openCash('${day}')">✏️ 編輯這天的盤點／支出</button><button class="btn-cancel" onclick="recalcSales('${day}')">🔄 重新計算銷售</button><button class="btn-confirm" id="xlBtn" onclick="exportCashbook()">📥 匯出彙整 Excel（日報＋月報，全部日期）</button></div>`;
+   <div class="m-btns"><button class="btn-cancel" onclick="openCash('${day}')">✏️ 編輯這天的盤點／支出</button><button class="btn-confirm" id="xlBtn" onclick="exportCashbook()">📥 匯出彙整 Excel（日報＋月報，全部日期）</button></div>`;
 }
 function gotoReport(day){if(/^\d{8}$/.test(day)){RP.day=day;renderDayReport()}}
-async function recalcSales(day){
-  try{
-    const sm=salesOf(await fetchDayOrders(day));sm.at=Date.now();
-    const cb=(await FB.get(FB.ref(FB.db,'cashbook/'+day))).val()||{};
-    if(cb.summary&&cb.summary.manual){alert('這一天是手動補登的彙總資料，不能用訂單重新計算。');return}
-    if(cb.close){await FB.set(FB.ref(FB.db,'cashbook/'+day+'/summary'),sm);logAct('重算日報銷售',null,'',dayPlain(day))}
-  }catch(e){alert('重新計算失敗：'+(e.code||e.message));return}
-  renderDayReport();
-}
 
 /* --- 彙整 Excel：每次都匯出「所有日期」，隔天再匯出時前一天仍在 --- */
 function loadXLSX(){
