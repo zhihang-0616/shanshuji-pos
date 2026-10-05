@@ -575,13 +575,15 @@ const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
 const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateAt:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
-function timeSlots(){
-  const d=new Date();d.setSeconds(0,0);
-  d.setMinutes(Math.ceil(d.getMinutes()/10)*10);
-  const day=d.getDate(),out=[];
-  while(out.length<24&&d.getDate()===day){
-    out.push(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
-    d.setMinutes(d.getMinutes()+10);
+function timeSlots(full){
+  /* 客人：從現在之後的每 10 分鐘到 23:50；店家（full）：整天 00:00～23:50 */
+  const now=new Date();now.setSeconds(0,0);
+  const t=full?new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0,0):new Date(now);
+  if(!full)t.setMinutes(Math.ceil(t.getMinutes()/10)*10);
+  const day=now.getDate(),out=[];
+  while(t.getDate()===day){
+    out.push(String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'));
+    t.setMinutes(t.getMinutes()+10);
   }
   return out;
 }
@@ -653,15 +655,15 @@ function toggleLate(){
   renderCheckout();
 }
 function lateBlock(){
-  return `<div class="modal-tip">補單會用你指定的「下單時間」入帳，營收與統計會算在該時間所屬的營業日（02:00 換日）。取餐時間可自由填寫。</div>
+  return `<div class="modal-tip">補單會用你指定的「下單時間」入帳，營收與統計會算在該時間所屬的營業日（02:00 換日）。取餐時間可自由填寫。<br>要補 10/1 的單，請把「下單時間」的日期改成 10/1（點右邊的日曆圖示選日期）。</div>
    <div class="fm-row"><b>下單時間</b><input type="datetime-local" value="${esc(CK.lateAt)}" oninput="CK.lateAt=this.value"></div>
    <div class="fm-row"><b>紙本單號</b><input value="${esc(CK.lateNo)}" placeholder="選填，空白則自動編號" oninput="CK.lateNo=this.value"></div>
    <div class="fm-row"><b>訂單狀態</b><div class="chips">${[['picked','已取餐'],['done','待取餐'],['making','製作中'],['new','新單']].map(([k,t])=>`<button class="chip${CK.lateStatus===k?' on':''}" onclick="CK.lateStatus='${k}';renderCheckout()">${t}</button>`).join('')}</div></div>
    <div class="fm-row"><b>收款</b><div class="chips"><button class="chip${CK.latePaid?' on':''}" onclick="CK.latePaid=!CK.latePaid;renderCheckout()">已收款（付款方式請在下方選擇）</button></div></div>`;
 }
 function renderCheckout(){
-  const slots=timeSlots();
-  if(!(isAdmin&&CK.late)&&!slots.includes(CK.time))CK.time=loose()?(slots[0]||''):'';
+  const slots=timeSlots(isAdmin),nowS=new Date().toTimeString().slice(0,5);
+  if(!(isAdmin&&CK.late)&&!slots.includes(CK.time))CK.time=loose()?(slots.find(x=>x>nowS)||slots[slots.length-1]||''):'';
   const t=calcTotals(),e=CK.err;
   $('mBox').innerHTML=`
    <div class="xhead"><h3>填寫取餐資訊</h3><button class="xbtn" onclick="closeModal()" title="關閉">✕</button></div>
@@ -722,7 +724,7 @@ function renderReceipt(){
   $('mBox').innerHTML=`
    <div class="rc-head"><h3>訂單明細確認</h3><small>請核對以下資訊，確認無誤後送出訂單</small></div>
    <div class="fm-sec">
-    ${row('訂購人',o.name)}${row('電話',o.phone)}${row('取餐時間','今日 '+o.time)}
+    ${row('訂購人',o.name)}${row('電話',o.phone)}${row('取餐時間',(o.late?dayPlain(bizDay(o.lateAt)).slice(5)+' ':'今日 ')+o.time)}
     ${o.note?row('顧客備註',o.note):''}
     ${o.late?row('補單','下單時間 '+fmtDT(o.lateAt)+(o.lateNo?'｜單號 '+o.lateNo:'')):''}
    </div>
@@ -804,7 +806,7 @@ function showDone(o){
   $('mBox').innerHTML=`
    <div class="rc-done"><div class="ok">✅</div><h3>${o.late?'補單完成':'訂單已送出'}</h3>
     <div class="rc-no">#${o.no}</div>
-    <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>今日 ${o.time}</span></div>
+    <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>${o.late?dayPlain(o.date).slice(5)+' ':'今日 '}${o.time}</span></div>
     <div class="rc-row" style="justify-content:center;gap:8px;margin-top:4px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div>
     <div class="modal-tip" style="margin-top:14px;text-align:left">店家已收到您的訂單。請記下訂單編號，取餐時向店員出示。謝謝您的光臨！</div>
    </div>
