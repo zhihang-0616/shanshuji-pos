@@ -237,12 +237,10 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  <div class="brand-center">
   <div class="brand-row"><img class="logo" src="logo.png" alt="去中心鹹水雞"><b class="shop">去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b class="sub">POS 點餐系統</b></div>
   <div class="brand-actions">
-   <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單管理</button>
-   <button class="ibtn" id="soldOutModeBtn" onclick="toggleSoldOutMode()">🔴 餐點管理</button>
-   <button class="ibtn" id="soldOutListBtn" onclick="openSoldOutListModal()">📋 售完品項</button>
-   <button class="ibtn" id="stockBtn" onclick="openStock()">📦 今日庫存</button>
-   <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
    <button class="ibtn" id="cashBtn" onclick="openCash()">💵 收銀盤點</button>
+   <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單管理</button>
+   <button class="ibtn" id="itemsBtn" onclick="itemsMenu()">🍱 品項管理</button>
+   <button class="ibtn" id="adminBtn" onclick="openAdminPanel()">⚙ 後台管理</button>
    <button class="ibtn" id="soundBtn" onclick="toggleSound()">🔔 提示音</button>
    <button class="ibtn" id="logoutBtn" onclick="doLogout()">🚪 登出</button>
   </div>
@@ -358,10 +356,24 @@ function setShopStatus(s){
 
 function toggleSoldOutMode(){
   isSoldOutMode=!isSoldOutMode;
-  const b=$('soldOutModeBtn');
-  if(isSoldOutMode){b.style.background='var(--bad)';b.style.color='#fff';$('bodyRoot').classList.add('sold-mode')}
-  else{b.style.background='var(--s2)';b.style.color='var(--ac2)';$('bodyRoot').classList.remove('sold-mode')}
+  const b=$('itemsBtn');
+  if(isSoldOutMode){b.textContent='🔴 結束餐點管理';b.style.background='var(--bad)';b.style.color='#fff';$('bodyRoot').classList.add('sold-mode')}
+  else{b.textContent='🍱 品項管理';b.style.background='';b.style.color='';$('bodyRoot').classList.remove('sold-mode')}
   renderNav();renderGrid();
+}
+/* 品項管理：把「餐點管理／售完品項／今日庫存」收在同一個群組裡 */
+function itemsMenu(){
+  if(isSoldOutMode){toggleSoldOutMode();return}      // 標示售完中，再按一次就是結束
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box';
+  $('mBox').innerHTML=`<h3>🍱 品項管理</h3>
+   <div class="opt-list">
+    <button class="opt-btn" onclick="closeModal();toggleSoldOutMode()">🔴 餐點管理（點品項標示售完）</button>
+    <button class="opt-btn" onclick="openSoldOutListModal()">📋 售完品項（恢復販售）</button>
+    <button class="opt-btn" onclick="openStock()">📦 今日庫存（限量品項）</button>
+   </div>
+   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
+  $('modal').classList.add('open');
 }
 function openSoldOutListModal(){
   let h='';
@@ -456,16 +468,14 @@ function showComboOptions(item){
   $('modal').classList.add('open');
 }
 
-let tempStirFryOptions={spice:'',flavor:''};
-function showStirFryOptions(item){tempStirFryOptions={spice:'',flavor:''};renderStirFryModal(item)}
+let tempStirFryOptions={spice:''};
+function showStirFryOptions(item){tempStirFryOptions={spice:''};renderStirFryModal(item)}
 function renderStirFryModal(item){
-  const sp=['微辣','小辣','中辣','大辣'],fl=['清淡','正常','重鹹'];
+  const sp=['微辣','小辣','中辣','大辣'];
   $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>
    <div class="opt-section-title">辣度選擇</div>
    <div class="opt-grid">${sp.map(s=>`<button class="opt-btn ${tempStirFryOptions.spice===s?'selected':''}" onclick="toggleStirFryOpt('spice','${s}','${item.id}')">${s}</button>`).join('')}</div>
-   <div class="opt-section-title">口味選擇</div>
-   <div class="opt-grid">${fl.map(f=>`<button class="opt-btn ${tempStirFryOptions.flavor===f?'selected':''}" onclick="toggleStirFryOpt('flavor','${f}','${item.id}')">${f}</button>`).join('')}</div>
-   <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選或註明辣度與口味偏好 系統將自動以「不辣、正常口味」為您製作 謝謝您的配合</div>
+   <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選辣度 系統將自動以「不辣」為您製作 謝謝您的配合</div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" onclick="confirmStirFry('${item.id}','${item.name}',${item.price})">確認</button></div>`;
   $('modal').classList.add('open');
 }
@@ -474,7 +484,7 @@ function toggleStirFryOpt(type,val,id){
   renderStirFryModal(find(id));
 }
 function confirmStirFry(id,name,price){
-  const tags=[tempStirFryOptions.spice,tempStirFryOptions.flavor].filter(Boolean);
+  const tags=[tempStirFryOptions.spice].filter(Boolean);
   add(tags.length?`${name} (${tags.join(', ')})`:name,price,tags.length?id+'_'+tags.join('_'):id);
   closeModal();
 }
@@ -607,11 +617,12 @@ function openCheckout(){
 const chip=(key,v)=>`<button class="chip${CK[key]===v?' on':''}" onclick="pick('${key}','${v}')">${v}</button>`;
 const gearChip=v=>`<button class="chip${CK.gear.includes(v)?' on':''}" onclick="toggleGear('${v}')">${v}</button>`;
 function pick(key,v){CK[key]=CK[key]===v?'':v;renderCheckout()}
+const GEAR_EX=['需餐具','不需餐具'];
+const gearOK=()=>CK.gear.includes('需餐具')||CK.gear.includes('不需餐具')||(isAdmin&&CK.late);   // 補單可以不填
 function toggleGear(v){
-  if(CK.gear.includes(v))CK.gear=CK.gear.filter(x=>x!==v);
-  else{
-    CK.gear.push(v);
-  }
+  if(GEAR_EX.includes(v)){CK.gear=CK.gear.filter(x=>!GEAR_EX.includes(x));CK.gear.push(v)}   // 二選一
+  else if(CK.gear.includes(v))CK.gear=CK.gear.filter(x=>x!==v);
+  else CK.gear.push(v);
   renderCheckout();
 }
 function fmtPhone(el){
@@ -727,7 +738,8 @@ function renderCheckout(){
    </div>
    ${CK.people.map((pp,i)=>personBlock(i)).join('')}
    <div class="fm-sec">
-    <div class="fm-row"><b>配備:</b><div class="chips">${['需熱食','需餐具'].map(gearChip).join('')}</div></div>
+    <div class="fm-row${e&&!gearOK()?' err':''}"><b>配備*</b><div class="chips">${['需熱食','需餐具','不需餐具'].map(gearChip).join('')}</div></div>
+    <div class="fm-err">請選擇「需餐具」或「不需餐具」</div>
     <div style="text-align:center;font-size:12.5px;color:var(--mu)">🌱 依法不主動提供免洗餐具</div>
     <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選或註明辣度與口味偏好 系統將自動以「原味、不辣、正常口味」為您製作 謝謝您的配合</div>
    </div>
@@ -745,7 +757,7 @@ function submitCheckout(){
   CK.err=true;
   if(isAdmin&&CK.late&&!(lateMs()>0)){alert('請輸入補單的下單日期與時間（時間為 24 小時制，例如 12:35）');return}
   if(normTime(CK.time))CK.time=normTime(CK.time);
-  if(!nameValid()||!phoneValid()||!timeOK()){renderCheckout();return}
+  if(!nameValid()||!phoneValid()||!timeOK()||!gearOK()){renderCheckout();return}
   const t=calcTotals();
   window.pendingOrder={
     name:CK.name.trim()||'現場客',phone:CK.phone,src:isAdmin?(CK.src||'現場'):(CK.walkin?'現場':'線上'),time:CK.time,note:CK.note.trim(),
@@ -866,7 +878,7 @@ function finishOrder(){
 
 /* ===== 店家登入（Firebase Auth）===== */
 function setAdminUI(on){
-  ['ordersBtn','soldOutModeBtn','soldOutListBtn','stockBtn','cashBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
+  ['cashBtn','ordersBtn','itemsBtn','soundBtn','logoutBtn'].forEach(id=>$(id).style.display=on?'block':'none');
   $('adminBtn').style.display=on&&isManager()?'block':'none';
   $('logoutBtn').textContent='🚪 登出（'+(isManager()?'店長':'店員')+'）';
   $('statusPill').classList.toggle('admin-mode',on);
@@ -974,7 +986,7 @@ function renderOrders(){
   if(!viewingOrders)return;
   const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
   const cnt=k=>all.filter(o=>o.status===k).length;
-  const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['unpaid','未收款',all.filter(o=>o.status!=='cancelled'&&!o.paid).length],['all','全部',all.length]];
+  const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['all','全部',all.length]];
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
     .sort((a,b)=>{const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
   const cards=list.map(o=>{
@@ -990,7 +1002,7 @@ function renderOrders(){
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
-      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'?(o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':'　<span style="color:var(--bad);font-weight:700">未收款</span>'):''}</div>
+      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}</div>
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
@@ -1075,7 +1087,7 @@ function openAdminPanel(){
   $('mBox').className='m-box';
   $('mBox').innerHTML=`<h3>⚙ 後台管理（店長）</h3>
    <div class="opt-list">
-    <button class="opt-btn" onclick="openStats()">📊 今日營業統計</button>
+    <button class="opt-btn" onclick="openStats()">📊 營業統計（可看每一天）</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表（收銀對帳）</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表（含手續費）與彙整匯出</button>
@@ -1098,24 +1110,37 @@ function summarize(list){
   const un=ok.filter(o=>!o.paid);
   return{ok,rev,cancelled:list.length-ok.length,pay,src,items,unpaid:{n:un.length,s:un.reduce((a,o)=>a+(o.total||0),0)}};
 }
-function openStats(){viewingOrders=viewingTrack=false;viewingStats=true;$('mBox').className='m-box wide';renderStats();$('modal').classList.add('open')}
+let STAT={day:'',list:null};
+function openStats(){STAT={day:today8(),list:null};viewingOrders=viewingTrack=false;viewingStats=true;$('mBox').className='m-box wide';renderStats();$('modal').classList.add('open')}
+function gotoStat(day){if(/^\d{8}$/.test(day)){STAT={day,list:null};renderStats()}}
 function renderStats(){
   if(!viewingStats)return;
-  const list=Object.values(ORDERS),S=summarize(list),n=S.ok.length;
+  const live=STAT.day===today8(),d=STAT.day;
+  let list;
+  if(live)list=Object.values(ORDERS);
+  else if(STAT.list)list=STAT.list;
+  else{
+    $('mBox').innerHTML='<div class="oh"><h3>📊 營業統計</h3><button onclick="openAdminPanel()">返回</button></div><div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+    fetchDayOrders(d).then(l=>{if(viewingStats&&STAT.day===d){STAT.list=l;renderStats()}})
+      .catch(e=>{if(viewingStats&&STAT.day===d)$('mBox').innerHTML=`<div class="oh"><h3>📊 營業統計</h3><button onclick="openAdminPanel()">返回</button></div><div style="color:var(--bad);padding:20px">讀取失敗：${esc(e.code||e.message)}</div>`});
+    return;
+  }
+  const S=summarize(list),n=S.ok.length;
   const line=(l,r)=>`<div class="fm-line"><span>${l}</span><span>${r}</span></div>`;
   const rows=o=>Object.entries(o).sort((a,b)=>b[1].s-a[1].s).map(([k,v])=>line(`${esc(k)}（${v.n} 單）`,money(v.s))).join('')||line('尚無資料','');
   const top=Object.entries(S.items).sort((a,b)=>b[1].q-a[1].q).slice(0,10).map(([k,v],i)=>line(`${i+1}. ${esc(k)}`,`${v.q} 份　${money(v.s)}`)).join('')||line('尚無資料','');
   const cnt=k=>list.filter(o=>o.status===k).length;
-  $('mBox').innerHTML=`<div class="oh"><h3>📊 今日營業統計</h3><button onclick="openAdminPanel()">返回</button></div>
+  $('mBox').innerHTML=`<div class="oh"><h3>📊 營業統計　${dayLabel(d)}</h3><button onclick="openAdminPanel()">返回</button></div>
+   <div class="fm-row"><button class="rb" onclick="gotoStat('${shiftDay(d,-1)}')">◀ 前一天</button><input type="date" value="${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}" onchange="gotoStat(this.value.replace(/-/g,''))"><button class="rb" onclick="gotoStat('${shiftDay(d,1)}')">後一天 ▶</button>${live?'':`<button class="rb" onclick="gotoStat('${today8()}')">回到今天</button>`}</div>
    <div class="fm-sec">
-    <div class="fm-total" style="border:0;padding:0"><span>今日營收</span><b>${money(S.rev)}</b></div>
+    <div class="fm-total" style="border:0;padding:0"><span>營收${live?'（今天）':''}</span><b>${money(S.rev)}</b></div>
     ${line('有效訂單',n+' 單')}${line('平均客單價',n?money(S.rev/n):'$0')}${line('已拒單',S.cancelled+' 單')}${line('未收款',`${S.unpaid.n} 單 / ${money(S.unpaid.s)}`)}
     ${line('待處理 / 待取餐 / 已取餐',`${cnt('new')+cnt('making')} / ${cnt('done')} / ${cnt('picked')}`)}
    </div>
    <div class="fm-sec"><div class="fm-title">付款方式</div>${rows(S.pay)}</div>
    <div class="fm-sec"><div class="fm-title">訂單來源</div>${rows(S.src)}</div>
    <div class="fm-sec"><div class="fm-title">熱賣品項 TOP 10</div>${top}</div>
-   <div class="modal-tip">營業日為每日 02:00 至隔日 02:00，凌晨 02:00 後自動換日；統計不含已取消訂單；營收為訂單應付總額（含折扣）。品項銷售額為標價 × 數量，未扣折扣。資料會即時更新。</div>`;
+   <div class="modal-tip">營業日為每日 02:00 至隔日 02:00；統計不含已拒單；營收為訂單應付總額（含折扣）。品項銷售額為標價 × 數量，未扣折扣。${live?'今天的資料會即時更新。':''}</div>`;
 }
 
 /* ===== 歷史訂單與匯出 ===== */
@@ -1190,10 +1215,18 @@ function peopleOf(o){
   if(o.people&&o.people.length>1)return o.people.map((pp,i)=>({...pp,items:(o.items||[]).filter(x=>(x.p||0)===i)}));
   return null;
 }
+function comboLines(x){
+  const it=find(baseId(x.id));
+  if(!it||!it.d)return '';
+  const chicken=String(it.c||'').replace(/（可選[^）]*）/,'').replace(/^雞肉[：:]\s*/,'');
+  return `<div class="mu" style="margin:1px 0 5px 14px;line-height:1.5">└ 內含${x.qty>1?'（每份）':''}：${esc(chicken)}${chicken?'、':''}${esc(it.d.join('、'))}</div>`;
+}
 function itemsBlock(o,withOpt){
   const P=peopleOf(o);
-  if(!P)return(o.items||[]).map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>');
-  return P.map(pp=>`<div class="pg"><b>👤 ${esc(pp.name)}</b>${withOpt?`<span class="mu">　${esc([pp.flavor,pp.spice,pp.salt].filter(Boolean).join(' / '))}${pp.note?'｜備註：'+esc(pp.note):''}</span>`:''}<br>${pp.items.map(x=>`${esc(x.name)} × ${x.qty}`).join('<br>')}</div>`).join('');
+  const line=x=>withOpt?`<div>${esc(x.name)} × ${x.qty}</div>${comboLines(x)}`:`${esc(x.name)} × ${x.qty}`;
+  const join=withOpt?'':'<br>';
+  if(!P)return(o.items||[]).map(line).join(join);
+  return P.map(pp=>`<div class="pg"><b>👤 ${esc(pp.name)}</b>${withOpt?`<span class="mu">　${esc([pp.flavor,pp.spice,pp.salt].filter(Boolean).join(' / '))}${pp.note?'｜備註：'+esc(pp.note):''}</span>`:''}<br>${pp.items.map(line).join(join)}</div>`).join('');
 }
 const optCol=(o,k)=>o.people?o.people.map(p=>p.name+':'+(p[k]||'')).join('；'):(o[k]||'');
 
@@ -1223,7 +1256,8 @@ function edDelPerson(i){
   ED.people.splice(i,1);renderEdit();
 }
 function edGear(v){
-  if(ED.gear.includes(v))ED.gear=ED.gear.filter(x=>x!==v);
+  if(GEAR_EX.includes(v)){ED.gear=ED.gear.filter(x=>!GEAR_EX.includes(x));ED.gear.push(v)}
+  else if(ED.gear.includes(v))ED.gear=ED.gear.filter(x=>x!==v);
   else ED.gear.push(v);
   renderEdit();
 }
@@ -1267,7 +1301,7 @@ function renderEdit(){
    </div>
    ${pblocks}
    <div class="fm-sec">
-    <div class="fm-row"><b>配備</b><div class="chips">${['需熱食','需餐具',...ED.gear.filter(x=>!['需熱食','需餐具'].includes(x))].map(v=>`<button class="chip${ED.gear.includes(v)?' on':''}" onclick="edGear('${v}')">${v}</button>`).join('')}</div></div>
+    <div class="fm-row"><b>配備</b><div class="chips">${['需熱食','需餐具','不需餐具',...ED.gear.filter(x=>!['需熱食','需餐具','不需餐具'].includes(x))].map(v=>`<button class="chip${ED.gear.includes(v)?' on':''}" onclick="edGear('${v}')">${v}</button>`).join('')}</div></div>
     <div class="fm-row"><button class="chip" onclick="edAddPerson()">＋ 新增一位（分開計）</button></div>
    </div>
    <div class="fm-sec">
@@ -1343,12 +1377,14 @@ const payTotal=()=>{
 };
 async function pickup(id){
   const o=ORDERS[id];if(!o)return;
-  const data={status:'picked',pickedAt:Date.now(),updatedAt:Date.now()};
-  try{await FB.update(FB.ref(FB.db,'orders/'+id),data)}
-  catch(e){alert('取餐失敗：'+(e.code||e.message));return}
-  logAct('取餐',id,o.no,o.paid?'已取餐（原本已收款）':'已取餐，進入結帳');
-  if(o.paid){toast(`✅ #${o.no} 已取餐（原本已收款，訂單結束）`);return}
-  openPay(id,true,{...o,...data});
+  if(o.paid){        // 客人先付過款的單：直接完成取餐
+    try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:'picked',pickedAt:Date.now(),updatedAt:Date.now()})}
+    catch(e){alert('取餐失敗：'+(e.code||e.message));return}
+    logAct('取餐',id,o.no,'已取餐（原本已收款）');
+    toast(`✅ #${o.no} 已取餐（原本已收款，訂單結束）`);
+    return;
+  }
+  openPay(id,true);   // 取餐一定會進結帳畫面；按下「結帳」才算取餐完成
 }
 function openPay(id,after,fresh){
   const o=fresh||ORDERS[id];if(!o)return;
@@ -1356,10 +1392,7 @@ function openPay(id,after,fresh){
   viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box wide';renderPay();$('modal').classList.add('open');
 }
-function payBack(){
-  if(PAY&&PAY.after&&!PAY.o.paid&&!confirm('這筆訂單還沒結帳。\n確定先離開嗎？離開後可在「訂單管理 → 未收款」找到它。'))return;
-  openOrders();
-}
+function payBack(){openOrders()}
 function payMethod(v){PAY.pay=v;if(v!=='現金')PAY.recv='';renderPay()}
 function payRecv(v){PAY.recv=String(v);renderPay()}
 function payChgText(){
@@ -1378,7 +1411,7 @@ function renderPay(){
   const PP=peopleOf(o);
   const items=PP?PP.map(pp=>`<div class="fm-title" style="text-align:left">👤 ${esc(pp.name)}</div>${pp.items.map(line).join('')}`).join(''):(o.items||[]).map(line).join('');
   const quick=[total,100,200,500,1000,2000].filter((v,i,a)=>v>0&&a.indexOf(v)===i);
-  const tip=PAY.after?`<div class="modal-tip">✅ 客人已取餐。請確認金額與付款方式（可修改<b>付款方式、折扣、折讓</b>），按下「<b>結帳</b>」才算收款，這筆訂單就結束了。</div>`
+  const tip=PAY.after?`<div class="modal-tip">📦 客人取餐中。請確認金額與付款方式（可修改<b>付款方式、折扣、折讓</b>），按下「<b>結帳</b>」後，這筆訂單就完成取餐並結束。若按「返回」，訂單會維持「待取餐」。</div>`
     :(o.paid?`<div class="modal-tip">此訂單已收款（${esc(o.pay||'')}${o.received?'，收 $'+o.received:''}），可重新結帳修改。</div>`:'');
   $('mBox').innerHTML=`
    <div class="oh"><h3>💰 結帳 #${esc(o.no)}　${esc(o.name)}</h3><button onclick="payBack()">返回</button></div>
@@ -1404,12 +1437,12 @@ async function confirmPay(){
   if(cash&&PAY.recv!==''){recv=parseFloat(PAY.recv);if(!(recv>=total)){alert('收到的金額不足 $'+total);return}}
   const chg=cash?recv-total:0;
   const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,total,discount:Math.max(0,PAY.base-total),updatedAt:Date.now()};
-  if(o.status==='done')data.status='picked';          // 待取餐的單，結帳＝客人取餐，訂單結束
+  if(PAY.after||o.status==='done'){data.status='picked';data.pickedAt=Date.now()}    // 結帳＝客人取餐完成，訂單結束
   const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
   try{
     await FB.update(FB.ref(FB.db,'orders/'+PAY.id),data);
     const chgTxt=total!==(+o.total||0)?`｜金額 $${o.total}→$${total}`:'';
-    logAct('結帳',PAY.id,o.no,`${PAY.pay} $${total}${cash&&chg?'（找零 $'+chg+'）':''}${chgTxt}`);
+    logAct(PAY.after?'取餐結帳':'結帳',PAY.id,o.no,`${PAY.pay} $${total}${cash&&chg?'（找零 $'+chg+'）':''}${chgTxt}`);
   }catch(e){alert('結帳失敗：'+(e.code||e.message));b.disabled=false;b.textContent='結帳';return}
   $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>結帳完成 #${esc(o.no)}</h3>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
@@ -1644,7 +1677,7 @@ async function renderMonthReport(){
     ${L('未收款',money(t.unpaid),t.unpaid?'color:var(--bad)':'')}</div>
    <div class="fm-sec"><div class="fm-title">本月現金進出</div>
     ${L('支出合計',money(t.expense))}${L('存鈔合計（非支出）',money(t.deposit))}
-    ${L(`現金差額合計（${t.diffDays} 天有開店＋收班盤點）`,Math.abs(t.diff)<0.5?'$0（帳實相符）':(t.diff>0?'多 ':'短 ')+money(Math.abs(t.diff)),Math.abs(t.diff)<0.5?'color:var(--ok);font-weight:800':'color:var(--bad);font-weight:800')}</div>
+    ${L(`現金差額合計（${t.diffDays} 天有開店＋收店盤點）`,Math.abs(t.diff)<0.5?'$0（帳實相符）':(t.diff>0?'多 ':'短 ')+money(Math.abs(t.diff)),Math.abs(t.diff)<0.5?'color:var(--ok);font-weight:800':'color:var(--bad);font-weight:800')}</div>
    ${figs.length?`<div class="tbw"><table><thead><tr><th>日期</th><th>單數</th><th>營收</th><th>現金</th><th>轉帳</th><th>Linepay</th><th>全支付</th><th>手續費</th><th>淨營收</th><th>支出</th><th>存鈔</th><th>現金差額</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">這個月還沒有任何訂單或收銀紀錄</div>'}
    <div class="modal-tip">手續費只計算<b>已收款</b>的 Linepay、全支付訂單，以「每天的金額 × 費率」四捨五入到整數，月合計是每天加總。已拒單不計入。</div>
    <div class="m-btns"><button class="btn-confirm" id="xlBtn" onclick="exportCashbook()">📥 匯出彙整 Excel（日報＋月報，全部日期）</button></div>`;
@@ -1665,7 +1698,7 @@ async function reloadCash(){
   if(!CASH.tab)CASH.tab=!CASH.data.open?'open':(!CASH.data.close?'exp':'close');
   CASH.cnt=null;renderCash();
 }
-function cashTab(k){CASH.tab=k;CASH.cnt=null;renderCash()}
+function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';renderCash()}
 function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=+src['d'+d]||0)}
 const cashTotal=()=>DENOMS.reduce((a,d)=>a+d*(CASH.cnt[d]||0),0);
 function cashCnt(d,v){
@@ -1675,24 +1708,46 @@ function cashCnt(d,v){
 }
 function renderCash(){
   const D=CASH.data||{},t=CASH.tab,day=CASH.day;
-  const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['close','收班盤點',!!D.close]];
+  const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['close','收店盤點',!!D.close]];
   let body='';
   if(t==='open'||t==='close'){
     if(!CASH.cnt)cntInit(t);
-    const rec=D[t],nm=t==='open'?'開店':'收班';
+    const rec=D[t],nm=t==='open'?'開店':'收店';
     body=`<div class="fm-sec"><div class="fm-title">${nm}時收銀台內的現金（輸入每種面額的張數／枚數）</div>
       ${rec?`<div class="modal-tip">已盤點：$${rec.total}（${fmtDT(rec.at)}　${esc(rec.by||'')}）。重新輸入後按儲存即可修改。</div>`:''}
       ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input class="qt" style="width:100px" type="number" min="0" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="0" oninput="cashCnt(${d},this.value)"><span style="flex:1;text-align:right;color:var(--mu)" id="cs${d}">$${d*(CASH.cnt[d]||0)}</span></div>`).join('')}
       <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
+      ${t==='open'?`<div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
   }else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
    <div class="modal-tip">營業日：${dayLabel(day)}（每日 02:00 換日）</div>
    <div class="chips">${tabs.map(([k,n,ok])=>`<button class="chip${t===k?' on':''}" onclick="cashTab('${k}')">${ok?'✔ ':''}${n}</button>`).join('')}</div>${body}`;
 }
+/* 開店盤點：直接帶入「前一次」收店盤點的張數（遇到公休日會往前找，最多 14 天） */
+async function inheritClose(){
+  let d=CASH.day,found=null;
+  try{
+    for(let i=0;i<14&&!found;i++){
+      d=shiftDay(d,-1);
+      const sn=await FB.get(FB.ref(FB.db,'cashbook/'+d+'/close'));
+      if(sn.exists())found={day:d,rec:sn.val()};
+    }
+    if(!found){alert('往前 14 天內找不到收店盤點紀錄');return}
+    let moved=0;                                   // 這段期間（收店後到今天開店前）另外有的支出、存鈔
+    for(let k=shiftDay(found.day,1);k<CASH.day;k=shiftDay(k,1)){
+      const ex=(await FB.get(FB.ref(FB.db,'cashbook/'+k+'/expenses'))).val()||{};
+      Object.values(ex).forEach(e=>{moved+=(+e.amount||0)});
+    }
+    if(!CASH.cnt)cntInit('open');
+    DENOMS.forEach(x=>{CASH.cnt[x]=+((found.rec.counts||{})['d'+x])||0});
+    CASH.inh=`已帶入 ${dayLabel(found.day)} 的收店盤點 $${found.rec.total}（${fmtDT(found.rec.at)}）。${moved?`<b>這段期間另有支出／存鈔共 $${moved}</b>，如果錢已經從收銀機拿出去，請把張數修正後再儲存。`:''}確認無誤後按「儲存開店盤點」。`;
+  }catch(e){alert('讀取失敗：'+(e.code||e.message));return}
+  renderCash();
+}
 async function saveCount(kind){
   const total=cashTotal(),counts={};DENOMS.forEach(d=>counts['d'+d]=CASH.cnt[d]||0);
-  const old=CASH.data[kind],nm=kind==='open'?'開店':'收班';
+  const old=CASH.data[kind],nm=kind==='open'?'開店':'收店';
   if(total===0&&!confirm(`${nm}盤點合計是 $0，確定要儲存嗎？`))return;
   const b=$('cashSave');b.disabled=true;b.textContent='儲存中…';
   try{
@@ -1792,7 +1847,7 @@ async function renderDayReport(){
   const byType={};Object.values(cb.expenses||{}).forEach(e=>{byType[e.type]=(byType[e.type]||0)+(+e.amount||0)});
   const typeLines=EXP_TYPES.filter(([k])=>byType[k]).map(([k,n])=>L('　'+n,'$'+byType[k])).join('');
   const dcol=c.diff==null?'':(c.diff===0?'color:var(--ok);font-weight:800':'color:var(--bad);font-weight:800');
-  const dtxt=c.diff==null?'尚未收班盤點':(c.diff===0?'$0（帳實相符）':(c.diff>0?'多 $'+c.diff:'短 $'+(-c.diff)));
+  const dtxt=c.diff==null?'尚未收店盤點':(c.diff===0?'$0（帳實相符）':(c.diff>0?'多 $'+c.diff:'短 $'+(-c.diff)));
   $('mBox').innerHTML=`<div class="oh"><h3>💵 日報表　${dayLabel(day)}</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-row"><button class="rb" onclick="gotoReport('${shiftDay(day,-1)}')">◀ 前一天</button><input type="date" value="${day.slice(0,4)}-${day.slice(4,6)}-${day.slice(6,8)}" onchange="gotoReport(this.value.replace(/-/g,''))"><button class="rb" onclick="gotoReport('${shiftDay(day,1)}')">後一天 ▶</button></div>
    ${sales.manual?'<div class="modal-tip">此日銷售為<b>手動補登</b>的彙總資料（沒有逐筆訂單明細）。</div>':''}
@@ -1809,7 +1864,7 @@ async function renderDayReport(){
     ${L('－ 支出合計',money(c.expense))}${typeLines}
     ${L('－ 存鈔合計',money(c.deposit))}
     ${L('＝ 理論應有現金',money(c.expected),'font-weight:800')}
-    ${L('收班實際現金',c.hasClose?money(c.close):'尚未收班盤點')}
+    ${L('收店實際現金',c.hasClose?money(c.close):'尚未收店盤點')}
     <div class="fm-total"><span>差額</span><b style="${dcol}">${dtxt}</b></div></div>
    <div class="m-btns"><button class="btn-cancel" onclick="openCash('${day}')">✏️ 編輯這天的盤點／支出</button><button class="btn-confirm" id="xlBtn" onclick="exportCashbook()">📥 匯出彙整 Excel（日報＋月報，全部日期）</button></div>`;
 }
@@ -1835,11 +1890,11 @@ async function buildCashbookSheets(){
     const {day,cb,sales,c}=f;
     cumRev+=sales.revenue;cumNet+=f.net;cumFee+=f.fee;
     const diffOk=c.hasOpen&&c.hasClose;if(diffOk)cumDiff+=c.diff;
-    daily.push([dayPlain(day),dayWeek(day),sales.manual?'手動補登':(c.hasClose?'已收班':(f.hasCb?'未收班':'無收銀紀錄')),sales.count,sales.voided,sales.revenue,sales.cash,sales.transfer,sales.linepay,sales.allpay,
+    daily.push([dayPlain(day),dayWeek(day),sales.manual?'手動補登':(c.hasClose?'已收店':(f.hasCb?'未收店':'無收銀紀錄')),sales.count,sales.voided,sales.revenue,sales.cash,sales.transfer,sales.linepay,sales.allpay,
       f.fl,f.fa,f.fee,f.net,sales.unpaid,c.hasOpen?c.open:'',c.expense,c.deposit,c.hasOpen?c.expected:'',c.hasClose?c.close:'',diffOk?c.diff:'',cumRev,cumFee,cumNet,cumDiff]);
     (byMonth[day.slice(0,6)]=byMonth[day.slice(0,6)]||[]).push(f);
     Object.values(cb.expenses||{}).sort((a,b)=>a.at-b.at).forEach(e=>exps.push([dayPlain(day),fmtDT(e.at),expLabel(e.type),+e.amount||0,e.note||'',e.by||'']));
-    [['open','開店'],['close','收班']].forEach(([k,nm])=>{
+    [['open','開店'],['close','收店']].forEach(([k,nm])=>{
       const r=cb[k];if(!r)return;
       cnts.push([dayPlain(day),nm+'盤點',fmtDT(r.at),r.by||'',...DENOMS.map(d=>+((r.counts||{})['d'+d])||0),+r.total||0]);
     });
@@ -1850,7 +1905,7 @@ async function buildCashbookSheets(){
     monthly.push([ym.slice(0,4)+'年'+ym.slice(4,6)+'月',t.days,t.count,t.voided,t.revenue,t.cash,t.transfer,t.linepay,t.allpay,t.fl,t.fa,t.fee,t.net,t.days?Math.round(t.revenue/t.days):0,t.unpaid,t.expense,t.deposit,t.diffDays?t.diff:'',mRev,mNet]);
   });
   return{
-    daily:[['營業日','星期','狀態','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費('+rateTxt('Linepay')+')','全支付手續費('+rateTxt('全支付')+')','手續費合計','扣手續費後營收','未收款','開店現金','支出合計','存鈔合計','理論應有現金','收班現金','差額','累計營收','累計手續費','累計淨營收','累計差額'],...daily],
+    daily:[['營業日','星期','狀態','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費('+rateTxt('Linepay')+')','全支付手續費('+rateTxt('全支付')+')','手續費合計','扣手續費後營收','未收款','開店現金','支出合計','存鈔合計','理論應有現金','收店現金','差額','累計營收','累計手續費','累計淨營收','累計差額'],...daily],
     monthly:[['月份','營業天數','訂單數','拒單數','營收合計','現金收入','轉帳','Linepay','全支付','Linepay手續費','全支付手續費','手續費合計','扣手續費後營收','日均營收','未收款','支出合計','存鈔合計','現金差額合計','累計營收','累計淨營收'],...monthly],
     exps:[['營業日','時間','類別','金額','說明','登錄人'],...exps],
     cnts:[['營業日','類型','時間','登錄人',...DENOMS.map(d=>'$'+d),'合計'],...cnts]
