@@ -1693,31 +1693,45 @@ async function saveCount(kind){
   toast(`✅ ${nm}盤點已儲存：$${total}`+(kind==='close'&&isManager()?'　可到「後台管理 → 日報表」查看差額':''));
   await reloadCash();
 }
-function expHtml(){
+function expListHtml(){
   const D=CASH.data||{};
   const list=Object.entries(D.expenses||{}).map(([id,e])=>({id,...e})).sort((a,b)=>a.at-b.at);
   const sum=f=>list.filter(f).reduce((a,e)=>a+(+e.amount||0),0);
   const mg=isManager();
   const rows=list.map(e=>`<tr><td>${fmtT(e.at)}</td><td>${esc(expLabel(e.type))}</td><td>$${e.amount}</td><td>${esc(e.note||'')}</td><td>${esc(e.by||'')}</td>${mg?`<td><button class="rb" onclick="editExpense('${e.id}')">修改</button><button class="rb del" onclick="delExpense('${e.id}')">刪除</button></td>`:''}</tr>`).join('');
-  return `<div class="fm-sec"><div class="fm-title">新增一筆（從收銀機拿出去的錢）</div>
-    <div class="chips">${EXP_TYPES.map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" onclick="CASH.ex.type='${k}';renderCash()">${n}</button>`).join('')}</div>
-    <div class="fm-row"><b>金額</b><input type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value"></div>
-    <div class="fm-row"><b>說明</b><input value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2" oninput="CASH.ex.note=this.value"></div>
-    <div class="m-btns"><button class="btn-confirm" onclick="addExpense()">＋ 新增</button></div></div>
-   <div class="fm-sec"><div class="fm-title">當日紀錄</div>
+  return `<div class="fm-title">當日紀錄</div>
     ${list.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th>${mg?'<th>操作</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:12px">今天還沒有支出或存鈔紀錄</div>'}
     <div class="fm-line"><span>支出合計</span><span>$${sum(e=>e.type!=='存鈔')}</span></div>
-    <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div></div>`;
+    <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div>`;
 }
+function expHtml(){
+  /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
+  return `<div class="fm-sec"><div class="fm-title">新增一筆（從收銀機拿出去的錢）</div>
+    <div class="chips" id="exChips">${EXP_TYPES.map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
+    <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
+    <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2" oninput="CASH.ex.note=this.value" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
+    <div class="m-btns"><button class="btn-confirm" onclick="addExpense()">＋ 新增</button></div></div>
+   <div class="fm-sec" id="expList">${expListHtml()}</div>`;
+}
+function setExType(k){
+  CASH.ex.type=k;
+  document.querySelectorAll('#exChips .chip').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+}
+function refreshExpList(){const el=$('expList');if(el)el.innerHTML=expListHtml()}
 async function addExpense(){
   const amt=parseFloat(CASH.ex.amount);
-  if(!(amt>0)){alert('請輸入大於 0 的金額');return}
+  if(!(amt>0)){alert('請輸入大於 0 的金額');const el=$('exAmt');if(el)el.focus();return}
   const rec={at:Date.now(),type:CASH.ex.type,amount:amt,note:CASH.ex.note.trim(),by:whoAmI()};
-  try{await FB.set(FB.push(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses')),rec)}
+  const nref=FB.push(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses'));
+  try{await FB.set(nref,rec)}
   catch(e){alert('新增失敗：'+(e.code||e.message));return}
   logAct('收銀'+(rec.type==='存鈔'?'存鈔':'支出'),null,'',`${expLabel(rec.type)} $${amt}${rec.note?'｜'+rec.note:''}`);
-  CASH.ex={type:CASH.ex.type,amount:'',note:''};
-  await reloadCash();
+  (CASH.data.expenses=CASH.data.expenses||{})[nref.key]=rec;      // 直接加進畫面上的清單，不重新整頁
+  CASH.ex.amount='';CASH.ex.note='';
+  const a=$('exAmt'),n=$('exNote');
+  if(a)a.value='';if(n)n.value='';
+  refreshExpList();
+  if(a)a.focus();
 }
 async function editExpense(id){
   if(!isManager())return;
@@ -1728,7 +1742,7 @@ async function editExpense(id){
   try{await FB.update(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses/'+id),{amount:amt,note:n.trim()})}
   catch(er){alert('修改失敗：'+(er.code||er.message));return}
   logAct('修改收銀紀錄',null,'',`${expLabel(e.type)} $${e.amount}→$${amt}`);
-  await reloadCash();
+  e.amount=amt;e.note=n.trim();refreshExpList();
 }
 async function delExpense(id){
   if(!isManager())return;
@@ -1736,7 +1750,7 @@ async function delExpense(id){
   try{await FB.remove(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses/'+id))}
   catch(er){alert('刪除失敗：'+(er.code||er.message));return}
   logAct('刪除收銀紀錄',null,'',`${expLabel(e.type)} $${e.amount}${e.note?'｜'+e.note:''}`);
-  await reloadCash();
+  delete CASH.data.expenses[id];refreshExpList();
 }
 async function checkOpenReminder(){
   if(!isAdmin||!window.FB)return;
