@@ -367,13 +367,17 @@ function saveSold(){
 
 /* ===== 營業時間：週一至週四 17:30–24:00、週五六 17:30–02:00（次日）、週日公休；店家可手動提早開店／提早打烊／備料／臨時休假 ===== */
 const TZ=28800000,DAYMS=86400000,WEEKMS=604800000;
-const SCHED_TXT='週一至週四 17:30–24:00｜週五、週六 17:30–02:00｜週日公休';
+const SCHED_TXT='週一至週四 17:30–24:00｜週五、週六 17:30–02:00｜週日公休｜營業日 16:30 起備料中（可先預訂）';
 let SHOP={ovr:null,vac:null},SV_OFF=0;
 const svNow=()=>Date.now()+SV_OFF;
 const twHM=ms=>{const m=Math.floor(((ms+TZ)%DAYMS)/60000);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};   // 一律顯示台灣時間（24 小時制）
 function schedOpenAt(t){      // 與 Firebase 規則使用同一組算式（台灣時間 UTC+8）
   const L=t+TZ,DM=L%DAYMS,WM=(L+4*DAYMS)%WEEKMS;     // DM：當天第幾毫秒；WM：本週（週日 00:00 起算）第幾毫秒
   return (WM>=DAYMS&&DM>=63000000)||(DM<7200000&&(WM>=6*DAYMS||WM<DAYMS));
+}
+function prepWinAt(t){        // 週一～週六 16:30–17:30：預定備料時段（客人可預訂）
+  const L=t+TZ,DM=L%DAYMS,WM=(L+4*DAYMS)%WEEKMS;
+  return WM>=DAYMS&&DM>=59400000&&DM<63000000;
 }
 function nextChange(t){
   const base=schedOpenAt(t);let m=Math.floor(t/60000)*60000+60000;
@@ -390,7 +394,9 @@ function curStatus(t){
   }
   const v=SHOP.vac;
   if(v&&+v.from<=t&&t<+v.to)return{s:'休息中',why:'臨時休假'};
-  return schedOpenAt(t)?{s:'營業中',why:'依營業時間'}:{s:'休息中',why:'非營業時間'};
+  if(schedOpenAt(t))return{s:'營業中',why:'依營業時間'};
+  if(prepWinAt(t))return{s:'備料中',why:'預定備料時間',until:nextChange(t)};
+  return{s:'休息中',why:'非營業時間'};
 }
 function updateStatusDisplay(){
   const st=curStatus(),s=st.s;
@@ -404,7 +410,9 @@ function updateStatusDisplay(){
   else if(s==='備料中'){
     const left=Math.max(1,Math.ceil((st.until-svNow())/60000));
     bn.className='bn-prep';
-    bn.textContent=isAdmin?`目前狀態：備料中，預計 ${twHM(st.until)} 完成（還有約 ${left} 分鐘）`:`🟡 店家備料中，預計 ${twHM(st.until)} 備料完成（約還需 ${left} 分鐘）。可先預訂，備料完成後依序製作`;
+    const sch=st.why==='預定備料時間';
+    bn.textContent=isAdmin?(sch?`目前狀態：備料中（預定備料時間），${twHM(st.until)} 自動開始營業（還有約 ${left} 分鐘）`:`目前狀態：備料中，預計 ${twHM(st.until)} 完成（還有約 ${left} 分鐘）`)
+      :(sch?`🟡 店家備料中，${twHM(st.until)} 開始營業（約還需 ${left} 分鐘）。可先預訂，開始營業後依序製作`:`🟡 店家備料中，預計 ${twHM(st.until)} 備料完成（約還需 ${left} 分鐘）。可先預訂，備料完成後依序製作`);
   }
   else{bn.className='';bn.textContent=isAdmin&&st.why!=='依營業時間'?`目前狀態：營業中（${st.why}）`:''}
   renderCart();
@@ -451,32 +459,43 @@ async function setOvr(mode){
     logAct('營業狀態',null,'',mode==='open'?`手動切換：營業中（提早開店，營業到 ${twHM(until)}）`:`手動切換：休息中（到 ${twHM(until)} 之後恢復依營業時間）`)}
   catch(e){alert('營業狀態同步失敗：'+(e.code||e.message))}
 }
-/* 備料中：選備料時間，客人會看到預計完成時間 */
-let PREP={min:30,auto:false};
-function prepForm(){const t=svNow();PREP={min:30,auto:schedOpenAt(t)||(nextChange(t)-t<=120*60000)};renderPrep()}
+/* 備料中：從現在開始，輸入或快選「備料完成時間」，客人會看到預計完成時間 */
+let PREP={end:''};
+const tenUp=t=>Math.ceil((t+TZ)/600000)*600000-TZ;                  // 往後湊到下一個整 10 分鐘（台灣時間）
+function prepSlots(){const st=tenUp(svNow()),out=[];for(let i=0;i<60;i++)out.push(twHM(st+i*600000));return out}   // 10 分鐘為單位，最長 10 小時
+function prepEndMs(hm){
+  const n=normTime(hm);if(!n)return NaN;
+  const t=svNow(),day0=t-((t+TZ)%DAYMS),[h,m]=n.split(':').map(Number);
+  let e=day0+h*3600000+m*60000;if(e<=t)e+=DAYMS;                    // 輸入的時間已經過了，就當作是隔天
+  return e;
+}
+function prepInfo(){
+  const e=prepEndMs(PREP.end);
+  if(isNaN(e))return '請輸入正確的完成時間，例如 18:30';
+  const t=svNow(),mins=Math.round((e-t)/60000);
+  if(mins>600)return '備料時間最長 10 小時，請輸入較近的時間';
+  const nextDay=Math.floor((e+TZ)/DAYMS)>Math.floor((t+TZ)/DAYMS);
+  return `預計 ${twHM(e)}${nextDay?'（隔天）':''} 備料完成，約 ${mins} 分鐘`;
+}
+function prepForm(){PREP={end:twHM(tenUp(svNow()+30*60000))};renderPrep()}
 function renderPrep(){
-  const end=svNow()+PREP.min*60000;
+  const t=svNow();
   $('mBox').innerHTML=`<h3>🟡 備料中</h3>
-   <div class="modal-tip" style="text-align:left">選好備料要多久，<b>客人會看到「預計幾點備料完成」</b>，備料期間客人可以先預訂。</div>
-   <div class="chips">${[10,15,20,30,45,60,90].map(m=>`<button class="chip${PREP.min===m?' on':''}" onclick="prepPick(${m})">${m} 分鐘</button>`).join('')}</div>
-   <div class="fm-row"><b style="width:auto">自訂分鐘</b><input id="prepMin" type="number" inputmode="numeric" min="1" max="600" value="${PREP.min}" oninput="prepType(this.value)"></div>
-   <div class="fm-line"><span>預計備料完成時間</span><b id="prepEnd">${twHM(end)}</b></div>
-   <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" ${PREP.auto?'checked':''} onchange="PREP.auto=this.checked"> 備料完成後自動開始營業（沒勾的話，完成後依營業時間自動切換）</label>
+   <div class="modal-tip" style="text-align:left">從現在（${twHM(t)}）開始備料。選好或輸入<b>備料完成時間</b>（24 小時制），<b>客人會看到「預計幾點備料完成」</b>，備料期間客人可以先預訂；時間到了會依營業時間自動切換。</div>
+   <div class="fm-row"><b>完成時間</b>${timeField('prep','prepEnd24',prepSlots())}</div>
+   <div class="fm-line"><span id="prepInfo" style="font-weight:700">${esc(prepInfo())}</span></div>
    <div class="m-btns"><button class="btn-cancel" onclick="openStatusSelector()">返回</button><button class="btn-confirm" onclick="savePrep()">開始備料</button></div>`;
   $('modal').classList.add('open');
 }
-function prepPick(m){PREP.min=m;renderPrep()}
-function prepType(v){PREP.min=Math.round(+v||0);const e=$('prepEnd');if(e)e.textContent=PREP.min>0?twHM(svNow()+PREP.min*60000):'—'}
 async function savePrep(){
-  const t=svNow(),m=PREP.min;
-  if(!(m>=1&&m<=600)){alert('備料時間請輸入 1～600 分鐘');return}
-  const pu=t+m*60000;let until=pu;
-  if(PREP.auto){const E=schedOpenAt(t)?nextChange(t):nextChange(nextChange(t));until=Math.max(pu,E)}
-  const o={mode:'prep',prepUntil:pu,until,min:m,auto:!!PREP.auto,at:t,by:whoAmI()};
+  const t=svNow(),e=prepEndMs(PREP.end);
+  if(isNaN(e)){alert('請輸入正確的完成時間（24 小時制，例如 18:30）');return}
+  if(e-t>600*60000){alert('備料時間最長 10 小時');return}
+  const o={mode:'prep',prepUntil:e,until:e,at:t,by:whoAmI()};
   SHOP.ovr=o;updateStatusDisplay();closeModal();
   try{await FB.set(FB.ref(FB.db,'shop/ovr'),o);
-    logAct('營業狀態',null,'',`手動切換：備料中 ${m} 分鐘（預計 ${twHM(pu)} 完成，${PREP.auto?'完成後自動營業':'完成後依營業時間'}）`)}
-  catch(e){alert('營業狀態同步失敗：'+(e.code||e.message))}
+    logAct('營業狀態',null,'',`手動切換：備料中（${twHM(t)} 開始，預計 ${twHM(e)} 完成，約 ${Math.round((e-t)/60000)} 分鐘）`)}
+  catch(er){alert('營業狀態同步失敗：'+(er.code||er.message))}
 }
 function vacForm(){
   const d=dashDay(today8());
@@ -846,7 +865,7 @@ function addComboWithFlavor(id,name,price,flavor){add(`${name} (${flavor})`,pric
 function add(name,price,id){
   if(!canAdd(id)){toast(`「${itemName(id)}」今日數量不足，無法再增加`);return}
   const e=cart.find(x=>x.id===id&&x.p===curP);
-  e?e.qty++:cart.push({id,name,price,qty:1,p:curP});
+  if(e)e.qty++;else{const id0=baseId(id),inc=incText(find(id0),catOf(id0));cart.push(inc?{id,name,price,qty:1,p:curP,inc}:{id,name,price,qty:1,p:curP})}
   renderCart();renderGrid();
 }
 function qty(j,d){const e=cart[j];if(!e)return;if(d<0&&isMultiNoodle(e)&&prodQty(baseId(e.id),e.p||0)+d<2){toast(`「${itemName(e.id)}」選了「多數麵食獨立分開裝」，同商品需要 2 份以上；要減少請先刪除這一項，再重新選擇包裝方式`);return}if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
@@ -991,7 +1010,8 @@ const TF={
   ck:{get:()=>CK.time,set:v=>{CK.time=v}},
   late:{get:()=>CK.lateT,set:v=>{CK.lateT=v}},
   ed:{get:()=>ED.time,set:v=>{ED.time=v}},
-  edAt:{get:()=>ED.at,set:v=>{ED.at=v}}
+  edAt:{get:()=>ED.at,set:v=>{ED.at=v}},
+  prep:{get:()=>PREP.end,set:v=>{PREP.end=v;const e=$('prepInfo');if(e)e.textContent=prepInfo()}}
 };
 function tfInput(el,key){el.value=fmt24(el.value);TF[key].set(el.value)}
 function tfBlur(el,key){const n=normTime(el.value);if(n){el.value=n;TF[key].set(n)}}
@@ -1521,11 +1541,15 @@ function peopleOf(o){
   if(o.people&&o.people.length>1)return o.people.map((pp,i)=>({...pp,items:(o.items||[]).filter(x=>(x.p||0)===i)}));
   return null;
 }
+function incText(item,cat){        // 套餐才有內含物
+  if(!item||!cat||!cat.combo)return '';
+  const ch=String(item.c||'').replace(/（可選[^）]*）/,'').replace(/^雞肉[：:]\s*/,'');
+  return [ch,...(item.d||[])].filter(Boolean).join('、');
+}
 function comboLines(x){
-  const it=find(baseId(x.id));
-  if(!it||!it.d)return '';
-  const chicken=String(it.c||'').replace(/（可選[^）]*）/,'').replace(/^雞肉[：:]\s*/,'');
-  return `<div class="mu" style="margin:1px 0 5px 14px;line-height:1.5">└ 內含${x.qty>1?'（每份）':''}：${esc(chicken)}${chicken?'、':''}${esc(it.d.join('、'))}</div>`;
+  const inc=x.inc!=null?x.inc:(()=>{const id=baseId(x.id);return incText(find(id),catOf(id))})();
+  if(!inc)return '';
+  return `<div class="mu" style="margin:1px 0 5px 14px;line-height:1.5">└ 內含${x.qty>1?'（每份）':''}：${esc(inc)}</div>`;
 }
 function itemsBlock(o,withOpt){
   const P=peopleOf(o);
