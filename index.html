@@ -1280,7 +1280,7 @@ function toast(msg,fn){
 /* ===== 訂單列表（店家）===== */
 let ORDERS={},ordStart=0,ordUnsub=null,ordInit=false,viewingOrders=false,viewingStats=false,viewingTrack=false,ordFilter='active';
 const ST={new:'待接單',making:'製作中',done:'待取餐',picked:'已取餐',cancelled:'已拒單'};
-const NEXT={new:['making','接單'],making:['done','完成'],done:['picked','取餐']};
+const NEXT={new:['making','接單'],making:['done','製作完成'],done:['picked','待取餐']};
 function startOrders(){
   stopOrders();
   ordStart=bizStart();
