@@ -49,6 +49,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .card.sold-out{opacity:.85;filter:grayscale(100%) brightness(.8)}
 .card.sold-out .n{padding-right:66px}
 .pchip{display:inline-flex;gap:2px}
+.mrow{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.07)}
+.mic{font-size:20px;width:28px;text-align:center}
+.og{border:1px solid var(--ln);border-radius:10px;padding:8px 10px;margin:8px 0;background:rgba(0,0,0,.14)}
+.og textarea,#mBox textarea{background:var(--bg2,#2a1d10);color:inherit;border:1px solid var(--ln);border-radius:8px;padding:6px 8px;font:inherit}
 .chip.sm{padding:4px 10px;font-size:12px;border-radius:8px}
 .pcc{gap:5px!important}
 .pgc{border:1px solid var(--ln);border-radius:12px;margin:8px 0;background:rgba(0,0,0,.14)}
@@ -291,7 +295,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mk=(p,r)=>r.map(([n,pr],i)=>({id:p+(i+1),name:n,price:pr}));
-const MENU=[
+const MENU_DEFAULT=[
 {k:'信仰雞本位主義 (主食)',ic:'🍗',items:mk('m',[["鹹水雞腿",65],["煙燻雞腿",75],["鹹水雞胸",65],["煙燻雞胸",75],["鹹水半雞",130],["煙燻半雞",150]]),two:true},
 {k:'智能合約 (套餐)',ic:'🍱',combo:true,items:[
  {id:'s1',name:'散戶輕倉個人餐',price:260,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["豬耳朵","雞冠","豆干","鴨肉丸","珍珠蛋"]},
@@ -306,7 +310,14 @@ const MENU=[
 {k:'自由流通麵 (麵食)',ic:'🍜',items:mk('z',[["王子麵",15],["冬粉",15]])},
 {k:'厝邊溫食(炒麵/燴飯)',ic:'🔥',note:'炒麵類預設使用芥藍菜，若遇缺貨將調整為油菜或高麗菜。\n炒青菜為當季時令蔬菜，恕無法指定。',items:[...mk('w',[["沙茶羊肉炒麵",120],["沙茶牛肉炒麵",120],["沙茶羊肉燴飯",120],["沙茶牛肉燴飯",120],["炒羊肉",150],["炒牛肉",150],["炒青菜",100]]),{id:'w8',name:'當歸羊肉湯',price:80},{id:'w9',name:'當歸清湯',price:40}]}
 ];
-MENU[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法指定變更。';
+MENU_DEFAULT[1].note='套餐內容物如遇缺貨將自動更換等值商品，恕無法指定變更。';
+MENU_DEFAULT.forEach((c,i)=>{c.cid=String(i)});
+MENU_DEFAULT.find(c=>c.k.startsWith('自由流通麵')).noodle=true;
+{const warm=MENU_DEFAULT.find(c=>c.k.startsWith('厝邊溫食'));
+ warm.items.forEach(it=>{
+  if(/^w[1-7]$/.test(it.id))it.opts=[{n:'辣度',req:false,multi:false,tip:'未勾選辣度時，系統將自動以「不辣」製作',ch:['微辣','小辣','中辣','大辣'].map(n=>({n,p:0}))}];
+  if(it.id==='w8'||it.id==='w9')it.opts=[{n:'薑絲',req:false,multi:false,tip:'未勾選時，系統將自動以「加薑絲」製作',ch:[{n:'不要薑絲',p:0}]}];
+ })}
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'']};
 let cur=0,cart=[],curP=0;
 const ADMIN_PARAM=new URLSearchParams(location.search).get('mode')==='admin'||/\/admin(\.html)?\/?$/.test(location.pathname);
@@ -319,15 +330,18 @@ let soldOutItems=JSON.parse(localStorage.getItem('sold_out_items')||'{}');
 let soldOutCats=JSON.parse(localStorage.getItem('sold_out_cats')||'{}');
 
 window.addEventListener('DOMContentLoaded',()=>{
-  updateStatusDisplay();renderNav();renderGrid();renderCart();
+  loadMenuCache();updateStatusDisplay();renderNav();renderGrid();renderCart();setInterval(updateStatusDisplay,30000);
   if(ADMIN_PARAM)setTimeout(()=>{if(!window.FB)alert('雲端元件載入失敗，請檢查網路後重新整理')},8000);
 });
 document.addEventListener('click',()=>{if(isAdmin){unlockAudio();keepAwake();setTimeout(updateSoundBtn,300)}});
-const isClosed=()=>!isAdmin&&(localStorage.getItem('shop_status')||'營業中')==='休息中';
+const isClosed=()=>!isAdmin&&curStatus().s==='休息中';
 const norm=v=>v?Object.assign({},v):{};
 const onlyTrue=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v));
 function fbReady(){
-  FB.onValue(FB.ref(FB.db,'shop/status'),sn=>{const v=sn.val();if(v){localStorage.setItem('shop_status',v);updateStatusDisplay()}});
+  FB.onValue(FB.ref(FB.db,'.info/serverTimeOffset'),sn=>{SV_OFF=+sn.val()||0;updateStatusDisplay()});
+  FB.onValue(FB.ref(FB.db,'menu/cfg'),sn=>applyMenu(sn.val()));
+  FB.onValue(FB.ref(FB.db,'shop/ovr'),sn=>{SHOP.ovr=sn.val();updateStatusDisplay()});
+  FB.onValue(FB.ref(FB.db,'shop/vac'),sn=>{SHOP.vac=sn.val();updateStatusDisplay()});
   FB.onValue(FB.ref(FB.db,'soldOut'),sn=>{
     const v=sn.val()||{};
     soldOutItems=norm(v.items);soldOutCats=norm(v.cats);
@@ -350,31 +364,86 @@ function saveSold(){
   if(window.FB&&isAdmin)FB.set(FB.ref(FB.db,'soldOut'),{items:onlyTrue(soldOutItems),cats:onlyTrue(soldOutCats)}).catch(e=>alert('售完狀態同步失敗：'+e.message));
 }
 
+/* ===== 營業時間：週一至週四 17:30–24:00、週五六 17:30–02:00（次日）、週日公休；店家可手動提早開店／提早打烊／備料／臨時休假 ===== */
+const TZ=28800000,DAYMS=86400000,WEEKMS=604800000;
+const SCHED_TXT='週一至週四 17:30–24:00｜週五、週六 17:30–02:00｜週日公休';
+let SHOP={ovr:null,vac:null},SV_OFF=0;
+const svNow=()=>Date.now()+SV_OFF;
+function schedOpenAt(t){      // 與 Firebase 規則使用同一組算式（台灣時間 UTC+8）
+  const L=t+TZ,DM=L%DAYMS,WM=(L+4*DAYMS)%WEEKMS;     // DM：當天第幾毫秒；WM：本週（週日 00:00 起算）第幾毫秒
+  return (WM>=DAYMS&&DM>=63000000)||(DM<7200000&&(WM>=6*DAYMS||WM<DAYMS));
+}
+function nextChange(t){
+  const base=schedOpenAt(t);let m=Math.floor(t/60000)*60000+60000;
+  for(let i=0;i<4320;i++,m+=60000)if(schedOpenAt(m)!==base)return m;
+  return t+DAYMS;
+}
+function curStatus(t){
+  t=t||svNow();
+  const o=SHOP.ovr;
+  if(o&&+o.until>t)return o.mode==='open'?{s:'營業中',why:'提早開店'}:o.mode==='prep'?{s:'備料中',why:'手動備料'}:{s:'休息中',why:'提早打烊'};
+  const v=SHOP.vac;
+  if(v&&+v.from<=t&&t<+v.to)return{s:'休息中',why:'臨時休假'};
+  return schedOpenAt(t)?{s:'營業中',why:'依營業時間'}:{s:'休息中',why:'非營業時間'};
+}
 function updateStatusDisplay(){
-  const s=localStorage.getItem('shop_status')||'營業中';
+  const st=curStatus(),s=st.s;
   $('statusText').textContent=s;
+  {const pe=$('statusText').parentElement;if(pe)pe.title=st.why}
   const c=s==='營業中'?'var(--ok)':s==='備料中'?'var(--ac)':'var(--bad)';
   $('statusDot').style.background=c;$('statusDot').style.boxShadow='0 0 8px '+c;
-  const bn=$('banner');
-  if(s==='休息中'){bn.className='bn-rest';bn.textContent=isAdmin?'目前狀態：休息中（客人無法點餐，店家仍可下單）':'🔴 目前休息中，暫停接單'}
+  const bn=$('banner'),v=SHOP.vac&&+SHOP.vac.to>svNow()&&+SHOP.vac.from<=svNow()?SHOP.vac:null;
+  const back=v?`　臨時休假至 ${dayLabel(bizDay(+v.to-1)).slice(5,10)}`:'';
+  if(s==='休息中'){bn.className='bn-rest';bn.textContent=isAdmin?`目前狀態：休息中（${st.why}；客人無法點餐，店家仍可下單）`:`🔴 目前休息中，暫停接單${back}　營業時間：${SCHED_TXT}`}
   else if(s==='備料中'){bn.className='bn-prep';bn.textContent=isAdmin?'目前狀態：備料中':'🟡 店家備料中，可先預訂，開始營業後依序製作'}
-  else{bn.className='';bn.textContent=''}
+  else{bn.className='';bn.textContent=isAdmin&&st.why!=='依營業時間'?`目前狀態：營業中（${st.why}）`:''}
   renderCart();
 }
 function openStatusSelector(){
   if(!isAdmin)return;
-  $('mBox').innerHTML=`<h3>變更營業狀態</h3>
+  const t=svNow(),st=curStatus(t);
+  const ovr=SHOP.ovr&&+SHOP.ovr.until>t,vac=SHOP.vac&&+SHOP.vac.to>t;
+  $('mBox').className='m-box';
+  $('mBox').innerHTML=`<h3>營業狀態</h3>
+   <div class="modal-tip" style="text-align:left">目前：<b>${st.s}</b>　${st.why}<br>營業時間：${SCHED_TXT}<br>${vac?`臨時休假：${dayLabel(bizDay(+SHOP.vac.from)).slice(0,10)} 至 ${dayLabel(bizDay(+SHOP.vac.to-1)).slice(0,10)}<br>`:''}到了營業時間會自動變成營業中，打烊時間到了會自動變成休息中。</div>
    <div class="opt-list">
-    <button class="opt-btn" onclick="setShopStatus('營業中')">1. 營業中</button>
-    <button class="opt-btn" onclick="setShopStatus('備料中')">2. 備料中</button>
-    <button class="opt-btn" onclick="setShopStatus('休息中')">3. 休息中</button>
+    ${st.s!=='營業中'?'<button class="opt-btn" onclick="setOvr(\'open\')">🟢 提早開店</button>':''}
+    ${st.s==='營業中'?'<button class="opt-btn" onclick="setOvr(\'closed\')">🔴 提早打烊</button>':''}
+    ${st.s!=='備料中'?'<button class="opt-btn" onclick="setOvr(\'prep\')">🟡 備料中</button>':''}
+    <button class="opt-btn" onclick="vacForm()">🌴 臨時休假</button>
+    ${(ovr||vac)?'<button class="opt-btn" onclick="clearOvr()">↩ 恢復依營業時間自動切換</button>':''}
    </div>
-   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>`;
+   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
 }
-function setShopStatus(s){
-  localStorage.setItem('shop_status',s);updateStatusDisplay();closeModal();
-  if(window.FB)FB.set(FB.ref(FB.db,'shop/status'),s).catch(e=>alert('營業狀態同步失敗：'+e.message));
+async function setOvr(mode){
+  const t=svNow(),open=schedOpenAt(t);
+  const until=mode==='open'?(open?nextChange(t):nextChange(nextChange(t))):nextChange(t);   // 提早開店：營業到當次預定打烊；提早打烊／備料：到下一個營業時段切換為止
+  const o={mode,until,at:t,by:whoAmI()};
+  SHOP.ovr=o;updateStatusDisplay();closeModal();
+  try{await FB.set(FB.ref(FB.db,'shop/ovr'),o);logAct('營業狀態',null,'',mode==='open'?'提早開店':mode==='closed'?'提早打烊':'備料中')}
+  catch(e){alert('營業狀態同步失敗：'+(e.code||e.message))}
+}
+function vacForm(){
+  const d=dashDay(today8());
+  $('mBox').innerHTML=`<h3>🌴 臨時休假</h3>
+   <div class="fm-row"><b>從</b><input type="date" id="vacS" value="${d}"></div>
+   <div class="fm-row"><b>到</b><input type="date" id="vacE" value="${d}"></div>
+   <div class="modal-tip" style="text-align:left">休假期間（以營業日計算，每日 02:00 換日）客人無法點餐，期間結束後自動恢復依營業時間。</div>
+   <div class="m-btns"><button class="btn-cancel" onclick="openStatusSelector()">返回</button><button class="btn-confirm" onclick="saveVac()">確定休假</button></div>`;
+}
+async function saveVac(){
+  const a=$('vacS').value.replace(/-/g,''),b=$('vacE').value.replace(/-/g,'');
+  if(!/^\d{8}$/.test(a)||!/^\d{8}$/.test(b)||b<a){alert('請選擇正確的日期（結束日不能早於開始日）');return}
+  const v={from:dayStartMs(a),to:dayStartMs(shiftDay(b,1)),at:svNow(),by:whoAmI()};
+  SHOP.vac=v;updateStatusDisplay();closeModal();
+  try{await FB.set(FB.ref(FB.db,'shop/vac'),v);logAct('營業狀態',null,'',`臨時休假 ${a}～${b}`)}
+  catch(e){alert('休假設定同步失敗：'+(e.code||e.message))}
+}
+async function clearOvr(){
+  SHOP.ovr=null;SHOP.vac=null;updateStatusDisplay();closeModal();
+  try{await FB.remove(FB.ref(FB.db,'shop/ovr'));await FB.remove(FB.ref(FB.db,'shop/vac'));logAct('營業狀態',null,'','恢復依營業時間自動切換')}
+  catch(e){alert('同步失敗：'+(e.code||e.message))}
 }
 
 function toggleSoldOutMode(){
@@ -395,6 +464,7 @@ function itemsMenu(){
     <button class="opt-btn" onclick="openSoldOutListModal()">📋 售完品項（恢復販售）</button>
     <button class="opt-btn" onclick="openStock()">📦 今日庫存（限量品項）</button>
     <button class="opt-btn" onclick="openPlan()">🛒 採購清單（算入支出）</button>
+    ${isManager()?'<button class="opt-btn" onclick="openMenuEditor()">✏️ 菜單編輯（群組、品項、套餐、選項）</button>':''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
@@ -402,8 +472,8 @@ function itemsMenu(){
 function openSoldOutListModal(){
   let h='';
   MENU.forEach((c,idx)=>{
-    if(soldOutCats[idx]){const [t]=split(c.k);
-      h+=`<div class="sold-item-row"><span class="sold-item-name">📁 群組：${esc(t)}</span><button class="sold-restore-btn" onclick="restoreCat(${idx})">恢復販售</button></div>`}
+    if(soldOutCats[catKey(idx)]){const [t]=split(c.k);
+      h+=`<div class="sold-item-row"><span class="sold-item-name">📁 群組：${esc(t)}</span><button class="sold-restore-btn" onclick="restoreCat('${catKey(idx)}')">恢復販售</button></div>`}
     c.items.forEach(it=>{
       if(soldOutItems[it.id])h+=`<div class="sold-item-row"><span class="sold-item-name">🍗 ${esc(it.name)}</span><button class="sold-restore-btn" onclick="restoreItem('${it.id}')">恢復販售</button></div>`;
     });
@@ -422,7 +492,7 @@ function restoreItem(id){
 function toggleCatSoldOut(i,e){
   if(e)e.stopPropagation();
   if(!isSoldOutMode)return;
-  soldOutCats[i]=!soldOutCats[i];
+  {const k=catKey(i);soldOutCats[k]=!soldOutCats[k]}
   saveSold();renderNav();renderGrid();
 }
 function toggleItemSoldOut(id){
@@ -439,13 +509,13 @@ function toggleItemSoldOut(id){
 function renderNav(){
   $('nav').innerHTML=MENU.map((c,i)=>{
     const [t,s]=split(c.k);
-    return `<button class="nv${i===cur?' on':''}${soldOutCats[i]?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()">
+    return `<button class="nv${i===cur?' on':''}${soldOutCats[catKey(i)]?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()">
       <div class="cat-badge" onclick="toggleCatSoldOut(${i},event)">✕</div>
       <i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`;
   }).join('');
 }
 function renderGrid(){
-  const c=MENU[cur],[t,s]=split(c.k),catSold=soldOutCats[cur];
+  const c=MENU[cur],[t,s]=split(c.k),catSold=soldOutCats[catKey(cur)];
   $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'').replace(/\n/g,'<br>')}</p>`;
   $('grid').className='grid'+(c.combo?' wide':'');
   const card=(it,extra)=>{
@@ -458,59 +528,216 @@ function renderGrid(){
   };
   let h='';
   if(c.two){
+    const oth=c.items.filter(i=>!i.name.startsWith('鹹')&&!i.name.startsWith('煙'));
     h+='<div class="sec">鹹本位</div>'+c.items.filter(i=>i.name.startsWith('鹹')).map(i=>card(i)).join('')+
-       '<div class="sec">燻本位</div>'+c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('');
-  }else h=c.items.map(i=>card(i,c.combo?`<div class="d"><b>${esc(i.c)}</b><br>內容物：${esc(i.d.join('、'))}</div>`:'')).join('');
+       '<div class="sec">燻本位</div>'+c.items.filter(i=>i.name.startsWith('煙')).map(i=>card(i)).join('')+
+       (oth.length?'<div class="sec">其他</div>'+oth.map(i=>card(i)).join(''):'');
+  }else h=c.items.map(i=>card(i,c.combo?`<div class="d">${i.c?`<b>${esc(i.c)}</b><br>`:''}${(i.d||[]).length?'內容物：'+esc(i.d.join('、')):''}</div>`:'')).join('');
   $('grid').innerHTML=h;
 }
 function handleCardClick(id){
   if(isSoldOutMode){toggleItemSoldOut(id);return}
   if(isClosed()){toast('目前休息中，暫停接單');return}
   const item=find(id);
-  if((soldOutItems[id]||soldOutCats[cur]||stockLeft(id)<=0)&&!OVR[baseId(id)]){
+  if((soldOutItems[id]||soldOutCats[catKey(cur)]||stockLeft(id)<=0)&&!OVR[baseId(id)]){
     if(!isAdmin)return;
-    const why=(soldOutItems[id]||soldOutCats[cur])?'已標示售完':'今日庫存已賣完';
+    const why=(soldOutItems[id]||soldOutCats[catKey(cur)])?'已標示售完':'今日庫存已賣完';
     if(!confirm(`「${item.name}」${why}。\n\n要強制加入這張單嗎？（補登過去的單、或特殊情況才需要）`))return;
     OVR[baseId(id)]=true;
   }
-  if(['s1','s2','s3'].includes(id))showComboOptions(item);
-  else if(['w1','w2','w3','w4','w5','w6','w7'].includes(id))showStirFryOptions(item);
-  else if(['w8','w9'].includes(id))showSoupOptions(item);
-  else if(MENU.find(c=>c.k.startsWith('自由流通麵')).items.some(x=>x.id===id))showNoodleOptions(item);
+  const cat=catOf(id);
+  if(['s1','s2','s3'].includes(id)&&cat&&cat.combo)showComboOptions(item);        // 內建：套餐雞肉口味
+  else if(cat&&cat.noodle)showNoodleOptions(item);                                // 內建：麵食包裝方式
+  else if(effOpts(item,cat).length)showGenericOpts(item,cat);                    // 自訂：口味／辣度…（可設必選）
   else add(item.name,item.price,id);
 }
 function find(id){for(const c of MENU){const i=c.items.find(x=>x.id===id);if(i)return i}}
+/* ===== 菜單：可在「品項管理 → 菜單編輯」新增／修改群組、品項、套餐與選項（口味、辣度…，可設必選） ===== */
+function arr(x){return Array.isArray(x)?x:(x&&typeof x==='object'?Object.keys(x).sort((a,b)=>a-b).map(k=>x[k]):[])}
+function normGroup(g){return{...g,n:g.n||'選項',req:!!g.req,multi:!!g.multi,tip:g.tip||'',ch:arr(g.ch).map(c=>({n:String(c.n==null?'':c.n),p:+c.p||0}))}}
+function normMenu(v){
+  return arr(v).map((c,i)=>({...c,cid:c.cid!=null?String(c.cid):String(i),ic:c.ic||'🍽',k:c.k||'未命名',
+    items:arr(c.items).map(it=>({...it,d:arr(it.d),opts:arr(it.opts).map(normGroup)})),opts:arr(c.opts).map(normGroup)}));
+}
+let MENU=normMenu(MENU_DEFAULT);
+const catKey=i=>{const c=MENU[i];return c&&c.cid!=null?String(c.cid):String(i)};   // 售完標記用群組代號記，群組搬位置也不會跑掉
+const catOf=id=>MENU.find(c=>c.items.some(x=>x.id===id));
+const effOpts=(item,cat)=>[...((cat&&cat.opts)||[]),...(item.opts||[])].filter(g=>g.ch&&g.ch.length);
+function applyMenu(v,quiet){
+  MENU=(v&&arr(v).length)?normMenu(v):normMenu(MENU_DEFAULT);
+  if(cur>=MENU.length)cur=0;
+  try{localStorage.setItem('menu_cfg',JSON.stringify(v||null))}catch(e){}
+  if(!quiet){renderNav();renderGrid();renderCart()}
+}
+function loadMenuCache(){try{const v=JSON.parse(localStorage.getItem('menu_cfg')||'null');if(v)applyMenu(v,true)}catch(e){}}
+
+/* --- 客人／店員點餐：通用選項視窗 --- */
+let GO=null;
+function showGenericOpts(item,cat){const opts=effOpts(item,cat);GO={item,opts,sel:opts.map(()=>[]),miss:false};renderGenericOpts()}
+function goPrice(){return GO.opts.reduce((a,g,gi)=>a+GO.sel[gi].reduce((b,ci)=>b+(+g.ch[ci].p||0),0),+GO.item.price||0)}
+function renderGenericOpts(){
+  const {item,opts,sel,miss}=GO;
+  const groups=opts.map((g,gi)=>{
+    const bad=miss&&g.req&&!sel[gi].length;
+    return `<div class="opt-section-title"${bad?' style="color:var(--bad)"':''}>${esc(g.n)}<span style="font-size:12px;color:${g.req?'var(--bad)':'var(--mu)'}">　${g.req?'必選':'選填'}${g.multi?'・可複選':''}</span></div>
+     <div class="opt-grid">${g.ch.map((c,ci)=>`<button class="opt-btn ${sel[gi].includes(ci)?'selected':''}" onclick="goPick(${gi},${ci})">${esc(c.n)}${(+c.p)?`<small> ${c.p>0?'+':''}${c.p}</small>`:''}</button>`).join('')}</div>
+     ${g.tip?`<div class="modal-tip">${esc(g.tip)}</div>`:''}`;
+  }).join('');
+  $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>${groups}
+   ${miss?'<div class="fm-err" style="display:block">請先選好標示「必選」的項目</div>':''}
+   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" onclick="goConfirm()">確認加入　$${goPrice()}</button></div>`;
+  $('modal').classList.add('open');
+}
+function goPick(gi,ci){
+  const g=GO.opts[gi],a=GO.sel[gi];
+  if(g.multi){const i=a.indexOf(ci);i>=0?a.splice(i,1):a.push(ci)}
+  else GO.sel[gi]=a[0]===ci?[]:[ci];
+  renderGenericOpts();
+}
+function goConfirm(){
+  const {item,opts,sel}=GO;
+  if(opts.some((g,gi)=>g.req&&!sel[gi].length)){GO.miss=true;renderGenericOpts();return}
+  const tags=[];opts.forEach((g,gi)=>sel[gi].forEach(ci=>tags.push(String(g.ch[ci].n).replace(/_/g,'-'))));
+  add(tags.length?`${item.name} (${tags.join(', ')})`:item.name,goPrice(),tags.length?item.id+'_'+tags.join('_'):item.id);
+  closeModal();
+}
+
+/* --- 菜單編輯（店長） --- */
+let ME={m:null,ci:-1,ii:-1};
+const meId=()=>'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const meSplit=k=>split(k);
+function openMenuEditor(){
+  if(!isManager())return;
+  ME={m:JSON.parse(JSON.stringify(MENU)),ci:-1,ii:-1};
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xl';$('modal').classList.add('open');
+  meList();
+}
+async function meSave(msg){
+  try{await FB.set(FB.ref(FB.db,'menu/cfg'),JSON.parse(JSON.stringify(ME.m)))}
+  catch(e){alert('菜單儲存失敗：'+(e.code||e.message));return false}
+  applyMenu(JSON.parse(JSON.stringify(ME.m)));
+  if(msg)toast('✅ '+msg);
+  return true;
+}
+function meHead(title,back){return `<div class="oh"><h3>${title}</h3><button onclick="${back}">返回</button></div>`}
+function meList(){
+  ME.ci=-1;ME.ii=-1;
+  const rows=ME.m.map((c,i)=>{const [t,s]=meSplit(c.k);return `<div class="mrow"><span class="mic">${esc(c.ic)}</span><div style="flex:1;min-width:0"><b>${esc(t)}</b> <small style="color:var(--mu)">${esc(s)}　${c.items.length} 項${c.opts.length?'　有群組選項':''}</small></div><button class="chip sm" onclick="meMove(${i},-1)">↑</button><button class="chip sm" onclick="meMove(${i},1)">↓</button><button class="chip sm" onclick="meCat(${i})">編輯</button><button class="chip sm" style="color:var(--bad)" onclick="meDelCat(${i})">刪除</button></div>`}).join('');
+  $('mBox').innerHTML=meHead('✏️ 菜單編輯','itemsMenu()')+`<div class="fm-sec"><div class="fm-title">群組（點「編輯」進去改名稱、新增或修改品項）</div>${rows||'<div style="color:var(--mu);padding:8px">還沒有群組</div>'}</div>
+   <div class="fm-sec"><div class="fm-title">新增群組</div><div class="fm-row"><input id="neName" lang="zh-TW" placeholder="群組名稱，例如：飲料" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();meAddCat()}"><input id="neIc" lang="zh-TW" style="max-width:90px" placeholder="圖示 🍹"><button class="chip" onclick="meAddCat()">＋ 新增群組</button></div></div>
+   <div class="modal-tip" style="text-align:left">存檔後，客人和所有店家裝置的菜單會<b>立刻更新</b>。已經下過的訂單不受影響。</div>`;
+}
+async function meMove(i,d){const j=i+d;if(j<0||j>=ME.m.length)return;[ME.m[i],ME.m[j]]=[ME.m[j],ME.m[i]];await meSave();meList()}
+async function meAddCat(){
+  const n=$('neName').value.trim();if(!n){$('neName').focus();return}
+  ME.m.push({cid:meId(),k:n,ic:($('neIc').value.trim()||'🍽'),items:[],opts:[]});
+  if(await meSave('已新增群組「'+n+'」'))meCat(ME.m.length-1);
+}
+async function meDelCat(i){
+  const c=ME.m[i];if(!confirm(`刪除群組「${meSplit(c.k)[0]}」？\n裡面的 ${c.items.length} 個品項也會一起刪除。`))return;
+  ME.m.splice(i,1);await meSave('已刪除群組');meList();
+}
+function meCat(ci){
+  ME.ci=ci;ME.ii=-1;const c=ME.m[ci],[t,s]=meSplit(c.k);
+  const rows=c.items.map((it,ii)=>`<div class="mrow"><div style="flex:1;min-width:0"><b>${esc(it.name)}</b>${it.opts.length?' <small style="color:var(--mu)">有選項</small>':''}</div><span style="width:70px;text-align:right">$${it.price}</span><button class="chip sm" onclick="meMoveItem(${ii},-1)">↑</button><button class="chip sm" onclick="meMoveItem(${ii},1)">↓</button><button class="chip sm" onclick="meItem(${ii})">編輯</button><button class="chip sm" style="color:var(--bad)" onclick="meDelItem(${ii})">刪除</button></div>`).join('');
+  $('mBox').innerHTML=meHead('✏️ 群組：'+esc(t),'meList()')+`
+   <div class="fm-sec"><div class="fm-title">群組設定</div>
+    <div class="fm-row"><b>名稱</b><input id="ceName" lang="zh-TW" value="${esc(t)}"><b style="width:auto">圖示</b><input id="ceIc" lang="zh-TW" style="max-width:80px" value="${esc(c.ic)}"></div>
+    <div class="fm-row"><b>副標題</b><input id="ceSub" lang="zh-TW" value="${esc(s)}" placeholder="例如：主食、套餐（可不填）"></div>
+    <div class="fm-row"><b>說明文字</b><input id="ceNote" lang="zh-TW" value="${esc(c.note||'')}" placeholder="顯示在群組上方的提醒（可不填）"></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px"><input type="checkbox" id="ceCombo" ${c.combo?'checked':''}> 套餐樣式（品項顯示「說明」和「內容物」）</label>
+    <div class="m-btns"><button class="btn-confirm" onclick="meCatSave()">儲存群組設定</button></div></div>
+   <div class="fm-sec"><div class="fm-title">群組選項（套用到這個群組的<b>所有品項</b>，例如全部都要選辣度）</div><div id="oe_cat">${optEditorHtml('cat')}</div></div>
+   <div class="fm-sec"><div class="fm-title">品項</div>${rows||'<div style="color:var(--mu);padding:6px">還沒有品項</div>'}
+    <div class="fm-row" style="margin-top:8px"><input id="niName" lang="zh-TW" placeholder="新品項名稱" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();document.getElementById('niPrice').focus()}"><input id="niPrice" type="number" inputmode="numeric" style="max-width:110px" placeholder="價格" onkeydown="if(event.key==='Enter'){event.preventDefault();meAddItem()}"><button class="chip" onclick="meAddItem()">＋ 新增品項</button></div></div>`;
+}
+async function meCatSave(){
+  const c=ME.m[ME.ci],n=$('ceName').value.trim();if(!n){alert('群組名稱不能是空的');return}
+  const sub=$('ceSub').value.trim();
+  c.k=sub?`${n} (${sub})`:n;c.ic=$('ceIc').value.trim()||'🍽';c.note=$('ceNote').value.trim();c.combo=$('ceCombo').checked;
+  if(!c.note)delete c.note;
+  if(await meSave('群組設定已儲存'))meCat(ME.ci);
+}
+async function meAddItem(){
+  const c=ME.m[ME.ci],n=$('niName').value.trim(),p=parseFloat($('niPrice').value);
+  if(!n){$('niName').focus();return}
+  if(!(p>=0)){$('niPrice').focus();return}
+  c.items.push({id:meId(),name:n,price:p,d:[],opts:[]});
+  if(await meSave('已新增「'+n+'」'))meItem(c.items.length-1);   // 直接進入編輯，可繼續加選項
+}
+async function meMoveItem(ii,d){const c=ME.m[ME.ci],j=ii+d;if(j<0||j>=c.items.length)return;[c.items[ii],c.items[j]]=[c.items[j],c.items[ii]];await meSave();meCat(ME.ci)}
+async function meDelItem(ii){
+  const c=ME.m[ME.ci];if(!confirm(`刪除品項「${c.items[ii].name}」？`))return;
+  c.items.splice(ii,1);await meSave('已刪除品項');meCat(ME.ci);
+}
+const BUILTIN_OPT=(c,it)=>(['s1','s2','s3'].includes(it.id)&&c.combo)||c.noodle;
+function meItem(ii){
+  ME.ii=ii;const c=ME.m[ME.ci],it=c.items[ii],built=BUILTIN_OPT(c,it);
+  $('mBox').innerHTML=meHead('✏️ 品項：'+esc(it.name),`meCat(${ME.ci})`)+`
+   <div class="fm-sec"><div class="fm-row"><b>名稱</b><input id="ieName" lang="zh-TW" value="${esc(it.name)}"></div>
+    <div class="fm-row"><b>價格</b><input id="iePrice" type="number" inputmode="numeric" style="max-width:160px" value="${it.price}"></div>
+    ${c.combo?`<div class="fm-row"><b>說明</b><input id="ieC" lang="zh-TW" value="${esc(it.c||'')}" placeholder="例如：雞肉：半隻"></div>
+    <div class="fm-row"><b>內容物</b><textarea id="ieD" lang="zh-TW" rows="3" placeholder="用頓號或逗號分開，例如：豬耳朵、雞冠、豆干" style="flex:1">${esc((it.d||[]).join('、'))}</textarea></div>`:''}
+    <div class="m-btns"><button class="btn-cancel" style="color:var(--bad)" onclick="meDelItem(${ii})">刪除這個品項</button><button class="btn-confirm" onclick="meItemSave()">儲存</button></div></div>
+   <div class="fm-sec"><div class="fm-title">這個品項的選項（口味、辣度…，可設必選）</div>
+    ${built?'<div class="modal-tip" style="text-align:left">這個品項使用系統內建的選擇（套餐雞肉口味／麵食包裝方式），這裡不能再加選項；名稱、價格、內容物都可以改。</div>':`<div id="oe_item">${optEditorHtml('item')}</div>`}</div>`;
+}
+async function meItemSave(){
+  const c=ME.m[ME.ci],it=c.items[ME.ii],n=$('ieName').value.trim(),p=parseFloat($('iePrice').value);
+  if(!n){alert('品名不能是空的');return}
+  if(!(p>=0)){alert('請輸入正確的價格');return}
+  it.name=n;it.price=p;
+  if(c.combo){it.c=$('ieC').value.trim();it.d=$('ieD').value.split(/[、,，\n]/).map(x=>x.trim()).filter(Boolean)}
+  if(await meSave('「'+n+'」已儲存'))meCat(ME.ci);
+}
+/* 選項編輯器：kind = 'cat'（整個群組）或 'item'（單一品項） */
+const meTarget=kind=>kind==='cat'?ME.m[ME.ci]:ME.m[ME.ci].items[ME.ii];
+const chText=g=>g.ch.map(c=>c.n+((+c.p)?` ${c.p>0?'+':''}${c.p}`:'')).join('\n');
+function parseCh(text){
+  return String(text).split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const m=l.match(/^(.+?)\s*([+\-]\s*\d+(?:\.\d+)?)\s*$/);
+    const n=(m?m[1]:l).replace(/_/g,'-').replace(/,/g,'，').trim(),p=m?parseFloat(m[2].replace(/\s/g,'')):0;
+    return{n,p};
+  });
+}
+function optEditorHtml(kind){
+  const t=meTarget(kind);t.opts=t.opts||[];
+  const gs=t.opts.map((g,gi)=>`<div class="og">
+    <div class="fm-row"><b style="width:auto">選項名稱</b><input lang="zh-TW" value="${esc(g.n)}" oninput="meOptSet('${kind}',${gi},'n',this.value)"><button class="chip sm" style="color:var(--bad)" onclick="meOptDel('${kind}',${gi})">刪除</button></div>
+    <div style="display:flex;gap:18px;margin:4px 0;font-size:14px"><label><input type="checkbox" ${g.req?'checked':''} onchange="meOptSet('${kind}',${gi},'req',this.checked)"> <b>必選</b>（沒選不能加入）</label><label><input type="checkbox" ${g.multi?'checked':''} onchange="meOptSet('${kind}',${gi},'multi',this.checked)"> 可複選</label></div>
+    <div style="font-size:12px;color:var(--mu)">每行一個選項；要加價就在後面寫「+5」，例如：泰式 +5</div>
+    <textarea rows="${Math.max(3,g.ch.length+1)}" lang="zh-TW" style="width:100%;box-sizing:border-box" onchange="meOptCh('${kind}',${gi},this.value)">${esc(chText(g))}</textarea>
+    <div class="fm-row"><b style="width:auto;font-size:13px">提示文字</b><input lang="zh-TW" value="${esc(g.tip||'')}" placeholder="可不填，例如：未選時以不辣製作" oninput="meOptSet('${kind}',${gi},'tip',this.value)"></div></div>`).join('');
+  return gs+`<div class="chips" style="margin-top:6px"><button class="chip sm" onclick="meOptAdd('${kind}','口味')">＋ 口味選擇</button><button class="chip sm" onclick="meOptAdd('${kind}','辣度')">＋ 辣度選擇</button><button class="chip sm" onclick="meOptAdd('${kind}','')">＋ 自訂選項</button></div>
+    <div class="m-btns"><button class="btn-confirm" onclick="meOptSave('${kind}')">儲存選項</button></div>`;
+}
+function meOptSet(kind,gi,key,val){meTarget(kind).opts[gi][key]=val}
+function meOptCh(kind,gi,text){const g=meTarget(kind).opts[gi];g.ch=parseCh(text);$('oe_'+kind).innerHTML=optEditorHtml(kind)}
+function meOptAdd(kind,preset){
+  const t=meTarget(kind);t.opts=t.opts||[];
+  const ch=preset==='口味'?[{n:'原味',p:0},{n:'蒜味',p:0}]:preset==='辣度'?[{n:'不辣',p:0},{n:'小辣',p:0},{n:'中辣',p:0},{n:'大辣',p:0}]:[{n:'選項一',p:0},{n:'選項二',p:0}];
+  t.opts.push({n:preset||'自訂選項',req:false,multi:false,tip:'',ch});
+  $('oe_'+kind).innerHTML=optEditorHtml(kind);
+}
+function meOptDel(kind,gi){meTarget(kind).opts.splice(gi,1);$('oe_'+kind).innerHTML=optEditorHtml(kind)}
+async function meOptSave(kind){
+  const t=meTarget(kind);
+  t.opts=(t.opts||[]).filter(g=>g.ch&&g.ch.length);
+  for(const g of t.opts){g.n=(g.n||'').trim()||'選項';if(!g.tip)delete g.tip}
+  if(await meSave('選項已儲存'))kind==='cat'?meCat(ME.ci):meItem(ME.ii);
+}
+
 
 function showComboOptions(item){
-  const saltSold=soldOutItems.m1||soldOutItems.m3||soldOutItems.m5||soldOutCats[0];
-  const smokeSold=soldOutItems.m2||soldOutItems.m4||soldOutItems.m6||soldOutCats[0];
+  const saltSold=soldOutItems.m1||soldOutItems.m3||soldOutItems.m5||soldOutCats['0'];
+  const smokeSold=soldOutItems.m2||soldOutItems.m4||soldOutItems.m6||soldOutCats['0'];
   const b=(label,dis,fl)=>`<button class="opt-btn ${dis?'disabled-opt':''}" ${dis?'':`onclick="addComboWithFlavor('${item.id}','${item.name}',${item.price},'${fl}')"`}>${label}</button>`;
   const opts=item.id==='s3'
     ?b('1. 全鹹水全雞',saltSold,'全鹹水')+b('2. 全煙燻全雞',smokeSold,'全煙燻')+b('3. 鹹半 + 燻半',saltSold||smokeSold,'鹹半+燻半')
     :b('1. 鹹水半雞',saltSold,'鹹水半雞')+b('2. 煙燻半雞',smokeSold,'煙燻半雞');
   $('mBox').innerHTML=`<h3>${esc(item.name)}</h3><div class="opt-list">${opts}</div><div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button></div>`;
   $('modal').classList.add('open');
-}
-
-let tempStirFryOptions={spice:''};
-function showStirFryOptions(item){tempStirFryOptions={spice:''};renderStirFryModal(item)}
-function renderStirFryModal(item){
-  const sp=['微辣','小辣','中辣','大辣'];
-  $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>
-   <div class="opt-section-title">辣度選擇</div>
-   <div class="opt-grid">${sp.map(s=>`<button class="opt-btn ${tempStirFryOptions.spice===s?'selected':''}" onclick="toggleStirFryOpt('spice','${s}','${item.id}')">${s}</button>`).join('')}</div>
-   <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選辣度 系統將自動以「不辣」為您製作 謝謝您的配合</div>
-   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" onclick="confirmStirFry('${item.id}','${item.name}',${item.price})">確認</button></div>`;
-  $('modal').classList.add('open');
-}
-function toggleStirFryOpt(type,val,id){
-  tempStirFryOptions[type]=tempStirFryOptions[type]===val?'':val;
-  renderStirFryModal(find(id));
-}
-function confirmStirFry(id,name,price){
-  const tags=[tempStirFryOptions.spice].filter(Boolean);
-  add(tags.length?`${name} (${tags.join(', ')})`:name,price,tags.length?id+'_'+tags.join('_'):id);
-  closeModal();
 }
 
 /* 自由流通麵：客人必選包裝方式 */
@@ -545,20 +772,6 @@ function confirmNoodle(){
 function noodleViolation(){
   const x=cart.find(l=>isMultiNoodle(l)&&prodQty(baseId(l.id),l.p||0)<2);
   return x?itemName(x.id):'';
-}
-let tempSoupGinger=true;
-function showSoupOptions(item){tempSoupGinger=true;renderSoupModal(item)}
-function renderSoupModal(item){
-  $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>
-   <div class="opt-grid" style="grid-template-columns:1fr"><button class="opt-btn ${!tempSoupGinger?'selected':''}" onclick="toggleSoupGinger('${item.id}')">不要薑絲</button></div>
-   <div class="modal-tip">【溫馨提示】若您於點餐時未特別勾選 系統將自動以「加薑絲」為您製作 謝謝您的配合</div>
-   <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-confirm" onclick="confirmSoup('${item.id}','${item.name}',${item.price})">確認</button></div>`;
-  $('modal').classList.add('open');
-}
-function toggleSoupGinger(id){tempSoupGinger=!tempSoupGinger;renderSoupModal(find(id))}
-function confirmSoup(id,name,price){
-  add(tempSoupGinger?name:name+' (不要薑絲)',price,tempSoupGinger?id:id+'_no_ginger');
-  closeModal();
 }
 function addComboWithFlavor(id,name,price,flavor){add(`${name} (${flavor})`,price,`${id}_${flavor}`);closeModal()}
 
@@ -1177,7 +1390,7 @@ function openHistory(keep){
   $('mBox').className='m-box xl';
   $('mBox').innerHTML=`<div class="oh"><h3>🗂 歷史訂單與匯出</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-sec">
-    <div class="fm-row"><b>起日</b><input type="date" id="hS" value="${HR?HR.s:ymd(f)}"><b>迄日</b><input type="date" id="hE" value="${HR?HR.e:ymd(t)}"></div>
+    <div class="fm-row"><b>起日</b><input type="date" id="hS" value="${HR?HR.s:dashDay(today8())}"><b>迄日</b><input type="date" id="hE" value="${HR?HR.e:dashDay(today8())}"></div>
     <div class="m-btns"><button class="btn-confirm" id="hBtn" onclick="loadHistory()">查詢</button><button class="btn-cancel" onclick="exportCSV()">⬇ 匯出 Excel (CSV)</button></div>
    </div>
    <div class="modal-tip">日期以營業日計算：每日 02:00 至隔日 02:00。</div>
