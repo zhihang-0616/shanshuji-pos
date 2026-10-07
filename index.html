@@ -1469,6 +1469,7 @@ function renderOrders(){
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
       <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上支付）</span>':''}</div>
       ${o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?`<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">🏦 轉帳待確認入帳${o.x5?'｜顧客帳號後五碼 '+esc(o.x5):''}｜請查銀行 APP，入帳後按「結帳」</div>`:''}
+      ${o.lpErr&&o.lp!=='paid'?`<div style="color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 10px;font-size:12px;margin:3px 0">⚠ 線上支付曾出錯（${esc(o.lpErr.stage||'')}）：${esc(o.lpErr.code||'')} ${esc(o.lpErr.msg||'')}</div>`:''}
       ${o.lpBlock?`<div style="color:#fff;background:var(--bad);border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⛔ 線上支付被系統擋下（金額核對不符）：${esc(o.lpBlock)}</div>`:''}
       ${o.lp==='refunded'?`<div style="color:#fff;background:#6b7280;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">↩️ 已退款 $${esc(o.lpRefund&&o.lpRefund.amount||o.total)}（LINE Pay）</div>`:''}
       ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 等待顧客 LINE Pay 付款中，付款成功前請先不要製作　<button class="rb" onclick="lpRetry(\''+o.id+'\')">開啟付款頁</button></div>':''}
@@ -2103,6 +2104,7 @@ async function lpGo(id,o){
     const res=await fetch(LINE_HOOK,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'lpPay',id,adm:isAdmin})});
     r=await res.json();
   }catch(e){r={ok:false,err:'連線失敗'}}
+  if(r&&r.ok&&r.paid){finishOrder();toast('✅ 這張訂單已經付款成功，店家已收到',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300);return}
   if(r&&r.ok&&r.url){location.href=r.url;return}
   $('mBox').innerHTML=`<div class="rc-done"><div class="ok">⚠️</div><h3>訂單已送出，但付款尚未完成</h3><div class="modal-tip" style="text-align:left">無法開啟 LINE Pay（${esc(r&&r.err||'未知原因')}）。<br>您可以按「重新付款」再試一次，或直接到店付款。</div></div>
    <div class="m-btns"><button class="btn-cancel" onclick="finishOrder();${isAdmin?'':'openTrack()'}">${isAdmin?'完成':'查看訂單'}</button><button class="btn-confirm" onclick="lpRetry('${id}')">重新付款</button></div>`;
@@ -2150,7 +2152,13 @@ function lpReturn(){
   try{history.replaceState(null,'',location.pathname+(isAdmin&&!/admin\.html$/.test(location.pathname)?'?mode=admin':''))}catch(e){}
   if(st==='ok'){toast(isAdmin?'✅ LINE Pay 付款成功':'✅ LINE Pay 付款成功，店家已收到訂單',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300)}
   else if(st==='cancel'){toast(isAdmin?'已取消付款，訂單還在，可在訂單管理重新開啟付款':'已取消付款，訂單還在，可到「📋 我的訂單」重新付款',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300)}
-  else{toast('付款沒有完成（'+(q.get('c')||'')+'），可到「📋 我的訂單」重新付款或到店付款',openTrack)}
+  else{
+    const c=q.get('c')||'';
+    const msg=(c==='busy'||c==='err')?'系統正在確認您的付款，請稍等 1～2 分鐘後到「📋 我的訂單」查看。若顯示已付款就不用再付；已扣款但沒成功會自動退回'
+      :c==='expired'?'這張訂單已逾時取消，不會扣款（若已扣款會自動退回），請重新下單'
+      :'付款沒有完成（'+c+'），可到「📋 我的訂單」重新付款或到店付款';
+    toast(msg,openTrack);if(!isAdmin)setTimeout(openTrack,300);
+  }
 }
 
 /* ===== LINE 群組通知（透過 Google Apps Script）===== */
