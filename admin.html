@@ -352,7 +352,7 @@ function fbReady(){
     localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));
     renderNav();renderGrid();
   });
-  loadMy();MY.forEach(m=>watchMy(m.id));setTimeout(lpReturn,800);
+  loadMy();MY.forEach(m=>watchMy(m.id));setTimeout(lpReturn,800);setInterval(lpPoll,15000);
   subStock();setInterval(()=>{if(today8()!==stockDay)subStock()},60000);
   FB.onValue(FB.ref(FB.db,'.info/connected'),sn=>{CONNECTED=sn.val()===true;if(CONNECTED)everConnected=true;updateNet();if(CONNECTED)flushOutbox()});
   window.addEventListener('online',()=>flushOutbox());
@@ -1470,10 +1470,13 @@ function renderOrders(){
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
       <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上支付）</span>':''}</div>
       ${o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?`<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">🏦 轉帳待確認入帳${o.x5?'｜顧客帳號後五碼 '+esc(o.x5):''}｜請查銀行 APP，入帳後按「結帳」</div>`:''}
+      ${o.lpBlock?`<div style="color:#fff;background:var(--bad);border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⛔ 線上支付被系統擋下（金額核對不符）：${esc(o.lpBlock)}</div>`:''}
+      ${o.lp==='refunded'?`<div style="color:#fff;background:#6b7280;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">↩️ 已退款 $${esc(o.lpRefund&&o.lpRefund.amount||o.total)}（LINE Pay）</div>`:''}
       ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 等待顧客 LINE Pay 付款中，付款成功前請先不要製作　<button class="rb" onclick="lpRetry(\''+o.id+'\')">開啟付款頁</button></div>':''}
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
+      ${o.lp==='paid'&&isManager()?`<button class="oc-no" style="color:var(--bad)" onclick="lpRefundUI('${o.id}')">↩️ LINE Pay 退款</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">拒單</button>`:''}
       ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
@@ -1522,6 +1525,7 @@ function watchMy(id){
 function openTrack(){
   viewingOrders=viewingStats=false;viewingTrack=true;
   $('mBox').className='m-box';renderTrack();$('modal').classList.add('open');
+  MY.forEach(m=>{const o=MYD[m.id];if(o&&o.lp==='pending')lpCheckGas(m.id)});
 }
 function renderTrack(){
   if(!viewingTrack)return;
@@ -2014,7 +2018,12 @@ async function confirmVoid(){
   catch(e){alert('拒單失敗：'+(e.code||e.message));b.disabled=false;b.textContent='確認拒單';return}
   adjustStockForOrder(o,-1);
   logAct('拒單',VD.id,o.no,reason+(o.paid?'（已收款）':''));
+  const vid=VD.id;
   backFromVoid();
+  if(o.lp==='paid'){
+    if(isManager()){if(confirm(`這張單已用 LINE Pay 線上支付 $${o.total}。\n要現在一併退款給顧客嗎？`)){if(await lpDoRefund(vid,o))toast('✅ 已退款 $'+o.total)}}
+    else alert('這張單已用 LINE Pay 線上支付，請店長到訂單管理按「LINE Pay 退款」。');
+  }
 }
 async function restoreOrder(id,from){
   if(!isManager()){alert('只有店長可以還原拒單的訂單');return}
@@ -2100,6 +2109,42 @@ async function lpGo(id,o){
    <div class="m-btns"><button class="btn-cancel" onclick="finishOrder();${isAdmin?'':'openTrack()'}">${isAdmin?'完成':'查看訂單'}</button><button class="btn-confirm" onclick="lpRetry('${id}')">重新付款</button></div>`;
 }
 function lpRetry(id){lpGo(id,MYD[id]||{no:''})}
+/* 請系統檢查有沒有「付了款卻沒跳回來」的單（每張單約 15 秒最多查一次）；網頁開著時每 15 秒自動查，店家頁面會查所有待付款的單 */
+const lpChkAt={};
+function lpPoll(){
+  if(document.hidden||!LINE_HOOK)return;
+  const now=Date.now();
+  const ids=isAdmin
+    ?Object.entries(ORDERS||{}).filter(([id,o])=>o&&o.lp==='pending'&&o.status!=='cancelled'&&now-(o.createdAt||0)<25*60000).map(e=>e[0])
+    :MY.filter(m=>MYD[m.id]&&MYD[m.id].lp==='pending'&&MYD[m.id].status!=='cancelled').map(m=>m.id);
+  ids.forEach(lpCheckGas);
+}
+function lpCheckGas(id){
+  if(!LINE_HOOK||Date.now()-(lpChkAt[id]||0)<14000)return;lpChkAt[id]=Date.now();
+  try{fetch(LINE_HOOK,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'lpCheck',id})}).catch(()=>{})}catch(e){}
+}
+/* 店長退款：請系統向 LINE Pay 申請全額退款（系統會再次確認你是店長） */
+async function lpDoRefund(id,o){
+  let r;
+  try{
+    const token=await FB.auth.currentUser.getIdToken();
+    const res=await fetch(LINE_HOOK,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'lpRefund',id,token})});
+    r=await res.json();
+  }catch(e){r={ok:false,err:'連線失敗，請稍後再試'}}
+  if(!r||!r.ok){alert('退款失敗：'+(r&&r.err||'未知原因'));return false}
+  logAct('LINE Pay退款',id,o.no,'$'+o.total);
+  return true;
+}
+async function lpRefundUI(id){
+  const o=ORDERS[id];if(!o||!isManager())return;
+  if(!confirm(`確定把訂單 #${o.no} 的 $${o.total} 退回顧客的 LINE Pay？\n${o.status==='cancelled'?'':'退款後這張單會一併拒單、庫存退回。\n'}此動作無法復原。`))return;
+  if(!(await lpDoRefund(id,o)))return;
+  if(o.status!=='cancelled'){
+    try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:'cancelled',prevStatus:o.status||'new',voidReason:'已全額退款（LINE Pay）',voidAt:Date.now(),voidBy:whoAmI(),updatedAt:Date.now()});adjustStockForOrder(o,-1)}
+    catch(e){alert('退款已成功，但拒單失敗，請手動按「拒單」：'+(e.code||e.message))}
+  }
+  toast('✅ 已退款 $'+o.total);
+}
 function lpReturn(){
   let q;try{q=new URLSearchParams(location.search)}catch(e){return}
   const st=q.get('lp');if(!st)return;
