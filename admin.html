@@ -2,10 +2,10 @@
 <html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>去中心鹹水雞 X 厝邊溫食 店家POS</title>
 <link rel="manifest" id="mf" href="manifest-admin.json">
+<meta name="apple-mobile-web-app-title" content="店家POS">
 <meta name="theme-color" content="#140a04">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="店家POS">
 <meta name="apple-mobile-web-app-title" content="點餐">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
@@ -352,7 +352,7 @@ function fbReady(){
     localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));
     renderNav();renderGrid();
   });
-  loadMy();MY.forEach(m=>watchMy(m.id));
+  loadMy();MY.forEach(m=>watchMy(m.id));setTimeout(lpReturn,800);
   subStock();setInterval(()=>{if(today8()!==stockDay)subStock()},60000);
   FB.onValue(FB.ref(FB.db,'.info/connected'),sn=>{CONNECTED=sn.val()===true;if(CONNECTED)everConnected=true;updateNet();if(CONNECTED)flushOutbox()});
   window.addEventListener('online',()=>flushOutbox());
@@ -1023,6 +1023,7 @@ function openCheckout(){
   renderCheckout();
   $('modal').classList.add('open');
 }
+const LP_ONLINE='LINE Pay 線上付款';
 const chip=(key,v)=>`<button class="chip${CK[key]===v?' on':''}" onclick="pick('${key}','${v}')">${v}</button>`;
 const gearChip=v=>`<button class="chip${CK.gear.includes(v)?' on':''}" onclick="toggleGear('${v}')">${v}</button>`;
 function pick(key,v){CK[key]=CK[key]===v?'':v;renderCheckout()}
@@ -1161,7 +1162,8 @@ function renderCheckout(){
     ${t.extra?`<div class="fm-line"><span>口味加價 (泰式):</span><span>+$${t.extra}</span></div>`:''}
     ${isAdmin?`<div class="fm-row"><b style="width:auto">折扣(%數)</b><input type="number" min="0" max="100" value="${CK.pct}" oninput="CK.pct=this.value;updateTotal()"><b style="width:auto">折讓(-$)</b><input type="number" min="0" value="${CK.off}" oninput="CK.off=this.value;updateTotal()"></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b id="fmTot">$${t.total}</b></div>
-    <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>chip('pay',v)).join('')}</div>
+    <div class="chips">${(isAdmin?['現金','轉帳','Linepay','全支付']:['現金','轉帳','Linepay','全支付',LP_ONLINE]).map(v=>chip('pay',v)).join('')}</div>
+    ${CK.pay===LP_ONLINE?'<div class="modal-tip">送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。</div>':''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">上一步</button><button class="btn-confirm" onclick="submitCheckout()">下一步</button></div>`;
 }
@@ -1178,6 +1180,10 @@ function submitCheckout(){
     gear:[...CK.gear],pay:CK.pay,items:JSON.parse(JSON.stringify(cart)),
     subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
   };
+  if(CK.pay===LP_ONLINE){
+    if(isAdmin||!LINE_HOOK){alert('目前無法使用線上付款');return}
+    window.pendingOrder.pay='Linepay';window.pendingOrder.lp='pending';
+  }
   if(isAdmin)window.pendingOrder.staff=true;
   if(isAdmin&&CK.late)Object.assign(window.pendingOrder,{late:true,lateAt:lateMs(),lateStatus:CK.lateStatus,latePaid:CK.latePaid,lateNo:CK.lateNo.trim()});
   if(CK.people.length>1)window.pendingOrder.people=CK.people.map((x,i)=>({name:x.name.trim()||'第'+(i+1)+'位',flavor:x.flavor||'原味',spice:x.spice||'不辣',salt:x.salt||'正常',note:x.note.trim()}));
@@ -1211,7 +1217,7 @@ function renderReceipt(){
     ${o.extra?`<div class="fm-line"><span>口味加價 (泰式):</span><span>+$${o.extra}</span></div>`:''}
     ${o.discount?`<div class="fm-line"><span>優惠折抵:</span><span>-$${o.discount}</span></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b>$${o.total}</b></div>
-    ${row('付款方式',o.pay)}
+    ${row('付款方式',o.lp?LP_ONLINE:o.pay)}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="backToForm()">返回修改</button><button class="btn-confirm" id="cfBtn" onclick="confirmOrder()">確認送出</button></div>`;
   $('mBox').scrollTop=0;
@@ -1265,6 +1271,7 @@ async function confirmOrder(){
       saveMy(nref.key,o.no);
       if(!isAdmin&&o.phone){try{localStorage.setItem('cust_info',JSON.stringify({name:o.name,phone:o.phone}))}catch(e){}}
       notifyLine(nref.key);
+      if(o.lp){await lpGo(nref.key,o);submitting=false;return}
       showDone(o);
     }catch(e){
       if(!written)await releaseStock(held);
@@ -1442,7 +1449,8 @@ function renderOrders(){
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
-      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}</div>
+      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上付款）</span>':''}</div>
+      ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 等待顧客 LINE Pay 付款中，付款成功前請先不要製作</div>':''}
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
@@ -1502,12 +1510,14 @@ function renderTrack(){
     if(!o)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">讀取中…</div></div>`;
     if(o.gone)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">找不到此訂單，請洽店家</div></div>`;
     const cur=STEPS.findIndex(x=>x[0]===o.status);
+    const lpBox=o.lp==='pending'&&o.status!=='cancelled'?`<div class="modal-tip" style="border-left-color:var(--bad)"><b>⏳ 尚未完成 LINE Pay 付款</b>，店家付款成功後才會開始製作。<br><button class="btn-confirm" style="margin-top:8px;width:100%" onclick="lpRetry('${m.id}')">💳 前往付款 / 重新付款</button></div>`:'';
     const msg=o.status==='cancelled'?'':`<div style="text-align:center;font-weight:800;color:var(--ac2);font-size:15px">${TRK_MSG[o.status]||''}</div><div style="text-align:center;font-size:12px;color:var(--mu)">● 即時更新中　狀態更新於 ${fmtTS(o.updatedAt||o.createdAt)}</div>`;
     const prog=o.status==='cancelled'?`<div style="color:var(--bad);font-weight:700;text-align:center">店家無法接受此訂單（已拒單）${o.voidReason?'<br>原因：'+esc(o.voidReason):''}<br>如有疑問請洽店家</div>`
       :`<div class="trk">${STEPS.map((x,i)=>`<span class="${i<cur?'ok':i===cur?'cur':''}">${x[1]}</span>`).join('')}</div>`;
     return `<div class="fm-sec">
      <div class="oc-h"><b style="font-size:20px;color:var(--ac)">#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span></div>
      ${prog}
+     ${lpBox}
      ${msg}
      ${o.notice?`<div class="modal-tip" style="border-left-color:var(--bad)">📢 店家更新（${fmtT(o.notice.at)}）：${esc(o.notice.text)}</div>`:''}
      <div class="rc-row"><span>訂購人</span><span>${esc(o.name)}</span></div>
@@ -1913,6 +1923,7 @@ async function confirmPay(){
   if(cash&&PAY.recv!==''){recv=parseFloat(PAY.recv);if(!(recv>=total)){alert('收到的金額不足 $'+total);return}}
   const chg=cash?recv-total:0;
   const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,total,discount:Math.max(0,PAY.base-total),updatedAt:Date.now()};
+  if(o.lp==='pending')data.lp='staff';      // 店員手動結帳，不再等線上付款
   if(PAY.after||o.status==='done'){data.status='picked';data.pickedAt=Date.now()}    // 結帳＝客人取餐完成，訂單結束
   const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
   try{
@@ -2053,6 +2064,28 @@ function showQueued(o){
    <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>${esc(o.time)}</span></div>
    <div class="rc-row" style="justify-content:center;gap:8px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div></div>
    <div class="m-btns"><button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
+}
+
+/* ===== LINE Pay 線上付款：請 Apps Script 向 LINE Pay 要付款連結，再把客人帶過去 ===== */
+async function lpGo(id,o){
+  $('mBox').innerHTML='<div class="rc-done"><div class="ok">💳</div><h3>前往 LINE Pay 付款…</h3><div class="modal-tip" style="text-align:left">訂單 #'+esc(o&&o.no||'')+' 已送出。請在 LINE Pay 完成付款，付款成功店家才會開始製作。</div></div>';
+  let r=null;
+  try{
+    const res=await fetch(LINE_HOOK,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'lpPay',id})});
+    r=await res.json();
+  }catch(e){r={ok:false,err:'連線失敗'}}
+  if(r&&r.ok&&r.url){location.href=r.url;return}
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">⚠️</div><h3>訂單已送出，但付款尚未完成</h3><div class="modal-tip" style="text-align:left">無法開啟 LINE Pay（${esc(r&&r.err||'未知原因')}）。<br>您可以按「重新付款」再試一次，或直接到店付款。</div></div>
+   <div class="m-btns"><button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單</button><button class="btn-confirm" onclick="lpRetry('${id}')">重新付款</button></div>`;
+}
+function lpRetry(id){lpGo(id,MYD[id]||{no:''})}
+function lpReturn(){
+  let q;try{q=new URLSearchParams(location.search)}catch(e){return}
+  const st=q.get('lp');if(!st)return;
+  try{history.replaceState(null,'',location.pathname+(isAdmin?'?mode=admin':''))}catch(e){}
+  if(st==='ok'){toast('✅ LINE Pay 付款成功，店家已收到訂單',openTrack);setTimeout(openTrack,300)}
+  else if(st==='cancel'){toast('已取消付款，訂單還在，可到「📋 我的訂單」重新付款',openTrack);setTimeout(openTrack,300)}
+  else{toast('付款沒有完成（'+(q.get('c')||'')+'），可到「📋 我的訂單」重新付款或到店付款',openTrack)}
 }
 
 /* ===== LINE 群組通知（透過 Google Apps Script）===== */
