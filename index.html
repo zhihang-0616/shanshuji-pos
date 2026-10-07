@@ -181,6 +181,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 #banner{display:none;text-align:center;padding:8px 12px;font-weight:700;font-size:14px}
 #banner.bn-rest{display:block;background:var(--bad);color:#fff}
 #banner.bn-prep{display:block;background:var(--ac);color:#1a1204}
+#banner.bn-info{display:block;background:rgba(212,175,55,.14);color:var(--ac2);border-bottom:1px solid var(--ln)}
 input[type=date]{color-scheme:dark}
 .tbw{overflow-x:auto;border:1px solid var(--ln);border-radius:var(--r)}
 .tbw table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
@@ -342,6 +343,7 @@ function fbReady(){
   FB.onValue(FB.ref(FB.db,'menu/cfg'),sn=>applyMenu(sn.val()));
   FB.onValue(FB.ref(FB.db,'shop/ovr'),sn=>{SHOP.ovr=sn.val();updateStatusDisplay()});
   FB.onValue(FB.ref(FB.db,'shop/vac'),sn=>{SHOP.vac=sn.val();updateStatusDisplay()});
+  FB.onValue(FB.ref(FB.db,'shop/wait'),sn=>{SHOP.wait=sn.val();updateStatusDisplay()});
   FB.onValue(FB.ref(FB.db,'soldOut'),sn=>{
     const v=sn.val()||{};
     soldOutItems=norm(v.items);soldOutCats=norm(v.cats);
@@ -367,7 +369,7 @@ function saveSold(){
 /* ===== 營業時間：週一至週四 17:30–24:00、週五六 17:30–02:00（次日）、週日公休；店家可手動提早開店／提早打烊／備料／臨時休假 ===== */
 const TZ=28800000,DAYMS=86400000,WEEKMS=604800000;
 const SCHED_TXT='週一至週四 17:30–24:00｜週五、週六 17:30–02:00｜週日公休｜營業日 16:30 起備料中（可先預訂）';
-let SHOP={ovr:null,vac:null},SV_OFF=0;
+let SHOP={ovr:null,vac:null,wait:null},SV_OFF=0;
 const svNow=()=>Date.now()+SV_OFF;
 const twHM=ms=>{const m=Math.floor(((ms+TZ)%DAYMS)/60000);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};   // 一律顯示台灣時間（24 小時制）
 function schedOpenAt(t){      // 與 Firebase 規則使用同一組算式（台灣時間 UTC+8）
@@ -413,8 +415,48 @@ function updateStatusDisplay(){
     bn.textContent=isAdmin?(sch?`目前狀態：備料中（預定備料時間），${twHM(st.until)} 自動開始營業（還有約 ${left} 分鐘）`:`目前狀態：備料中，預計 ${twHM(st.until)} 完成（還有約 ${left} 分鐘）`)
       :(sch?`🟡 店家備料中，${twHM(st.until)} 開始營業（約還需 ${left} 分鐘）。可先預訂，開始營業後依序製作`:`🟡 店家備料中，預計 ${twHM(st.until)} 備料完成（約還需 ${left} 分鐘）。可先預訂，備料完成後依序製作`);
   }
-  else{bn.className='';bn.textContent=isAdmin&&st.why!=='依營業時間'?`目前狀態：營業中（${st.why}）`:''}
+  else{
+    const wm=waitMin(),man=waitManual();
+    if(wm>0){bn.className='bn-info';bn.textContent=isAdmin?`目前狀態：營業中${st.why!=='依營業時間'?`（${st.why}）`:''}　預估等候約 ${wm} 分鐘（${man?'手動':'自動'}）`:`⏱ 目前約等候 ${wm} 分鐘`}
+    else{bn.className='';bn.textContent=isAdmin&&st.why!=='依營業時間'?`目前狀態：營業中（${st.why}）`:''}
+  }
   renderCart();
+}
+/* ===== 預估等候時間：店家端依「進行中的單數」和「最近出餐速度」估算，客人看得到；也可手動設定 ===== */
+function waitAuto(){
+  const all=Object.values(ORDERS),n=all.filter(o=>o.status==='new'||o.status==='making').length;
+  const done=all.filter(o=>o.acceptedAt&&o.doneAt&&o.doneAt>o.acceptedAt).sort((a,b)=>b.doneAt-a.doneAt).slice(0,10);
+  let avg=done.length>=3?done.reduce((a,o)=>a+(o.doneAt-o.acceptedAt),0)/done.length/60000:8;
+  avg=Math.min(25,Math.max(4,avg));
+  const min=Math.min(120,Math.ceil((10+n*avg*0.8)/5)*5);          // 基本 10 分鐘 + 每張單的製作時間，湊到 5 分鐘
+  return{n,min,avg:Math.round(avg)};
+}
+let lastWaitMin=-1,lastWaitAt=0;
+function publishWait(){
+  if(!isAdmin||!window.FB)return;
+  const w=waitAuto(),t=svNow();
+  if(w.min===lastWaitMin&&t-lastWaitAt<5*60000)return;
+  lastWaitMin=w.min;lastWaitAt=t;
+  SHOP.wait={...(SHOP.wait||{}),n:w.n,min:w.min,at:t};updateStatusDisplay();
+  FB.update(FB.ref(FB.db,'shop/wait'),{n:w.n,min:w.min,at:t}).catch(()=>{});
+}
+const waitManual=()=>{const w=SHOP.wait;return w&&w.manual&&+w.manual.until>svNow()?w.manual:null};
+function waitMin(){
+  const w=SHOP.wait,t=svNow();if(!w)return 0;
+  const m=waitManual();if(m)return +m.min||0;
+  if(!w.at||t-(+w.at)>20*60000)return 0;       // 超過 20 分鐘沒更新（店家平板沒開），就不顯示
+  return +w.min||0;
+}
+async function setWaitManual(){
+  const m=Math.round(+($('waitIn').value)||0);
+  if(!(m>=1&&m<=180)){alert('請輸入 1～180 分鐘');return}
+  try{await FB.update(FB.ref(FB.db,'shop/wait'),{manual:{min:m,until:svNow()+2*3600000,by:whoAmI()}});logAct('營業狀態',null,'',`預估等候時間手動設為 ${m} 分鐘（2 小時內有效）`)}
+  catch(e){alert('設定失敗：'+(e.code||e.message));return}
+  SHOP.wait={...(SHOP.wait||{}),manual:{min:m,until:svNow()+2*3600000}};updateStatusDisplay();openStatusSelector();
+}
+async function clearWaitManual(){
+  try{await FB.remove(FB.ref(FB.db,'shop/wait/manual'));logAct('營業狀態',null,'','預估等候時間改回自動')}catch(e){alert('設定失敗：'+(e.code||e.message));return}
+  if(SHOP.wait)delete SHOP.wait.manual;updateStatusDisplay();openStatusSelector();
 }
 function openStatusSelector(){
   if(!isAdmin)return;
@@ -431,6 +473,9 @@ function openStatusSelector(){
     <button class="opt-btn" onclick="vacForm()">🌴 臨時休假</button>
     ${(ovr||vac)?'<button class="opt-btn" onclick="clearOvr()">↩ 恢復依營業時間自動切換</button>':''}
    </div>
+   <div class="fm-sec" style="margin:10px 0"><div class="fm-title" style="font-size:13px">預估等候時間（客人看得到）</div>
+    <div style="font-size:13px;color:var(--mu)">${waitManual()?`目前手動設定：約 ${waitManual().min} 分鐘（到 ${twHM(+waitManual().until)}）`:`目前自動估算：約 ${waitAuto().min} 分鐘（進行中 ${waitAuto().n} 張，平均每張約 ${waitAuto().avg} 分鐘）`}</div>
+    <div class="fm-row" style="margin-top:6px"><input id="waitIn" type="number" inputmode="numeric" min="1" max="180" placeholder="手動分鐘，例如 40"><button class="chip sm" onclick="setWaitManual()">手動設定</button><button class="chip sm" onclick="clearWaitManual()">改回自動</button></div></div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
 }
@@ -927,8 +972,48 @@ function timeSlots(full){
   }
   return out;
 }
+/* ===== 常客辨識：用電話辨識（只有店家端查得到，不會把客人資料給別人看） ===== */
+const CUST={};
+const phoneKey=p=>String(p||'').replace(/\D/g,'');
+async function custInfo(phone,force){
+  const k=phoneKey(phone);if(k.length<10)return null;
+  const c=CUST[k];if(c&&!force&&svNow()-c.t<5*60000)return c.v;
+  let list=[];
+  try{const sn=await FB.get(FB.query(FB.ref(FB.db,'orders'),FB.orderByChild('phone'),FB.startAt(phone),FB.endAt(phone)));list=Object.values(sn.val()||{})}catch(e){return null}
+  const ok=list.filter(o=>o.status!=='cancelled').sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  let note='';try{note=((await FB.get(FB.ref(FB.db,'customerNotes/'+k))).val()||{}).note||''}catch(e){}
+  const last=ok[0];
+  const v={n:ok.length,total:ok.reduce((a,o)=>a+(+o.total||0),0),last:last?last.createdAt:0,lastName:last?last.name:'',lastItems:last?(last.items||[]).map(x=>`${x.name}×${x.qty}`).join('、'):'',note};
+  CUST[k]={t:svNow(),v};return v;
+}
+async function checkCust(){
+  const box=$('custBox');if(!box)return;
+  if(!/^09\d{2}-\d{3}-\d{3}$/.test(CK.phone)){box.innerHTML='';return}
+  const ph=CK.phone,v=await custInfo(ph),b=$('custBox');
+  if(!b||CK.phone!==ph)return;
+  if(!v){b.innerHTML='';return}
+  if(!v.n){b.innerHTML='<div class="mu" style="font-size:12.5px;margin:-2px 0 8px">🆕 新客人（還沒有消費紀錄）</div>';return}
+  const ni=$('ckName');if(ni&&!ni.value&&v.lastName){ni.value=v.lastName;CK.name=v.lastName}
+  b.innerHTML=`<div class="modal-tip" style="text-align:left;margin:-2px 0 8px">⭐ <b>常客</b>：已下單 ${v.n} 次，累計 $${v.total}，上次 ${fmtDT(v.last)}<br>上次點：${esc(v.lastItems)||'—'}</div>
+   <div class="fm-row"><b style="font-size:13px">常客備註</b><input id="custNote" lang="zh-TW" value="${esc(v.note)}" placeholder="例如：不吃香菜、都要少辣（下次下單會提醒）" onchange="saveCustNote()"></div>`;
+}
+async function saveCustNote(){
+  const k=phoneKey(CK.phone),note=($('custNote')||{value:''}).value.trim();if(k.length<10)return;
+  try{
+    if(note)await FB.set(FB.ref(FB.db,'customerNotes/'+k),{note,by:whoAmI(),at:svNow()});
+    else await FB.remove(FB.ref(FB.db,'customerNotes/'+k));
+    if(CUST[k])CUST[k].v.note=note;toast(note?'✅ 常客備註已儲存':'已清除常客備註');
+  }catch(e){alert('儲存失敗：'+(e.code||e.message))}
+}
+function fillCustBadges(){
+  document.querySelectorAll('#mBox .cb[data-ph]').forEach(async el=>{
+    const v=await custInfo(el.dataset.ph);
+    if(v&&v.n>=2)el.innerHTML=`<span style="background:var(--ac);color:#1a1204;border-radius:6px;padding:1px 7px;font-weight:700;font-size:12px">⭐ 常客 第${v.n}次</span>${v.note?` <span class="mu" style="color:var(--ac2)">📝 ${esc(v.note)}</span>`:''}`;
+  });
+}
 function openCheckout(){
   if(!cart.length||isClosed())return;
+  if(!isAdmin){try{const ci=JSON.parse(localStorage.getItem('cust_info')||'null');if(ci){if(!CK.name)CK.name=ci.name||'';if(!CK.phone)CK.phone=ci.phone||''}}catch(e){}}   // 客人這支手機記住上次的姓名電話
   const bad=noodleViolation();
   if(bad){alert(`「${bad}」選了「多數麵食獨立分開裝」，但同商品只有 1 份。\n請把它刪除後重新選擇包裝方式，或再多點 1 份。`);return}
   prunePeople();
@@ -954,6 +1039,7 @@ function fmtPhone(el){
   if(d.length>7)s=d.slice(0,4)+'-'+d.slice(4,7)+'-'+d.slice(7);
   else if(d.length>4)s=d.slice(0,4)+'-'+d.slice(4);
   el.value=s;CK.phone=s;
+  if(isAdmin)checkCust();
 }
 const phoneOK=p=>/^09\d{2}-\d{3}-\d{3}$/.test(p);
 const loose=()=>isAdmin||CK.walkin;
@@ -1049,13 +1135,15 @@ function renderCheckout(){
    <div class="xhead"><h3>填寫取餐資訊</h3><button class="xbtn" onclick="closeModal()" title="關閉">✕</button></div>
    <div class="fm-sec">
     ${isAdmin?'':`<div class="fm-row"><b>用餐方式</b><div class="chips"><button class="chip${CK.walkin?'':' on'}" onclick="setWalkin(false)">線上預訂</button><button class="chip${CK.walkin?' on':''}" onclick="setWalkin(true)">現場客（免填姓名電話）</button></div></div>`}
-    <div class="fm-row${e&&!nameValid()?' err':''}"><b>訂購人${loose()?'':'*'}</b><input value="${esc(CK.name)}" placeholder="${loose()?'選填（預設現場客）':'請輸入訂購人姓名 (必填)'}" oninput="CK.name=this.value"></div>
+    <div class="fm-row${e&&!nameValid()?' err':''}"><b>訂購人${loose()?'':'*'}</b><input id="ckName" value="${esc(CK.name)}" placeholder="${loose()?'選填（預設現場客）':'請輸入訂購人姓名 (必填)'}" oninput="CK.name=this.value"></div>
     <div class="fm-err">請輸入訂購人姓名</div>
     <div class="fm-row${e&&!phoneValid()?' err':''}"><b>電話${loose()?'':'*'}</b><input value="${esc(CK.phone)}" inputmode="numeric" maxlength="12" placeholder="${loose()?'選填 0912-345-678':'例如: 0912-345-678'}" oninput="fmtPhone(this)"></div>
     <div class="fm-err">電話格式需為 09XX-XXX-XXX</div>
+    ${isAdmin?'<div id="custBox"></div>':''}
     <div class="fm-row${e&&!timeOK()?' err':''}"><b>取餐時間*</b>
      ${timeField('ck','ckTime24',slots)}</div>
     <div class="fm-err">${isAdmin?'請輸入正確的取餐時間（24 小時制，例如 17:30）':'請輸入正確的取餐時間（24 小時制，例如 17:30），不能早於現在'}</div>
+    ${!isAdmin&&waitMin()?`<div class="mu" style="font-size:12.5px;margin:-4px 0 8px;color:var(--ac2)">⏱ 目前約等候 ${waitMin()} 分鐘，最快約 ${twHM(svNow()+waitMin()*60000)} 可取餐，取餐時間建議選這個時間之後</div>`:''}
     ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>chip('src',v)).join('')}</div></div>
     <div class="fm-row"><b>補單</b><div class="chips"><button class="chip${CK.late?' on':''}" onclick="toggleLate()">📝 這是補單（事後補登）</button></div></div>${CK.late?lateBlock():''}`:''}
     <div class="fm-row"><b>${CK.people.length>1?'整單備註':'顧客備註'}</b><input value="${esc(CK.note)}" placeholder="特殊需求 (例如:多蒜、少雞油)" oninput="CK.note=this.value"></div>
@@ -1174,6 +1262,7 @@ async function confirmOrder(){
       const nref=FB.push(FB.ref(FB.db,'orders'));
       await FB.set(nref,data);written=true;
       saveMy(nref.key,o.no);
+      if(!isAdmin&&o.phone){try{localStorage.setItem('cust_info',JSON.stringify({name:o.name,phone:o.phone}))}catch(e){}}
       notifyLine(nref.key);
       showDone(o);
     }catch(e){
@@ -1228,6 +1317,7 @@ async function onAuth(user){
     isAdmin=true;setAdminUI(true);startOrders();startAlarm();keepAwake();updateSoundBtn();
     toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
     setTimeout(checkOpenReminder,5000);
+    if(isManager())setTimeout(checkBackupReminder,9000);
   }else{
     isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();const m=authMsg;authMsg='';openAdminLogin(m);
   }
@@ -1291,9 +1381,10 @@ function startOrders(){
     ORDERS=v;
     if(ordInit&&fresh.length){
       if(!muted)beep();const o=v[fresh[fresh.length-1]];fresh.forEach(notifyLine);
+      const bad=fresh.filter(id=>anomalies({...v[id],id}).length);if(bad.length)setTimeout(()=>toast(`⚠ 新訂單 #${v[bad[0]].no} 金額異常，請核對（訂單管理有紅色提示）`),2500);
       toast(`🔔 新訂單 #${o.no}　${o.name}　$${o.total}${fresh.length>1?`（共 ${fresh.length} 筆新單）`:''}`);
     }
-    ordInit=true;updateOrderBadge();renderOrders();renderStats();
+    ordInit=true;updateOrderBadge();renderOrders();renderStats();publishWait();
   },e=>toast('訂單讀取失敗：'+(e.code||e.message)));
 }
 function stopOrders(){if(ordUnsub){ordUnsub();ordUnsub=null}ORDERS={};ordInit=false;updateOrderBadge()}
@@ -1307,12 +1398,34 @@ function openOrders(){
   viewingOrders=true;viewingStats=viewingTrack=false;$('mBox').className='m-box xl';renderOrders();$('modal').classList.add('open');
 }
 function setOrdFilter(k){ordFilter=k;renderOrders()}
+/* ===== 異常提醒：金額對不起來、價格低於菜單價、疑似重複下單 ===== */
+function anomalies(o){
+  const w=[];if(!o||o.status==='cancelled')return w;
+  const items=o.items||[],sum=items.reduce((a,x)=>a+(+x.price||0)*(+x.qty||0),0);
+  if(!o.staff&&!o.late){
+    if(o.subtotal!=null&&Math.abs(sum-(+o.subtotal))>0.5)w.push(`品項加總 $${sum} 和小計 $${o.subtotal} 不一致`);
+    if(o.baseTotal==null&&o.subtotal!=null&&Math.abs((+o.subtotal+(+o.extra||0)-(+o.discount||0))-(+o.total))>0.5)w.push(`應付總額 $${o.total} 和小計不一致`);
+    items.forEach(x=>{
+      const id=baseId(String(x.id||'')),it=find(id);
+      if(!(+x.qty>=1)||+x.qty>50)w.push(`「${x.name}」數量 ${x.qty} 異常`);
+      if(!it||!(it.price>0))return;
+      const cat=catOf(id),neg=effOpts(it,cat).some(g=>g.ch.some(c=>(+c.p)<0));
+      if(!neg&&(+x.price)<it.price)w.push(`「${x.name}」單價 $${x.price} 低於菜單價 $${it.price}`);
+    });
+  }
+  if(o.phone){
+    const dup=Object.entries(ORDERS).some(([id,p])=>id!==o.id&&p.phone===o.phone&&p.status!=='cancelled'&&p.total===o.total&&Math.abs((p.createdAt||0)-(o.createdAt||0))<=180000);
+    if(dup)w.push('疑似重複下單（同電話、同金額、3 分鐘內）');
+  }
+  return w;
+}
 function renderOrders(){
   if(!viewingOrders)return;
   const all=Object.entries(ORDERS).map(([id,o])=>({...o,id}));
   const cnt=k=>all.filter(o=>o.status===k).length;
   const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['all','全部',all.length]];
-  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
+  const warnN=all.filter(o=>anomalies(o).length).length;if(warnN)F.push(['warn','⚠ 異常',warnN]);
+  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='warn'?anomalies(o).length>0:ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
     .sort((a,b)=>{const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
   const cards=list.map(o=>{
     const items=itemsBlock(o,true);
@@ -1322,7 +1435,8 @@ function renderOrders(){
     return `<div class="oc st-${o.status}">
      <div class="oc-h"><b>#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span>${o.late?'<span class="mu" style="color:var(--bad)">【補單】</span>':''}${o.src&&o.src!=='線上'?`<span class="mu">【${esc(o.src)}】</span>`:''}<span class="oc-s">${ST[o.status]||esc(o.status)}</span></div>
      <div class="oc-b">
-      <div>${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
+      <div>${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a> <span class="cb" data-ph="${esc(o.phone||'')}"></span></div>
+      ${anomalies(o).length?`<div style="color:#fff;background:var(--bad);border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⚠ 金額異常，請核對：${esc(anomalies(o).join('；'))}</div>`:''}
       <div>${items}</div>
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
@@ -1342,7 +1456,7 @@ function renderOrders(){
    <div class="oh"><h3>📦 訂單管理</h3><button onclick="closeModal()">關閉</button></div>
    <div class="ofl">${F.map(([k,t,n])=>`<button class="chip${ordFilter===k?' on':''}" onclick="setOrdFilter('${k}')">${t} ${n}</button>`).join('')}</div>
    ${cards||'<div style="text-align:center;color:var(--mu);padding:30px">目前沒有訂單</div>'}`;
-  $('mBox').scrollTop=y;
+  $('mBox').scrollTop=y;fillCustBadges();
 }
 function setOrderStatus(id,st){
   const data={status:st,updatedAt:Date.now()},k={making:'acceptedAt',done:'doneAt',picked:'pickedAt'}[st];if(k)data[k]=Date.now();
@@ -1406,6 +1520,38 @@ function renderTrack(){
 }
 
 /* ===== 後台管理 ===== */
+/* ===== 資料備份：手動下載全部資料，並提醒太久沒備份 ===== */
+const BK_NODES=['orders','cashbook','logs','counters','stock','soldOut','shop','shopCatalog','shopPlan','shopMeta','menu','customerNotes'];
+async function openBackup(){
+  if(!isAdmin||!isManager())return;
+  viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box';
+  let m={};try{m=(await FB.get(FB.ref(FB.db,'shopMeta'))).val()||{}}catch(e){}
+  const au=m.lastAuto,ma=m.lastManual;
+  $('mBox').innerHTML=`<h3>💾 資料備份</h3>
+   <div class="modal-tip" style="text-align:left">備份檔包含：訂單、收銀盤點與支出、操作紀錄、菜單、採購清單、庫存、常客備註等<b>所有資料</b>。<br>建議兩種都做：<b>雲端自動備份</b>（每天凌晨自動存到你的 Google 雲端硬碟）加上偶爾<b>手動下載</b>一份放電腦。</div>
+   <div class="fm-line"><span>雲端自動備份</span><span style="color:${au?'var(--ok)':'var(--bad)'}">${au?fmtDT(+au.at)+' 成功':'尚未設定（看「設定步驟」）'}</span></div>
+   <div class="fm-line"><span>手動下載</span><span>${ma?fmtDT(+ma.at):'還沒有'}</span></div>
+   <div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button><button class="btn-confirm" id="bkBtn" onclick="doBackup()">⬇ 下載備份檔</button></div>`;
+  $('modal').classList.add('open');
+}
+async function doBackup(){
+  const b=$('bkBtn');if(b){b.disabled=true;b.textContent='備份中…'}
+  const out={_backup:{at:Date.now(),by:whoAmI(),app:'chuobian-pos'}};
+  for(const n of BK_NODES){try{const v=(await FB.get(FB.ref(FB.db,n))).val();if(v!=null)out[n]=v}catch(e){out['_error_'+n]=e.code||e.message}}
+  const text=JSON.stringify(out),kb=Math.round(text.length/1024),t=new Date();
+  const name=`pos-backup-${today8()}-${String(t.getHours()).padStart(2,'0')}${String(t.getMinutes()).padStart(2,'0')}.json`;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();
+  try{await FB.set(FB.ref(FB.db,'shopMeta/lastManual'),{at:svNow(),by:whoAmI(),kb});logAct('資料備份',null,'',`手動下載備份檔（${kb} KB）`)}catch(e){}
+  toast(`✅ 備份檔已下載（${kb} KB）`);openBackup();
+}
+function checkBackupReminder(){
+  if(!isManager()||!window.FB)return;
+  FB.get(FB.ref(FB.db,'shopMeta')).then(sn=>{
+    const m=sn.val()||{},last=Math.max(+((m.lastAuto||{}).at)||0,+((m.lastManual||{}).at)||0);
+    const days=last?Math.floor((svNow()-last)/86400000):999;
+    if(days>=7)toast(`⚠ ${last?days+' 天':'還'}沒有備份資料，請到 後台管理 → 資料備份（建議設定每日自動備份）`);
+  }).catch(()=>{});
+}
 function openAdminPanel(){
   if(!isAdmin||!isManager())return;
   viewingOrders=viewingStats=viewingTrack=false;
@@ -1416,6 +1562,7 @@ function openAdminPanel(){
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
+    <button class="opt-btn" onclick="openBackup()">💾 資料備份</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
