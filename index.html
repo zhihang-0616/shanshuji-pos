@@ -957,7 +957,7 @@ function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('m
 
 /* ===== 取餐資訊 ===== */
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
-const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:''};
+const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:'',lpMode:''};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 function timeSlots(full){
@@ -1170,9 +1170,10 @@ function renderCheckout(){
     ${t.extra?`<div class="fm-line"><span>口味加價 (泰式):</span><span>+$${t.extra}</span></div>`:''}
     ${isAdmin?`<div class="fm-row"><b style="width:auto">折扣(%數)</b><input type="number" min="0" max="100" value="${CK.pct}" oninput="CK.pct=this.value;updateTotal()"><b style="width:auto">折讓(-$)</b><input type="number" min="0" value="${CK.off}" oninput="CK.off=this.value;updateTotal()"></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b id="fmTot">$${t.total}</b></div>
-    <div class="chips">${(isAdmin?['現金','轉帳','Linepay','全支付']:['現金','轉帳','Linepay','全支付',LP_ONLINE]).map(v=>chip('pay',v)).join('')}</div>
+    <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>chip('pay',v)).join('')}</div>
     ${!isAdmin&&CK.pay==='轉帳'?bankBox(t.total)+`<div class="fm-row"><b style="width:auto">您的轉帳帳號後五碼（選填）</b><input inputmode="numeric" maxlength="5" placeholder="例如 12345，方便店家核對入帳" value="${esc(CK.x5)}" oninput="CK.x5=this.value.replace(/[^0-9]/g,'').slice(0,5);this.value=CK.x5"></div>`:''}
-    ${CK.pay===LP_ONLINE?'<div class="modal-tip">送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。</div>':''}
+    ${!isAdmin&&CK.pay==='Linepay'?`<div class="fm-row"><b style="width:auto">LINE Pay 付款方式</b><div class="chips"><button class="chip${CK.lpMode==='scan'?' on':''}" onclick="CK.lpMode='scan';renderCheckout()">現場掃碼</button><button class="chip${CK.lpMode==='online'?' on':''}" onclick="CK.lpMode='online';renderCheckout()">線上付款</button></div></div>
+    <div class="modal-tip">${CK.lpMode==='online'?'送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。':CK.lpMode==='scan'?'取餐時請向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。':'請選擇「現場掃碼」（到店付款）或「線上付款」（現在就付款）。'}</div>`:''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">上一步</button><button class="btn-confirm" onclick="submitCheckout()">下一步</button></div>`;
 }
@@ -1190,9 +1191,12 @@ function submitCheckout(){
     subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
   };
   if(!isAdmin&&CK.pay==='轉帳'&&CK.x5){if(!/^\d{5}$/.test(CK.x5)){alert('轉帳帳號後五碼請輸入 5 位數字，或留空');return}window.pendingOrder.x5=CK.x5}
-  if(CK.pay===LP_ONLINE){
-    if(isAdmin||!LINE_HOOK){alert('目前無法使用線上付款');return}
-    window.pendingOrder.pay='Linepay';window.pendingOrder.lp='pending';
+  if(!isAdmin&&CK.pay==='Linepay'){
+    if(!CK.lpMode){alert('請選擇 LINE Pay 付款方式：現場掃碼或線上付款');return}
+    if(CK.lpMode==='online'){
+      if(!LINE_HOOK){alert('目前無法使用線上付款');return}
+      window.pendingOrder.lp='pending';
+    }
   }
   if(isAdmin)window.pendingOrder.staff=true;
   if(isAdmin&&CK.late)Object.assign(window.pendingOrder,{late:true,lateAt:lateMs(),lateStatus:CK.lateStatus,latePaid:CK.latePaid,lateNo:CK.lateNo.trim()});
@@ -1227,7 +1231,7 @@ function renderReceipt(){
     ${o.extra?`<div class="fm-line"><span>口味加價 (泰式):</span><span>+$${o.extra}</span></div>`:''}
     ${o.discount?`<div class="fm-line"><span>優惠折抵:</span><span>-$${o.discount}</span></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b>$${o.total}</b></div>
-    ${row('付款方式',o.lp?LP_ONLINE:o.pay)}${o.x5?row('轉帳後五碼',o.x5):''}
+    ${row('付款方式',o.lp?LP_ONLINE:(!isAdmin&&o.pay==='Linepay'&&CK.lpMode==='scan'?'LINE Pay（現場掃碼）':o.pay))}${o.x5?row('轉帳後五碼',o.x5):''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="backToForm()">返回修改</button><button class="btn-confirm" id="cfBtn" onclick="confirmOrder()">確認送出</button></div>`;
   $('mBox').scrollTop=0;
@@ -1304,7 +1308,7 @@ function showDone(o){
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 function finishOrder(){
-  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:''});curP=0;
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:'',lpMode:''});curP=0;
   window.pendingOrder=null;
   OVR={};cart=[];renderCart();renderGrid();closeModal();
 }
