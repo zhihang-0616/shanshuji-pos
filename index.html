@@ -105,14 +105,14 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .go:disabled{background:var(--ln);color:var(--mu);cursor:not-allowed;box-shadow:none}
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);display:none;place-items:center;z-index:999;padding:20px}
 .modal.open{display:grid}
-.m-box{background:var(--s1);border:2px solid var(--ac);border-radius:var(--r);width:100%;max-width:440px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 24px rgba(0,0,0,.8);max-height:90vh;overflow-y:auto}
+.m-box{background:var(--s1);border:2px solid var(--ac);border-radius:var(--r);width:100%;max-width:440px;padding:24px;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 24px rgba(0,0,0,.8);max-height:90vh;max-height:calc(100dvh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
 .m-box.wide{max-width:560px}
 .m-box>*{flex-shrink:0}
 .m-box h3{font-size:20px;color:var(--ac2)}
 .m-box label{font-size:13px;color:var(--mu);display:flex;flex-direction:column;gap:6px}
 .m-box input{padding:12px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);color:var(--tx);font-size:16px}
 .m-box input:focus{border-color:var(--ac);outline:none}
-.m-btns{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap}
+.m-btns{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;position:sticky;bottom:0;background:var(--s1);padding:10px 0 12px;margin-bottom:-12px;z-index:3;border-top:1px solid var(--ln)}
 .m-btns button{flex:1;min-width:96px;padding:12px;border-radius:8px;font-weight:700}
 .btn-cancel{background:var(--s2);border:1px solid var(--ln)}
 .btn-confirm{background:var(--ac);color:#1a1204}
@@ -254,7 +254,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  .sum #cnt:after{content:"　▲ 展開明細";color:var(--ac);font-size:12px}
  .cart.cart-open .sum #cnt:after{content:"　▼ 收合"}
  .go{padding:12px;font-size:16px}.hint{font-size:11px}
- .m-box{padding:16px;max-height:92vh}.m-box.wide,.m-box.xl{max-width:100%}
+ .m-box{padding:16px;max-height:92vh;max-height:calc(100dvh - 40px)}.m-box.wide,.m-box.xl{max-width:100%}
  .tbw table{min-width:560px}
 }
 </style></head>
@@ -957,7 +957,7 @@ function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('m
 
 /* ===== 取餐資訊 ===== */
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
-const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false};
+const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:''};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 function timeSlots(full){
@@ -1171,7 +1171,7 @@ function renderCheckout(){
     ${isAdmin?`<div class="fm-row"><b style="width:auto">折扣(%數)</b><input type="number" min="0" max="100" value="${CK.pct}" oninput="CK.pct=this.value;updateTotal()"><b style="width:auto">折讓(-$)</b><input type="number" min="0" value="${CK.off}" oninput="CK.off=this.value;updateTotal()"></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b id="fmTot">$${t.total}</b></div>
     <div class="chips">${(isAdmin?['現金','轉帳','Linepay','全支付']:['現金','轉帳','Linepay','全支付',LP_ONLINE]).map(v=>chip('pay',v)).join('')}</div>
-    ${!isAdmin&&CK.pay==='轉帳'?bankBox(t.total):''}
+    ${!isAdmin&&CK.pay==='轉帳'?bankBox(t.total)+`<div class="fm-row"><b style="width:auto">您的轉帳帳號後五碼（選填）</b><input inputmode="numeric" maxlength="5" placeholder="例如 12345，方便店家核對入帳" value="${esc(CK.x5)}" oninput="CK.x5=this.value.replace(/[^0-9]/g,'').slice(0,5);this.value=CK.x5"></div>`:''}
     ${CK.pay===LP_ONLINE?'<div class="modal-tip">送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。</div>':''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">上一步</button><button class="btn-confirm" onclick="submitCheckout()">下一步</button></div>`;
@@ -1189,6 +1189,7 @@ function submitCheckout(){
     gear:[...CK.gear],pay:CK.pay,items:JSON.parse(JSON.stringify(cart)),
     subtotal:t.sub,extra:t.extra,discount:t.disc,total:t.total
   };
+  if(!isAdmin&&CK.pay==='轉帳'&&CK.x5){if(!/^\d{5}$/.test(CK.x5)){alert('轉帳帳號後五碼請輸入 5 位數字，或留空');return}window.pendingOrder.x5=CK.x5}
   if(CK.pay===LP_ONLINE){
     if(isAdmin||!LINE_HOOK){alert('目前無法使用線上付款');return}
     window.pendingOrder.pay='Linepay';window.pendingOrder.lp='pending';
@@ -1226,7 +1227,7 @@ function renderReceipt(){
     ${o.extra?`<div class="fm-line"><span>口味加價 (泰式):</span><span>+$${o.extra}</span></div>`:''}
     ${o.discount?`<div class="fm-line"><span>優惠折抵:</span><span>-$${o.discount}</span></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b>$${o.total}</b></div>
-    ${row('付款方式',o.lp?LP_ONLINE:o.pay)}
+    ${row('付款方式',o.lp?LP_ONLINE:o.pay)}${o.x5?row('轉帳後五碼',o.x5):''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="backToForm()">返回修改</button><button class="btn-confirm" id="cfBtn" onclick="confirmOrder()">確認送出</button></div>`;
   $('mBox').scrollTop=0;
@@ -1303,7 +1304,7 @@ function showDone(o){
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 function finishOrder(){
-  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false});curP=0;
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:''});curP=0;
   window.pendingOrder=null;
   OVR={};cart=[];renderCart();renderGrid();closeModal();
 }
@@ -1460,6 +1461,7 @@ function renderOrders(){
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
       <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上付款）</span>':''}</div>
+      ${o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?`<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">🏦 轉帳待確認入帳${o.x5?'｜顧客帳號後五碼 '+esc(o.x5):''}｜請查銀行 APP，入帳後按「結帳」</div>`:''}
       ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 等待顧客 LINE Pay 付款中，付款成功前請先不要製作</div>':''}
      </div>
      <div class="oc-a">
