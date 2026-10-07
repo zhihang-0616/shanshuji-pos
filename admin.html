@@ -1023,7 +1023,7 @@ function openCheckout(){
   renderCheckout();
   $('modal').classList.add('open');
 }
-const LP_ONLINE='LINE Pay 線上付款';
+const LP_ONLINE='LINE Pay 線上支付';
 const BANK={name:'中國信託 (822)',acct:'034540310006',branch:'竹北分行 (1034)'};   // ← 轉帳資訊（要改帳號改這裡；QR 圖片檔是 transfer-qr.jpg）
 const bankBox=amt=>`<div class="modal-tip" style="text-align:center;border-left-color:var(--ac)">
   <b>🏦 轉帳資訊</b><br>${BANK.name}　${BANK.branch}<br>
@@ -1172,9 +1172,9 @@ function renderCheckout(){
     ${isAdmin?`<div class="fm-row"><b style="width:auto">折扣(%數)</b><input type="number" min="0" max="100" value="${CK.pct}" oninput="CK.pct=this.value;updateTotal()"><b style="width:auto">折讓(-$)</b><input type="number" min="0" value="${CK.off}" oninput="CK.off=this.value;updateTotal()"></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b id="fmTot">$${t.total}</b></div>
     <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>chip('pay',v)).join('')}</div>
-    ${!isAdmin&&CK.pay==='轉帳'?bankBox(t.total)+`<div class="fm-row"><b style="width:auto">您的轉帳帳號後五碼（選填）</b><input inputmode="numeric" maxlength="5" placeholder="例如 12345，方便店家核對入帳" value="${esc(CK.x5)}" oninput="CK.x5=this.value.replace(/[^0-9]/g,'').slice(0,5);this.value=CK.x5"></div>`:''}
-    ${CK.pay==='Linepay'?`<div class="fm-row"><b style="width:auto">LINE Pay 付款方式</b><div class="chips"><button class="chip${CK.lpMode==='scan'?' on':''}" onclick="CK.lpMode='scan';renderCheckout()">現場掃碼</button><button class="chip${CK.lpMode==='online'?' on':''}" onclick="CK.lpMode='online';renderCheckout()">線上付款</button></div></div>
-    <div class="modal-tip">${CK.lpMode==='online'?(isAdmin?'送出訂單後會開啟 LINE Pay 付款頁（電腦版會顯示 QR Code，請顧客用 LINE 掃描）。付款成功後自動變已收款。':'送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。'):CK.lpMode==='scan'?(isAdmin?'現場掃碼：由店員在結帳時收款。':'取餐時請向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。'):'請選擇「現場掃碼」或「線上付款」。'}</div>`:CK.pay==='全支付'?`<div class="fm-row"><b style="width:auto">全支付 付款方式</b><div class="chips"><button class="chip on">現場掃碼</button><button class="chip" disabled style="opacity:.4;cursor:not-allowed;filter:grayscale(1)">線上支付（暫無）</button></div></div>`:''}
+    ${CK.pay==='轉帳'?bankBox(t.total)+(isAdmin?'':`<div class="fm-row"><b style="width:auto">您的轉帳帳號後五碼（選填）</b><input inputmode="numeric" maxlength="5" placeholder="例如 12345，方便店家核對入帳" value="${esc(CK.x5)}" oninput="CK.x5=this.value.replace(/[^0-9]/g,'').slice(0,5);this.value=CK.x5"></div>`):''}
+    ${CK.pay==='Linepay'?`<div class="fm-row"><b style="width:auto">LINE Pay 付款方式</b><div class="chips"><button class="chip${CK.lpMode==='scan'?' on':''}" onclick="CK.lpMode='scan';renderCheckout()">現場掃碼</button><button class="chip${CK.lpMode==='online'?' on':''}" onclick="CK.lpMode='online';renderCheckout()">線上支付</button></div></div>
+    <div class="modal-tip">${CK.lpMode==='online'?(isAdmin?'送出訂單後會開啟 LINE Pay 付款頁（電腦版會顯示 QR Code，請顧客用 LINE 掃描）。付款成功後自動變已收款。':'送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。'):CK.lpMode==='scan'?(isAdmin?'現場掃碼：由店員在結帳時收款。':'取餐時請向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。'):'請選擇「現場掃碼」或「線上支付」。'}</div>`:CK.pay==='全支付'?`<div class="fm-row"><b style="width:auto">全支付 付款方式</b><div class="chips"><button class="chip on">現場掃碼</button><button class="chip" disabled style="opacity:.4;cursor:not-allowed;filter:grayscale(1)">線上支付（暫無）</button></div></div>`:''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">上一步</button><button class="btn-confirm" onclick="submitCheckout()">下一步</button></div>`;
 }
@@ -1193,11 +1193,11 @@ function submitCheckout(){
   };
   if(!isAdmin&&CK.pay==='轉帳'&&CK.x5){if(!/^\d{5}$/.test(CK.x5)){alert('轉帳帳號後五碼請輸入 5 位數字，或留空');return}window.pendingOrder.x5=CK.x5}
   if(CK.pay==='Linepay'){
-    if(!CK.lpMode){alert('請選擇 LINE Pay 付款方式：現場掃碼或線上付款');return}
+    if(!CK.lpMode){alert('請選擇 LINE Pay 付款方式：現場掃碼或線上支付');return}
     if(CK.lpMode==='online'){
-      if(!LINE_HOOK){alert('目前無法使用線上付款');return}
-      if(isAdmin&&CK.late){alert('補單無法使用線上付款，請改選「現場掃碼」');return}
-      if(isAdmin&&(!window.FB||!CONNECTED)){alert('目前離線，無法開啟線上付款，請改選「現場掃碼」或稍後再試');return}
+      if(!LINE_HOOK){alert('目前無法使用線上支付');return}
+      if(isAdmin&&CK.late){alert('補單無法使用線上支付，請改選「現場掃碼」');return}
+      if(isAdmin&&(!window.FB||!CONNECTED)){alert('目前離線，無法開啟線上支付，請改選「現場掃碼」或稍後再試');return}
       window.pendingOrder.lp='pending';
     }
   }
@@ -1306,7 +1306,7 @@ function showDone(o){
     <div class="rc-no">#${o.no}</div>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>${o.late?dayPlain(o.date).slice(5)+' ':'今日 '}${o.time}</span></div>
     <div class="rc-row" style="justify-content:center;gap:8px;margin-top:4px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div>
-    ${!isAdmin&&o.pay==='轉帳'?bankBox(o.total):''}
+    ${o.pay==='轉帳'?bankBox(o.total):''}
     <div class="modal-tip" style="margin-top:14px;text-align:left">店家已收到您的訂單。請記下訂單編號，取餐時向店員出示。謝謝您的光臨！</div>
    </div>
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
@@ -1468,7 +1468,7 @@ function renderOrders(){
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
-      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上付款）</span>':''}</div>
+      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上支付）</span>':''}</div>
       ${o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?`<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">🏦 轉帳待確認入帳${o.x5?'｜顧客帳號後五碼 '+esc(o.x5):''}｜請查銀行 APP，入帳後按「結帳」</div>`:''}
       ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 等待顧客 LINE Pay 付款中，付款成功前請先不要製作　<button class="rb" onclick="lpRetry(\''+o.id+'\')">開啟付款頁</button></div>':''}
      </div>
@@ -1934,7 +1934,7 @@ function renderPay(){
     ${cash?`<div class="fm-row"><b style="width:auto">收到金額</b><input id="payRecv" type="number" inputmode="numeric" value="${esc(PAY.recv)}" placeholder="輸入收到的金額" oninput="PAY.recv=this.value;payCalc()"></div>
      <div class="chips">${quick.map((v,i)=>`<button class="chip" onclick="payRecv(${v})">${i===0?'剛好 $'+v:'$'+v}</button>`).join('')}</div>
      <div class="fm-total"><span>找零</span><b id="payChg" style="${payChgText().startsWith('不足')?'color:var(--bad)':''}">${payChgText()}</b></div>`
-     :`<div style="color:var(--mu);font-size:14px">${esc(PAY.pay)} 無需找零，確認款項已收到即可。</div>`}
+     :`<div style="color:var(--mu);font-size:14px">${esc(PAY.pay)} 無需找零，確認款項已收到即可。</div>${PAY.pay==='轉帳'?bankBox(total):''}`}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="payBack()">返回</button><button class="btn-confirm" id="payBtn" onclick="confirmPay()">結帳</button></div>`;
 }
@@ -1944,7 +1944,7 @@ async function confirmPay(){
   if(cash&&PAY.recv!==''){recv=parseFloat(PAY.recv);if(!(recv>=total)){alert('收到的金額不足 $'+total);return}}
   const chg=cash?recv-total:0;
   const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,total,discount:Math.max(0,PAY.base-total),updatedAt:Date.now()};
-  if(o.lp==='pending')data.lp='staff';      // 店員手動結帳，不再等線上付款
+  if(o.lp==='pending')data.lp='staff';      // 店員手動結帳，不再等線上支付
   if(PAY.after||o.status==='done'){data.status='picked';data.pickedAt=Date.now()}    // 結帳＝客人取餐完成，訂單結束
   const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
   try{
@@ -2087,7 +2087,7 @@ function showQueued(o){
    <div class="m-btns"><button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 
-/* ===== LINE Pay 線上付款：請 Apps Script 向 LINE Pay 要付款連結，再把客人帶過去 ===== */
+/* ===== LINE Pay 線上支付：請 Apps Script 向 LINE Pay 要付款連結，再把客人帶過去 ===== */
 async function lpGo(id,o){
   $('mBox').innerHTML='<div class="rc-done"><div class="ok">💳</div><h3>前往 LINE Pay 付款…</h3><div class="modal-tip" style="text-align:left">訂單 #'+esc(o&&o.no||'')+' 已送出。請在 LINE Pay 完成付款，付款成功店家才會開始製作。</div></div>';
   let r=null;
