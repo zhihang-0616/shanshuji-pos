@@ -1023,6 +1023,15 @@ function openCheckout(){
   $('modal').classList.add('open');
 }
 const LP_ONLINE='LINE Pay 線上付款';
+const BANK={name:'中國信託 (822)',acct:'034540310006',branch:'竹北分行 (1034)'};   // ← 轉帳資訊（要改帳號改這裡；QR 圖片檔是 transfer-qr.jpg）
+const bankBox=amt=>`<div class="modal-tip" style="text-align:center;border-left-color:var(--ac)">
+  <b>🏦 轉帳資訊</b><br>${BANK.name}　${BANK.branch}<br>
+  帳號：<b style="font-size:17px;letter-spacing:1px">${BANK.acct}</b>
+  <button class="rb" style="margin-left:6px" onclick="copyAcct()">複製帳號</button><br>
+  ${amt?'轉帳金額：<b style="color:var(--ac)">$'+amt+'</b><br>':''}
+  <img src="transfer-qr.jpg" alt="轉帳 QR Code" style="width:min(260px,80%);margin:8px auto 4px;display:block;border-radius:10px"><br>
+  <span class="mu">開啟銀行 APP 掃描 QR Code（或手動輸入帳號）。轉帳前請再確認帳號與金額，轉完請向店員出示轉帳成功畫面。</span></div>`;
+function copyAcct(){try{navigator.clipboard.writeText(BANK.acct).then(()=>toast('已複製帳號'))}catch(e){prompt('請長按複製帳號',BANK.acct)}}
 const chip=(key,v)=>`<button class="chip${CK[key]===v?' on':''}" onclick="pick('${key}','${v}')">${v}</button>`;
 const gearChip=v=>`<button class="chip${CK.gear.includes(v)?' on':''}" onclick="toggleGear('${v}')">${v}</button>`;
 function pick(key,v){CK[key]=CK[key]===v?'':v;renderCheckout()}
@@ -1162,6 +1171,7 @@ function renderCheckout(){
     ${isAdmin?`<div class="fm-row"><b style="width:auto">折扣(%數)</b><input type="number" min="0" max="100" value="${CK.pct}" oninput="CK.pct=this.value;updateTotal()"><b style="width:auto">折讓(-$)</b><input type="number" min="0" value="${CK.off}" oninput="CK.off=this.value;updateTotal()"></div>`:''}
     <div class="fm-total"><span>應付總額:</span><b id="fmTot">$${t.total}</b></div>
     <div class="chips">${(isAdmin?['現金','轉帳','Linepay','全支付']:['現金','轉帳','Linepay','全支付',LP_ONLINE]).map(v=>chip('pay',v)).join('')}</div>
+    ${!isAdmin&&CK.pay==='轉帳'?bankBox(t.total):''}
     ${CK.pay===LP_ONLINE?'<div class="modal-tip">送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。</div>':''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">上一步</button><button class="btn-confirm" onclick="submitCheckout()">下一步</button></div>`;
@@ -1287,6 +1297,7 @@ function showDone(o){
     <div class="rc-no">#${o.no}</div>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>取餐時間</span><span>${o.late?dayPlain(o.date).slice(5)+' ':'今日 '}${o.time}</span></div>
     <div class="rc-row" style="justify-content:center;gap:8px;margin-top:4px"><span>應付總額</span><span style="color:var(--ac);font-weight:800">$${o.total}（${esc(o.pay)}）</span></div>
+    ${!isAdmin&&o.pay==='轉帳'?bankBox(o.total):''}
     <div class="modal-tip" style="margin-top:14px;text-align:left">店家已收到您的訂單。請記下訂單編號，取餐時向店員出示。謝謝您的光臨！</div>
    </div>
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
@@ -1510,13 +1521,14 @@ function renderTrack(){
     if(o.gone)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">找不到此訂單，請洽店家</div></div>`;
     const cur=STEPS.findIndex(x=>x[0]===o.status);
     const lpBox=o.lp==='pending'&&o.status!=='cancelled'?`<div class="modal-tip" style="border-left-color:var(--bad)"><b>⏳ 尚未完成 LINE Pay 付款</b>，店家付款成功後才會開始製作。<br><button class="btn-confirm" style="margin-top:8px;width:100%" onclick="lpRetry('${m.id}')">💳 前往付款 / 重新付款</button></div>`:'';
+    const bkBox=o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?bankBox(o.total):'';
     const msg=o.status==='cancelled'?'':`<div style="text-align:center;font-weight:800;color:var(--ac2);font-size:15px">${TRK_MSG[o.status]||''}</div><div style="text-align:center;font-size:12px;color:var(--mu)">● 即時更新中　狀態更新於 ${fmtTS(o.updatedAt||o.createdAt)}</div>`;
     const prog=o.status==='cancelled'?`<div style="color:var(--bad);font-weight:700;text-align:center">店家無法接受此訂單（已拒單）${o.voidReason?'<br>原因：'+esc(o.voidReason):''}<br>如有疑問請洽店家</div>`
       :`<div class="trk">${STEPS.map((x,i)=>`<span class="${i<cur?'ok':i===cur?'cur':''}">${x[1]}</span>`).join('')}</div>`;
     return `<div class="fm-sec">
      <div class="oc-h"><b style="font-size:20px;color:var(--ac)">#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span></div>
      ${prog}
-     ${lpBox}
+     ${lpBox}${bkBox}
      ${msg}
      ${o.notice?`<div class="modal-tip" style="border-left-color:var(--bad)">📢 店家更新（${fmtT(o.notice.at)}）：${esc(o.notice.text)}</div>`:''}
      <div class="rc-row"><span>訂購人</span><span>${esc(o.name)}</span></div>
