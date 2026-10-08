@@ -1035,7 +1035,7 @@ function openCheckout(){
 }
 const LP_ONLINE='LINE Pay 線上支付';
 /* 線上支付說明：店家版與顧客版共用同一段文字，改這裡兩邊一起變 */
-const LP_TIP_ONLINE='✅ 送出訂單後店家就會開始製作，不用等付款。接著會前往 LINE Pay 付款；若付款沒成功或中斷，訂單仍然有效，可重試線上支付，或取餐時現場掃碼支付。';
+const LP_TIP_ONLINE='✅ 送出訂單後店家就會開始製作，不用等付款。接著會前往 LINE Pay 付款；若付款沒成功或中斷，訂單仍然有效，可到「📋 我的訂單」重新付款，或取餐時現場掃碼支付。';
 const LP_TIP_SCAN='取餐時向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。訂單送出後店家就會開始製作。';
 const BANK={name:'中國信託 (822)',acct:'034540310006',branch:'竹北分行 (1034)'};   // ← 轉帳資訊（要改帳號改這裡；QR 圖片檔是 transfer-qr.jpg）
 const bankBox=amt=>`<div class="modal-tip" style="text-align:center;border-left-color:var(--ac)">
@@ -1549,7 +1549,7 @@ function renderTrack(){
     if(!o)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">讀取中…</div></div>`;
     if(o.gone)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">找不到此訂單，請洽店家</div></div>`;
     const cur=STEPS.findIndex(x=>x[0]===o.status);
-    const lpBox=o.lp==='pending'&&o.status!=='cancelled'?`<div class="modal-tip" style="border-left-color:var(--bad)"><b>✅ 訂單已成功下單</b>，店家會先製作。<b>⏳ 線上支付還沒完成</b>：<br><button class="btn-confirm" style="margin-top:8px;width:100%" onclick="lpRetry('${m.id}')">💳 重試線上支付</button><button class="btn-cancel" style="margin-top:6px;width:100%" onclick="lpToCash('${m.id}')">現場掃碼支付</button></div>`:'';
+    const lpBox=o.lp==='pending'&&o.status!=='cancelled'?`<div class="modal-tip" style="border-left-color:var(--bad)"><b>✅ 訂單已成功下單</b>，店家會先製作。<b>⏳ 線上支付還沒完成</b>，可在這裡重新付款：<br><button class="btn-confirm" style="margin-top:8px;width:100%" onclick="lpRetry('${m.id}')">💳 重試線上支付</button><button class="btn-cancel" style="margin-top:6px;width:100%" onclick="lpToCash('${m.id}')">現場掃碼支付</button></div>`:'';
     const bkBox=o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?bankBox(o.total):'';
     const msg=o.status==='cancelled'?'':`<div style="text-align:center;font-weight:800;color:var(--ac2);font-size:15px">${TRK_MSG[o.status]||''}</div><div style="text-align:center;font-size:12px;color:var(--mu)">● 即時更新中　狀態更新於 ${fmtTS(o.updatedAt||o.createdAt)}</div>`;
     const prog=o.status==='cancelled'?`<div style="color:var(--bad);font-weight:700;text-align:center">店家無法接受此訂單（已拒單）${o.voidReason?'<br>原因：'+esc(o.voidReason):''}<br>如有疑問請洽店家</div>`
@@ -2113,7 +2113,7 @@ function showQueued(o){
 
 /* ===== LINE Pay 線上支付：請 Apps Script 向 LINE Pay 要付款連結，再把客人帶過去 ===== */
 async function lpGo(id,o){
-  $('mBox').innerHTML='<div class="rc-done"><div class="ok">💳</div><h3>前往 LINE Pay 付款…</h3><div class="modal-tip" style="text-align:left">訂單 #'+esc(o&&o.no||'')+' 已成功下單，店家會先開始製作。請在 LINE Pay 完成付款；若付款中斷，可重試或改現場掃碼。</div></div>';
+  $('mBox').innerHTML='<div class="rc-done"><div class="ok">💳</div><h3>前往 LINE Pay 付款…</h3><div class="modal-tip" style="text-align:left">訂單 #'+esc(o&&o.no||'')+' 已成功下單，店家會先開始製作。請在 LINE Pay 完成付款；若付款中斷，可到「📋 我的訂單」重新付款，或改現場掃碼。</div></div>';
   let r=null;
   for(let n=0;n<3;n++){                                   // 網路不穩、系統忙碌時自動再試（最多 3 次），不用顧客自己重按
     try{
@@ -2127,7 +2127,7 @@ async function lpGo(id,o){
   if(r&&r.ok&&r.paid){finishOrder();toast('✅ 這張訂單已經付款成功，店家已收到',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300);return}
   if(r&&r.ok&&r.url){location.href=r.url;return}
   const who=isAdmin?'':'店家已收到您的訂單，會先開始製作。';
-  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>訂單 #${esc(o&&o.no||'')} 已成功下單</h3><div class="modal-tip" style="text-align:left">${who}<b>線上支付沒有成功</b>（${esc(r&&r.err||'未知原因')}）。<br>請<b>重試線上支付</b>，或取餐時<b>現場掃碼支付</b>。</div></div>
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>訂單 #${esc(o&&o.no||'')} 已成功下單</h3><div class="modal-tip" style="text-align:left">${who}<b>線上支付沒有成功</b>（${esc(r&&r.err||'未知原因')}）。<br>可立即<b>重試線上支付</b>，之後也能到「📋 我的訂單」<b>重新付款</b>；或取餐時<b>現場掃碼支付</b>。</div></div>
    <div class="m-btns" style="flex-wrap:wrap"><button class="btn-cancel" onclick="lpToCash('${id}')">現場掃碼支付</button><button class="btn-confirm" onclick="lpRetry('${id}')">重試線上支付</button></div>`;
 }
 /* 線上支付走不通：改成到店付款，訂單照常通知店家製作（系統會先確認有沒有其實已經付成功，不會讓顧客付兩次） */
