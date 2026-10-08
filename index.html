@@ -67,7 +67,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .pit2 .pnm{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pit2 input[type=checkbox]{width:18px;height:18px;accent-color:var(--ok);margin:0}
 .pdel{background:none;border:0;color:var(--bad);cursor:pointer;font-size:14px;padding:0}
-.pmr{display:grid;grid-template-columns:minmax(90px,1.4fr) 62px 76px auto;gap:4px 6px;align-items:center;margin:3px 0}
+.pmr{display:grid;grid-template-columns:minmax(90px,1.4fr) 62px 76px minmax(70px,1fr) auto;gap:4px 6px;align-items:center;margin:3px 0}
 @media(max-width:700px){.pit2{grid-template-columns:24px 1fr 54px 44px 54px 68px 22px}.pit2 .nt{grid-column:2/8}.pit2.phd span:nth-child(7){display:none}}
 .pit{border:1px solid var(--ln);border-radius:12px;padding:8px 10px;margin:8px 0;background:rgba(0,0,0,.12)}
 .pih{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
@@ -2316,6 +2316,7 @@ async function reloadCash(){
   if(!CASH.tab)CASH.tab=!CASH.data.open?'open':(!CASH.data.close?'exp':'close');
   CASH.cnt=null;renderCash();
 }
+function cashDay(v){const d=String(v).replace(/-/g,'');if(/^\d{8}$/.test(d))openCash(d,CASH.tab)}
 function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';renderCash()}
 function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=(+src['d'+d]||0)*d)}   // CASH.cnt[面額] ＝ 這個面額的「金額」
 const cashTotal=()=>DENOMS.reduce((a,d)=>a+(CASH.cnt[d]||0),0);
@@ -2342,7 +2343,8 @@ function renderCash(){
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
   }else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
-   <div class="modal-tip">營業日：${dayLabel(day)}（每日 02:00 換日）</div>
+   <div class="modal-tip">營業日：<b>${dayLabel(day)}</b>（每日 02:00 換日）</div>
+   ${isManager()?`<div class="fm-row"><b>切換日期</b><input type="date" value="${dashDay(day)}" onchange="cashDay(this.value)" style="max-width:200px"><button class="chip sm" onclick="cashDay('${today8()}')">今天</button><button class="chip sm" onclick="cashDay('${shiftDay(today8(),-1)}')">昨天</button><span style="font-size:12px;color:var(--mu)">店長可編輯任何一天的盤點與支出</span></div>`:''}
    <div class="chips">${tabs.map(([k,n,ok])=>`<button class="chip${t===k?' on':''}" onclick="cashTab('${k}')">${ok?'✔ ':''}${n}</button>`).join('')}</div>${body}`;
 }
 /* 開店盤點：直接帶入「前一次」收店盤點的張數（遇到公休日會往前找，最多 14 天） */
@@ -2386,23 +2388,35 @@ function expListHtml(){
   const list=Object.entries(D.expenses||{}).map(([id,e])=>({id,...e})).sort((a,b)=>a.at-b.at);
   const sum=f=>list.filter(f).reduce((a,e)=>a+(+e.amount||0),0);
   const mg=isManager();
-  const rows=list.map(e=>`<tr><td>${fmtT(e.at)}</td><td>${esc(expLabel(e.type))}</td><td>$${e.amount}</td><td>${esc(e.note||'')}</td><td>${esc(e.by||'')}</td>${mg?`<td><button class="rb" onclick="editExpense('${e.id}')">修改</button><button class="rb del" onclick="delExpense('${e.id}')">刪除</button></td>`:''}</tr>`).join('');
-  return `<div class="fm-title">當日紀錄</div>
-    ${list.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th>${mg?'<th>操作</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:12px">今天還沒有支出或存鈔紀錄</div>'}
+  const rows=list.map(e=>`<tr><td>${fmtT(e.at)}</td><td>${esc(expLabel(e.type))}</td><td>$${e.amount}</td><td>${esc(e.note||'')}</td><td>${esc(e.by||'')}</td>${mg?`<td><button class="rb" onclick="editExpense('${e.id}')">${(e.plan||String(e.id).startsWith('plan_')||isLegacyBuy(e))?'編輯品項':'修改'}</button><button class="rb del" onclick="delExpense('${e.id}')">刪除</button></td>`:''}</tr>`).join('');
+  return `<div class="fm-title">${CASH.day===today8()?'當日':dayLabel(CASH.day)} 紀錄</div>
+    ${list.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th>${mg?'<th>操作</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:12px">'+(CASH.day===today8()?'今天':'這天')+'還沒有支出或存鈔紀錄</div>'}
     <div class="fm-line"><span>支出合計</span><span>$${sum(e=>e.type!=='存鈔'&&e.type!=='補入')}</span></div>
     <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div>
     <div class="fm-line"><span>補入收銀機合計（增加收銀機現金）</span><span>$${sum(e=>e.type==='補入')}</span></div>`;
 }
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
-  return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出</div>
+  return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出（${CASH.day===today8()?'今天':dayLabel(CASH.day)}）</div>
     <div class="chips" id="exChips">${EXP_TYPES.map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
     <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：選進貨、雜支、退款、其他支出或存鈔。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋「進貨/材料 $3988」（收銀機實際只增加 $12）。</div>
     <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
-    <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2" oninput="CASH.ex.note=this.value" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
+    <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" list="exNoteList" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2（打過的會記住）" oninput="CASH.ex.note=this.value;exNoteIn(this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
+    <datalist id="exNoteList">${Object.keys(expMemo()).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
     <div class="m-btns"><button class="btn-confirm" onclick="addExpense()">＋ 新增</button></div></div>
    <div class="fm-sec" id="expList">${expListHtml()}</div>`;
 }
+/* 說明欄打過的字會記住（連同上次的金額），下次打幾個字就跳出來，選了還會自動帶入金額。記在這台裝置上 */
+const expMemo=()=>{try{return JSON.parse(localStorage.getItem('exp_memo')||'{}')}catch(e){return{}}};
+function expMemoAdd(note,amt){
+  note=(note||'').trim();if(!note||note.length>60)return;
+  try{const m=expMemo();delete m[note];m[note]=amt;const ks=Object.keys(m);ks.slice(0,Math.max(0,ks.length-80)).forEach(k=>delete m[k]);localStorage.setItem('exp_memo',JSON.stringify(m))}catch(e){}
+}
+function exNoteIn(v){
+  const m=expMemo(),a=$('exAmt');
+  if(a&&!a.value&&m[v.trim()]>0){a.value=m[v.trim()];CASH.ex.amount=a.value}
+}
+const isLegacyBuy=e=>!(e.plan)&&/^【採購】/.test(e.note||'');
 function setExType(k){
   CASH.ex.type=k;
   document.querySelectorAll('#exChips .chip').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
@@ -2415,6 +2429,7 @@ async function addExpense(){
   const nref=FB.push(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses'));
   try{await FB.set(nref,rec)}
   catch(e){alert('新增失敗：'+(e.code||e.message));return}
+  expMemoAdd(rec.note,rec.amount);
   logAct('收銀'+(rec.type==='存鈔'?'存鈔':rec.type==='補入'?'補入':'支出'),null,'',`${expLabel(rec.type)} $${amt}${rec.note?'｜'+rec.note:''}`);
   (CASH.data.expenses=CASH.data.expenses||{})[nref.key]=rec;      // 直接加進畫面上的清單，不重新整頁
   CASH.ex.amount='';CASH.ex.note='';
@@ -2426,17 +2441,74 @@ async function addExpense(){
 async function editExpense(id){
   if(!isManager())return;
   const e=(CASH.data.expenses||{})[id];if(!e)return;
+  if(e.plan||String(id).startsWith('plan_')){      // 採購清單自動算入的支出：要改群組、品項、單項金額、備註，請到採購清單改（這裡改了會被清單蓋回去）
+    if(confirm('這筆是由「採購清單」自動算入的。\n\n要修改群組、品項、單項金額或備註，請到採購清單改，這裡會自動同步。\n\n現在前往 '+dayLabel(CASH.day)+' 的採購清單嗎？'))openPlan(CASH.day);
+    return;
+  }
+  if(isLegacyBuy(e)){await convertLegacyBuy(id,e);return}
   const a=prompt('修改金額',e.amount);if(a===null)return;
   const amt=parseFloat(a);if(!(amt>0)){alert('金額不正確');return}
   const n=prompt('修改說明',e.note||'');if(n===null)return;
   try{await FB.update(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses/'+id),{amount:amt,note:n.trim()})}
   catch(er){alert('修改失敗：'+(er.code||er.message));return}
   logAct('修改收銀紀錄',null,'',`${expLabel(e.type)} $${e.amount}→$${amt}`);
-  e.amount=amt;e.note=n.trim();refreshExpList();
+  expMemoAdd(n,amt);e.amount=amt;e.note=n.trim();refreshExpList();
+}
+/* 舊版留下的「【採購】…」紀錄：轉成採購清單裡的群組＋品項，之後就能改群組、品項、單項金額、備註（品項／單位／單價／備註會記進常用，下次直接帶出）。總金額不變 */
+function splitBuy(s){const out=[];let d=0,cur='';for(const ch of s){if(ch==='（'||ch==='(')d++;else if(ch==='）'||ch===')')d=Math.max(0,d-1);if(ch==='、'&&d===0){out.push(cur);cur=''}else cur+=ch}out.push(cur);return out.map(x=>x.trim()).filter(Boolean)}
+function parseBuy(t){
+  let note='';const m=t.match(/[（(]([^）)]*)[）)]\s*$/);if(m){note=m[1];t=t.slice(0,m.index).trim()}
+  const q=t.match(/^(.*?)\s+(\d+(?:\.\d+)?)\s*([^\s\d]*)$/);
+  return q?{name:q[1].trim(),qty:q[2],unit:q[3]||'',note}:{name:t.trim(),qty:'',unit:'',note};
+}
+async function convertLegacyBuy(id,e){
+  const m=(e.note||'').match(/^【採購】(.*?)[｜|](.*)$/),gname=(m?m[1]:'採購').trim(),rest=m?m[2]:'',day=CASH.day;
+  if(!confirm(`這筆是舊版的採購紀錄（${gname} $${e.amount}），沒辦法直接改品項。\n\n要轉成「採購清單」嗎？\n・總金額不變（$${e.amount}）\n・轉完就能改群組、品項、單項金額、備註\n・各品項金額先用「常用品項」記住的單價算；算不出來的部分，先放在該群組的「其他費用」\n・之後請把各品項金額填進去，並把「其他費用」改成剩下的差額（或清成 0），總額才會對`))return;
+  try{
+    await planLoad(day);
+    let cid=Object.keys(PLAN.catalog).find(k=>PLAN.catalog[k].name===gname);
+    if(!cid){const r=FB.push(FB.ref(FB.db,'shopCatalog'));cid=r.key;PLAN.catalog[cid]={name:gname,o:Date.now(),items:{}};await FB.set(r,{name:gname,o:Date.now()})}
+    const cat=PLAN.catalog[cid];cat.items=cat.items||{};
+    const ex=PLAN.groups[cid];
+    if(ex&&gBought(ex)>0){      // 這天的清單已經有這個群組而且有算入支出：舊紀錄是重複的，改由清單那筆為準
+      if(!confirm(`這天的採購清單裡已經有「${gname}」（已採購 ${money(gBought(ex))}）。\n\n要刪掉這筆舊紀錄，以清單為準嗎？（避免同一筆算兩次）`))return;
+      await FB.remove(FB.ref(FB.db,'cashbook/'+day+'/expenses/'+id));
+      delete CASH.data.expenses[id];await syncPlanExpense(cid);logAct('採購紀錄轉清單',null,'',`${gname} 以清單為準`);
+      openPlan(day);return;
+    }
+    const g=ex||{name:gname,cid,amount:0,items:{}};g.items=g.items||{};
+    const added=[];let sum=0;
+    for(const t of splitBuy(rest)){
+      if(t==='（其他費用）')continue;
+      const p=parseBuy(t);if(!p.name)continue;
+      if(Object.values(g.items).some(x=>x.name===p.name))continue;
+      let iid=Object.keys(cat.items).find(k=>cat.items[k].name===p.name);
+      if(!iid){const r=FB.push(FB.ref(FB.db,'shopCatalog/'+cid+'/items'));iid=r.key;cat.items[iid]={name:p.name,unit:p.unit,price:0,note:p.note,o:Date.now()};await FB.set(r,cat.items[iid])}
+      const ci=cat.items[iid],price=+ci.price||0,q=parseFloat(p.qty)||0,amt=(q&&price)?r2(q*price):0;
+      g.items[iid]={name:p.name,qty:p.qty,unit:p.unit||ci.unit||'',price,amount:amt,manual:false,note:p.note,done:true};
+      sum+=amt;added.push(iid);
+    }
+    let rest$=r2((+e.amount||0)-sum);
+    if(rest$<0){added.forEach(i=>{g.items[i].amount=0});rest$=r2(+e.amount||0)}
+    g.amount=r2((+g.amount||0)+rest$);g.expAt=g.expAt||e.at;
+    await FB.set(FB.ref(FB.db,'shopPlan/'+day+'/'+cid),g);
+    PLAN.groups[cid]=g;
+    await syncPlanExpense(cid);
+    await FB.remove(FB.ref(FB.db,'cashbook/'+day+'/expenses/'+id));
+    delete CASH.data.expenses[id];
+    logAct('採購紀錄轉清單',null,'',`${gname} $${e.amount}`);
+  }catch(er){alert('轉換失敗：'+(er.code||er.message));return}
+  toast('✅ 已轉成採購清單。請填各品項金額，並把該群組的「其他費用」改成剩下的差額（或清成 0）');
+  openPlan(day);
 }
 async function delExpense(id){
   if(!isManager())return;
-  const e=(CASH.data.expenses||{})[id];if(!e||!confirm(`刪除這筆「${expLabel(e.type)} $${e.amount}」？`))return;
+  const e=(CASH.data.expenses||{})[id];if(!e)return;
+  if(e.plan||String(id).startsWith('plan_')){
+    if(confirm('這筆是由「採購清單」自動算入的，直接刪除會和清單對不上。\n\n請到採購清單把品項取消打勾（或移除群組），這裡會自動同步。\n\n現在前往 '+dayLabel(CASH.day)+' 的採購清單嗎？'))openPlan(CASH.day);
+    return;
+  }
+  if(!confirm(`刪除這筆「${expLabel(e.type)} $${e.amount}」？`))return;
   try{await FB.remove(FB.ref(FB.db,'cashbook/'+CASH.day+'/expenses/'+id))}
   catch(er){alert('刪除失敗：'+(er.code||er.message));return}
   logAct('刪除收銀紀錄',null,'',`${expLabel(e.type)} $${e.amount}${e.note?'｜'+e.note:''}`);
@@ -2581,7 +2653,7 @@ function planCard(gid,g){
     <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 3px"><span style="color:var(--mu);font-size:12px">常用品項（點一下加入，再輸入數量）</span><button class="chip sm" onclick="planManage('${gid}')">⚙ 編輯常用品項</button></div>
     <div class="chips pcc" id="pc_${gid}">${planItemChips(gid)}</div>
     <div id="pmg_${gid}"></div>
-    <div class="pmr" style="margin-top:8px"><input id="pn_${gid}" class="pi" lang="zh-TW" list="pl_${gid}" placeholder="新品項名稱（會記進常用）" oninput="planNameIn('${gid}')" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddItem('${gid}')}"><input id="pu_${gid}" class="pi" lang="zh-TW" placeholder="單位"><input id="pp_${gid}" class="pi" inputmode="decimal" placeholder="單價" onkeydown="if(event.key==='Enter'){event.preventDefault();planAddItem('${gid}')}"><button class="chip sm" onclick="planAddItem('${gid}')">＋ 新增</button>
+    <div class="pmr" style="margin-top:8px"><input id="pn_${gid}" class="pi" lang="zh-TW" list="pl_${gid}" placeholder="新品項名稱（會記進常用）" oninput="planNameIn('${gid}')" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddItem('${gid}')}"><input id="pu_${gid}" class="pi" lang="zh-TW" placeholder="單位"><input id="pp_${gid}" class="pi" inputmode="decimal" placeholder="單價"><input id="pt_${gid}" class="pi" lang="zh-TW" placeholder="備註（會一起記住）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddItem('${gid}')}"><button class="chip sm" onclick="planAddItem('${gid}')">＋ 新增</button>
      <datalist id="pl_${gid}">${Object.values(cat.items||{}).map(i=>`<option value="${esc(i.name)}">`).join('')}</datalist></div>
     <div class="pmr" style="margin-top:6px;grid-template-columns:auto minmax(120px,260px) 1fr"><span style="font-size:13px;color:var(--mu)">其他費用</span><input id="pa_${gid}" class="pi" type="number" inputmode="numeric" min="0" value="${(+g.amount||0)||''}" placeholder="運費等（可不填）" onchange="planAmount('${gid}',this.value)"><span id="ps_${gid}" style="font-size:12px;color:var(--mu)">${planStatus(g)}</span></div>
    </div></div>`;
@@ -2650,11 +2722,11 @@ async function planAddGroup(arg){
 function planNameIn(gid){      // 打到已經記過的品名，單位和單價自動帶出
   const g=PLAN.groups[gid],cat=PLAN.catalog[g.cid]||{},nm=$('pn_'+gid).value.trim();
   const it=Object.values(cat.items||{}).find(i=>i.name===nm);
-  if(it){const u=$('pu_'+gid),p=$('pp_'+gid);if(u&&!u.value)u.value=it.unit||'';if(p&&!p.value)p.value=(+it.price)||''}
+  if(it){const u=$('pu_'+gid),p=$('pp_'+gid),t=$('pt_'+gid);if(u&&!u.value)u.value=it.unit||'';if(p&&!p.value)p.value=(+it.price)||'';if(t&&!t.value)t.value=it.note||''}
 }
 async function planPutItem(gid,iid,cat){        // 把常用品項放進這一天的清單（數量先空白，等你輸入；買到了再打勾）
   const g=PLAN.groups[gid],c=cat.items[iid];
-  const it={name:c.name,qty:'',unit:c.unit||'',price:+c.price||0,amount:0,manual:false,note:'',done:false};
+  const it={name:c.name,qty:'',unit:c.unit||'',price:+c.price||0,amount:0,manual:false,note:c.note||'',done:false};
   await FB.set(FB.ref(FB.db,'shopPlan/'+PLAN.day+'/'+gid+'/items/'+iid),it);
   (g.items=g.items||{})[iid]=it;
 }
@@ -2668,16 +2740,16 @@ async function planAddItem(gid){
   const g=PLAN.groups[gid];if(!g)return;
   const ne=$('pn_'+gid),name=ne.value.trim();
   if(!name){ne.focus();return}
-  const unit=$('pu_'+gid).value.trim(),price=parseFloat($('pp_'+gid).value)||0;
+  const unit=$('pu_'+gid).value.trim(),price=parseFloat($('pp_'+gid).value)||0,note=($('pt_'+gid)||{value:''}).value.trim();
   const cat=PLAN.catalog[g.cid]||(PLAN.catalog[g.cid]={name:g.name,items:{}});cat.items=cat.items||{};
   let iid=Object.keys(cat.items).find(k=>cat.items[k].name===name);
   try{
-    if(!iid){const r=FB.push(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items'));iid=r.key;cat.items[iid]={name,unit,price,o:Date.now()};await FB.set(r,cat.items[iid])}
-    else if(unit||price){cat.items[iid]={...cat.items[iid],unit:unit||cat.items[iid].unit||'',price:price||+cat.items[iid].price||0};await FB.update(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items/'+iid),{unit:cat.items[iid].unit,price:cat.items[iid].price})}
+    if(!iid){const r=FB.push(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items'));iid=r.key;cat.items[iid]={name,unit,price,note,o:Date.now()};await FB.set(r,cat.items[iid])}
+    else if(unit||price||note){cat.items[iid]={...cat.items[iid],unit:unit||cat.items[iid].unit||'',price:price||+cat.items[iid].price||0,note:note||cat.items[iid].note||''};await FB.update(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items/'+iid),{unit:cat.items[iid].unit,price:cat.items[iid].price,note:cat.items[iid].note})}
     if((g.items||{})[iid]){toast('「'+name+'」已經在這份清單裡了');return}
     await planPutItem(gid,iid,cat);
   }catch(e){alert('新增品項失敗：'+(e.code||e.message));return}
-  ['pn_','pu_','pp_'].forEach(p=>{const el=$(p+gid);if(el)el.value=''});
+  ['pn_','pu_','pp_','pt_'].forEach(p=>{const el=$(p+gid);if(el)el.value=''});
   planRefresh(gid);
   const q=$(`q_${gid}_${iid}`);if(q)q.focus();
 }
@@ -2710,10 +2782,11 @@ async function planItemSave(gid,iid,key){
     const patch={};
     if(it.unit&&it.unit!==ci.unit)patch.unit=it.unit;
     if(price>0&&price!==(+ci.price||0))patch.price=price;
+    if(it.note!==(ci.note||''))patch.note=it.note;          // 備註也一起記住（清掉備註＝下次不帶）
     if(Object.keys(patch).length){
       try{await FB.update(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items/'+iid),patch);Object.assign(ci,patch);
         Object.keys(PLAN.groups).forEach(x=>{if(PLAN.groups[x].cid===g.cid){const c=$('pc_'+x);if(c)c.innerHTML=planItemChips(x)}});
-        toast(`💾 已記住「${it.name}」${ci.unit?ci.unit:''}${(+ci.price)?' $'+ci.price:''}，下次直接帶出`)}catch(e){}
+        toast(`💾 已記住「${it.name}」${ci.unit?ci.unit:''}${(+ci.price)?' $'+ci.price:''}${ci.note?'（'+ci.note+'）':''}，下次直接帶出`)}catch(e){}
     }
   }
   planTotalsOnly(gid);await syncPlanExpense(gid);
@@ -2744,8 +2817,8 @@ async function planDelGroup(gid){
 function planManageHtml(gid){
   const g=PLAN.groups[gid],cat=PLAN.catalog[g.cid]||{};
   const list=Object.entries(cat.items||{}).sort(([,a],[,b])=>byO(a,b)),c=g.cid;
-  return `<div class="fm-sec" style="margin:6px 0;padding:8px 10px;background:rgba(0,0,0,.18)"><div class="fm-title" style="font-size:13px">常用品項設定（品名／單位／單價）</div>
-   ${list.map(([iid,i])=>`<div class="pmr"><input class="pi" lang="zh-TW" value="${esc(i.name)}" onchange="planCatSet('${c}','${iid}','name',this.value)"><input class="pi" lang="zh-TW" placeholder="單位" value="${esc(i.unit||'')}" onchange="planCatSet('${c}','${iid}','unit',this.value)"><input class="pi" inputmode="decimal" placeholder="單價" value="${esc((+i.price||0)||'')}" onchange="planCatSet('${c}','${iid}','price',this.value)"><button class="pdel" title="從常用品項移除" onclick="planForgetItem('${c}','${iid}')">✕</button></div>`).join('')||'<div style="color:var(--mu)">還沒有常用品項</div>'}
+  return `<div class="fm-sec" style="margin:6px 0;padding:8px 10px;background:rgba(0,0,0,.18)"><div class="fm-title" style="font-size:13px">常用品項設定（品名／單位／單價／備註）</div>
+   ${list.map(([iid,i])=>`<div class="pmr"><input class="pi" lang="zh-TW" value="${esc(i.name)}" onchange="planCatSet('${c}','${iid}','name',this.value)"><input class="pi" lang="zh-TW" placeholder="單位" value="${esc(i.unit||'')}" onchange="planCatSet('${c}','${iid}','unit',this.value)"><input class="pi" inputmode="decimal" placeholder="單價" value="${esc((+i.price||0)||'')}" onchange="planCatSet('${c}','${iid}','price',this.value)"><input class="pi" lang="zh-TW" placeholder="備註" value="${esc(i.note||'')}" onchange="planCatSet('${c}','${iid}','note',this.value)"><button class="pdel" title="從常用品項移除" onclick="planForgetItem('${c}','${iid}')">✕</button></div>`).join('')||'<div style="color:var(--mu)">還沒有常用品項</div>'}
    <div style="text-align:right;margin-top:4px"><button class="chip sm" onclick="planManage('${gid}')">收起</button></div></div>`;
 }
 function planManage(gid){const el=$('pmg_'+gid);if(!el)return;el.innerHTML=el.innerHTML?'':planManageHtml(gid)}
