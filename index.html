@@ -322,6 +322,16 @@ MENU_DEFAULT.find(c=>c.k.startsWith('自由流通麵')).noodle=true;
 const split=k=>{const m=k.match(/^(.*?)\s*\((.*?)\)$/);return m?[m[1],m[2]]:[k,'']};
 let cur=0,cart=[],curP=0;
 const ADMIN_PARAM=new URLSearchParams(location.search).get('mode')==='admin'||/\/admin(\.html)?\/?$/.test(location.pathname);
+/* 兩種顧客頁面：① 線上版（預設網址，沒有現場客選項，姓名電話必填）② 現場客版（掃桌上 QR Code 進來，網址帶 ?mode=walkin，姓名電話免填）。
+   付款後從 LINE Pay 跳回來網址會被清掉，所以現場客版會在這支手機記 3 小時 */
+const WALKIN_PAGE=(()=>{
+  if(ADMIN_PARAM)return false;
+  try{
+    if(new URLSearchParams(location.search).get('mode')==='walkin'){localStorage.setItem('walkin_at',String(Date.now()));return true}
+    return Date.now()-Number(localStorage.getItem('walkin_at')||0)<3*3600*1000;
+  }catch(e){return false}
+})();
+if(WALKIN_PAGE){try{const sb=document.querySelector('.brand-row .sub');if(sb)sb.textContent='現場點餐';document.title='去中心鹹水雞 現場點餐'}catch(e){}}
 const LINE_HOOK='https://script.google.com/macros/s/AKfycbwzKZCv2hvCCMvrczkmpbXkIqgl2grN-miQThQGXoHV3rUvHyAGsu4IiY5UdzWr6gnIHg/exec';/* 貼上 Google Apps Script 網頁應用程式網址，用來把新訂單通知到 LINE 群組；留空則不啟用 */
 const BASE_TITLE=document.title;
 {const mf=document.getElementById('mf');if(mf&&ADMIN_PARAM)mf.href='manifest-admin.json'}
@@ -957,7 +967,7 @@ function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('m
 
 /* ===== 取餐資訊 ===== */
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
-const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:'',lpMode:''};
+const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:WALKIN_PAGE,x5:'',lpMode:''};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 function timeSlots(full){
@@ -1013,7 +1023,7 @@ function fillCustBadges(){
 }
 function openCheckout(){
   if(!cart.length||isClosed())return;
-  if(!isAdmin){try{const ci=JSON.parse(localStorage.getItem('cust_info')||'null');if(ci){if(!CK.name)CK.name=ci.name||'';if(!CK.phone)CK.phone=ci.phone||''}}catch(e){}}   // 客人這支手機記住上次的姓名電話
+  if(!isAdmin&&!WALKIN_PAGE){try{const ci=JSON.parse(localStorage.getItem('cust_info')||'null');if(ci){if(!CK.name)CK.name=ci.name||'';if(!CK.phone)CK.phone=ci.phone||''}}catch(e){}}   // 客人這支手機記住上次的姓名電話
   const bad=noodleViolation();
   if(bad){alert(`「${bad}」選了「多數麵食獨立分開裝」，但同商品只有 1 份。\n請把它刪除後重新選擇包裝方式，或再多點 1 份。`);return}
   prunePeople();
@@ -1144,7 +1154,7 @@ function renderCheckout(){
   $('mBox').innerHTML=`
    <div class="xhead"><h3>填寫取餐資訊</h3><button class="xbtn" onclick="closeModal()" title="關閉">✕</button></div>
    <div class="fm-sec">
-    ${isAdmin?'':`<div class="fm-row"><b>用餐方式</b><div class="chips"><button class="chip${CK.walkin?'':' on'}" onclick="setWalkin(false)">線上預訂</button><button class="chip${CK.walkin?' on':''}" onclick="setWalkin(true)">現場客（免填姓名電話）</button></div></div>`}
+    ${isAdmin?'':(WALKIN_PAGE?'<div class="modal-tip" style="margin:0 0 8px">🍴 現場點餐：姓名、電話不用填，下單後依取餐時間到櫃台取餐即可。</div>':'')}
     <div class="fm-row${e&&!nameValid()?' err':''}"><b>訂購人${loose()?'':'*'}</b><input id="ckName" value="${esc(CK.name)}" placeholder="${loose()?'選填（預設現場客）':'請輸入訂購人姓名 (必填)'}" oninput="CK.name=this.value"></div>
     <div class="fm-err">請輸入訂購人姓名</div>
     <div class="fm-row${e&&!phoneValid()?' err':''}"><b>電話${loose()?'':'*'}</b><input value="${esc(CK.phone)}" inputmode="numeric" maxlength="12" placeholder="${loose()?'選填 0912-345-678':'例如: 0912-345-678'}" oninput="fmtPhone(this)"></div>
@@ -1311,7 +1321,7 @@ function showDone(o){
    <div class="m-btns">${isAdmin?'':'<button class="btn-cancel" onclick="finishOrder();openTrack()">查看訂單進度</button>'}<button class="btn-confirm" onclick="finishOrder()">完成</button></div>`;
 }
 function finishOrder(){
-  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:false,x5:'',lpMode:''});curP=0;
+  Object.assign(CK,{name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:WALKIN_PAGE,x5:'',lpMode:''});curP=0;
   window.pendingOrder=null;
   OVR={};cart=[];renderCart();renderGrid();closeModal();
 }
@@ -1473,7 +1483,7 @@ function renderOrders(){
       ${o.lpWarn?`<div style="color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 10px;font-size:12px;margin:3px 0">ℹ️ 價格與目前菜單略有出入：${esc(o.lpWarn)}</div>`:''}
       ${o.lpBlock?`<div style="color:#fff;background:var(--bad);border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⛔ 線上支付被系統擋下（金額核對不符）：${esc(o.lpBlock)}</div>`:''}
       ${o.lp==='refunded'?`<div style="color:#fff;background:#6b7280;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">↩️ 已退款 $${esc(o.lpRefund&&o.lpRefund.amount||o.total)}（LINE Pay）</div>`:''}
-      ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 等待顧客 LINE Pay 付款中，付款成功前請先不要製作　<button class="rb" onclick="lpRetry(\''+o.id+'\')">開啟付款頁</button> <button class="rb" onclick="lpToCash(\''+o.id+'\')">改現場收款</button></div>':''}
+      ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 顧客線上支付中（尚未付款），可先製作；成功會再通知　<button class="rb" onclick="lpRetry(\''+o.id+'\')">開啟付款頁</button> <button class="rb" onclick="lpToCash(\''+o.id+'\')">改現場掃碼</button></div>':''}
      </div>
      <div class="oc-a">
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
@@ -1535,7 +1545,7 @@ function renderTrack(){
     if(!o)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">讀取中…</div></div>`;
     if(o.gone)return `<div class="fm-sec"><div class="fm-title">訂單 #${esc(m.no)}</div><div style="text-align:center;color:var(--mu)">找不到此訂單，請洽店家</div></div>`;
     const cur=STEPS.findIndex(x=>x[0]===o.status);
-    const lpBox=o.lp==='pending'&&o.status!=='cancelled'?`<div class="modal-tip" style="border-left-color:var(--bad)"><b>⏳ 尚未完成 LINE Pay 付款</b>，店家付款成功後才會開始製作。<br><button class="btn-confirm" style="margin-top:8px;width:100%" onclick="lpRetry('${m.id}')">💳 前往付款 / 重新付款</button><button class="btn-cancel" style="margin-top:6px;width:100%" onclick="lpToCash('${m.id}')">改成到店付款</button></div>`:'';
+    const lpBox=o.lp==='pending'&&o.status!=='cancelled'?`<div class="modal-tip" style="border-left-color:var(--bad)"><b>✅ 訂單已成功下單</b>，店家會先製作。<b>⏳ 線上支付還沒完成</b>：<br><button class="btn-confirm" style="margin-top:8px;width:100%" onclick="lpRetry('${m.id}')">💳 重試線上支付</button><button class="btn-cancel" style="margin-top:6px;width:100%" onclick="lpToCash('${m.id}')">現場掃碼支付</button></div>`:'';
     const bkBox=o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?bankBox(o.total):'';
     const msg=o.status==='cancelled'?'':`<div style="text-align:center;font-weight:800;color:var(--ac2);font-size:15px">${TRK_MSG[o.status]||''}</div><div style="text-align:center;font-size:12px;color:var(--mu)">● 即時更新中　狀態更新於 ${fmtTS(o.updatedAt||o.createdAt)}</div>`;
     const prog=o.status==='cancelled'?`<div style="color:var(--bad);font-weight:700;text-align:center">店家無法接受此訂單（已拒單）${o.voidReason?'<br>原因：'+esc(o.voidReason):''}<br>如有疑問請洽店家</div>`
@@ -2112,18 +2122,19 @@ async function lpGo(id,o){
   }
   if(r&&r.ok&&r.paid){finishOrder();toast('✅ 這張訂單已經付款成功，店家已收到',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300);return}
   if(r&&r.ok&&r.url){location.href=r.url;return}
-  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">⚠️</div><h3>訂單已送出，但付款尚未完成</h3><div class="modal-tip" style="text-align:left">無法開啟 LINE Pay（${esc(r&&r.err||'未知原因')}）。<br>您可以按「重新付款」再試一次，或直接到店付款。</div></div>
-   <div class="m-btns" style="flex-wrap:wrap"><button class="btn-cancel" onclick="finishOrder();${isAdmin?'':'openTrack()'}">${isAdmin?'稍後處理':'查看訂單'}</button><button class="btn-cancel" onclick="lpToCash('${id}')">改到店付款</button><button class="btn-confirm" onclick="lpRetry('${id}')">重新付款</button></div>`;
+  const who=isAdmin?'':'店家已收到您的訂單，會先開始製作。';
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>訂單 #${esc(o&&o.no||'')} 已成功下單</h3><div class="modal-tip" style="text-align:left">${who}<b>線上支付沒有成功</b>（${esc(r&&r.err||'未知原因')}）。<br>請<b>重試線上支付</b>，或取餐時<b>現場掃碼支付</b>。</div></div>
+   <div class="m-btns" style="flex-wrap:wrap"><button class="btn-cancel" onclick="lpToCash('${id}')">現場掃碼支付</button><button class="btn-confirm" onclick="lpRetry('${id}')">重試線上支付</button></div>`;
 }
 /* 線上支付走不通：改成到店付款，訂單照常通知店家製作（系統會先確認有沒有其實已經付成功，不會讓顧客付兩次） */
 async function lpToCash(id){
-  if(!confirm('改成到店付款？店家會照常收到訂單，取餐時再付款。'))return;
+  if(!confirm('改成「現場掃碼」支付？取餐時向店員付款即可，訂單不受影響。'))return;
   let r;
   try{const res=await fetch(LINE_HOOK,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'lpCash',id})});r=await res.json()}
   catch(e){r={ok:false,err:'連線失敗，請稍後再試'}}
-  if(!r||!r.ok){alert('無法改成到店付款：'+(r&&r.err||'未知原因'));return}
+  if(!r||!r.ok){alert('無法改成現場掃碼：'+(r&&r.err||'未知原因'));return}
   closeModal();
-  toast(r.paid?'✅ 這張訂單其實已付款成功，店家已收到':'✅ 已改成到店付款，店家已收到訂單',isAdmin?null:openTrack);
+  toast(r.paid?'✅ 這張訂單其實已付款成功':'✅ 已改成現場掃碼支付，取餐時向店員付款',isAdmin?null:openTrack);
   if(!isAdmin)setTimeout(openTrack,300);
 }
 function lpRetry(id){lpGo(id,MYD[id]||{no:''})}
@@ -2168,12 +2179,13 @@ function lpReturn(){
   const st=q.get('lp');if(!st)return;
   try{history.replaceState(null,'',location.pathname+(isAdmin&&!/admin\.html$/.test(location.pathname)?'?mode=admin':''))}catch(e){}
   if(st==='ok'){toast(isAdmin?'✅ LINE Pay 付款成功':'✅ LINE Pay 付款成功，店家已收到訂單',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300)}
-  else if(st==='cancel'){toast(isAdmin?'已取消付款，訂單還在，可在訂單管理重新開啟付款':'已取消付款，訂單還在，可到「📋 我的訂單」重新付款',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300)}
+  else if(st==='cancel'){toast(isAdmin?'已取消付款，訂單還在，可在訂單管理重新開啟付款':'訂單已成功下單 ✅ 尚未付款：可到「我的訂單」重試線上支付，或現場掃碼支付',isAdmin?null:openTrack);if(!isAdmin)setTimeout(openTrack,300)}
   else{
     const c=q.get('c')||'';
     const msg=(c==='busy'||c==='err')?'系統正在確認您的付款，請稍等 1～2 分鐘後到「📋 我的訂單」查看。若顯示已付款就不用再付；已扣款但沒成功會自動退回'
-      :c==='expired'?'這張訂單已逾時取消，不會扣款（若已扣款會自動退回），請重新下單'
-      :'付款沒有完成（'+c+'），可到「📋 我的訂單」重新付款或到店付款';
+      :c==='switched'?'這張訂單已改成現場掃碼支付，這次線上付款不會成立（若已扣款會自動退回）'
+      :c==='expired'?'這張訂單已取消，這次付款不會成立（若已扣款會自動退回）'
+      :'訂單已成功下單 ✅ 線上支付沒完成（'+c+'）：可到「我的訂單」重試，或現場掃碼支付';
     toast(msg,openTrack);if(!isAdmin)setTimeout(openTrack,300);
   }
 }
