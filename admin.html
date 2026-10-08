@@ -1035,7 +1035,7 @@ function openCheckout(){
 }
 const LP_ONLINE='LINE Pay 線上支付';
 /* 線上支付說明：店家版與顧客版共用同一段文字，改這裡兩邊一起變 */
-const LP_TIP_ONLINE='✅ 送出訂單後店家就會開始製作，不用等付款。接著會前往 LINE Pay 付款；若付款沒成功或中斷，訂單仍然有效，可到「📋 我的訂單」重新付款，或取餐時現場掃碼支付。';
+const LP_TIP_ONLINE='✅ 送出訂單後店家就會開始製作，不用等付款。<br>接著會前往 LINE Pay 付款；若付款沒成功或中斷，訂單仍然有效，可到「📋 我的訂單」重新付款，或取餐時現場掃碼支付。';
 const LP_TIP_SCAN='取餐時向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。訂單送出後店家就會開始製作。';
 const BANK={name:'中國信託 (822)',acct:'034540310006',branch:'竹北分行 (1034)'};   // ← 轉帳資訊（要改帳號改這裡；QR 圖片檔是 transfer-qr.jpg）
 const bankBox=amt=>`<div class="modal-tip" style="text-align:center;border-left-color:var(--ac)">
