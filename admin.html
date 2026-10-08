@@ -1034,6 +1034,9 @@ function openCheckout(){
   $('modal').classList.add('open');
 }
 const LP_ONLINE='LINE Pay 線上支付';
+/* 線上支付說明：店家版與顧客版共用同一段文字，改這裡兩邊一起變 */
+const LP_TIP_ONLINE='✅ 送出訂單後店家就會開始製作，不用等付款。接著會前往 LINE Pay 付款；若付款沒成功或中斷，訂單仍然有效，可重試線上支付，或取餐時現場掃碼支付。';
+const LP_TIP_SCAN='取餐時向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。訂單送出後店家就會開始製作。';
 const BANK={name:'中國信託 (822)',acct:'034540310006',branch:'竹北分行 (1034)'};   // ← 轉帳資訊（要改帳號改這裡；QR 圖片檔是 transfer-qr.jpg）
 const bankBox=amt=>`<div class="modal-tip" style="text-align:center;border-left-color:var(--ac)">
   <b>🏦 轉帳資訊</b><br>${BANK.name}　${BANK.branch}<br>
@@ -1184,7 +1187,7 @@ function renderCheckout(){
     <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>chip('pay',v)).join('')}</div>
     ${CK.pay==='轉帳'?bankBox(t.total)+(isAdmin?'':`<div class="fm-row"><b style="width:auto">您的轉帳帳號後五碼（選填）</b><input inputmode="numeric" maxlength="5" placeholder="例如 12345，方便店家核對入帳" value="${esc(CK.x5)}" oninput="CK.x5=this.value.replace(/[^0-9]/g,'').slice(0,5);this.value=CK.x5"></div>`):''}
     ${CK.pay==='Linepay'?`<div class="fm-row"><b style="width:auto">LINE Pay 付款方式</b><div class="chips"><button class="chip${CK.lpMode==='scan'?' on':''}" onclick="CK.lpMode='scan';renderCheckout()">現場掃碼</button><button class="chip${CK.lpMode==='online'?' on':''}" onclick="CK.lpMode='online';renderCheckout()">線上支付</button></div></div>
-    <div class="modal-tip">${CK.lpMode==='online'?(isAdmin?'送出訂單後會開啟 LINE Pay 付款頁（電腦版會顯示 QR Code，請顧客用 LINE 掃描）。付款成功後自動變已收款。':'送出訂單後會自動前往 LINE Pay 付款，付款成功店家才會開始製作。若付款中斷，可到「📋 我的訂單」重新付款。'):CK.lpMode==='scan'?(isAdmin?'現場掃碼：由店員在結帳時收款。':'取餐時請向店員出示 LINE Pay 付款碼，或掃店家的 LINE Pay QR Code 付款。'):'請選擇「現場掃碼」或「線上支付」。'}</div>`:CK.pay==='全支付'?`<div class="fm-row"><b style="width:auto">全支付 付款方式</b><div class="chips"><button class="chip on">現場掃碼</button><button class="chip" disabled style="opacity:.4;cursor:not-allowed;filter:grayscale(1)">線上支付（暫無）</button></div></div>`:''}
+    <div class="modal-tip">${CK.lpMode==='online'?LP_TIP_ONLINE:CK.lpMode==='scan'?LP_TIP_SCAN:'請選擇「現場掃碼」或「線上支付」。'}</div>`:CK.pay==='全支付'?`<div class="fm-row"><b style="width:auto">全支付 付款方式</b><div class="chips"><button class="chip on">現場掃碼</button><button class="chip" disabled style="opacity:.4;cursor:not-allowed;filter:grayscale(1)">線上支付（暫無）</button></div></div>`:''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">上一步</button><button class="btn-confirm" onclick="submitCheckout()">下一步</button></div>`;
 }
@@ -2110,7 +2113,7 @@ function showQueued(o){
 
 /* ===== LINE Pay 線上支付：請 Apps Script 向 LINE Pay 要付款連結，再把客人帶過去 ===== */
 async function lpGo(id,o){
-  $('mBox').innerHTML='<div class="rc-done"><div class="ok">💳</div><h3>前往 LINE Pay 付款…</h3><div class="modal-tip" style="text-align:left">訂單 #'+esc(o&&o.no||'')+' 已送出。請在 LINE Pay 完成付款，付款成功店家才會開始製作。</div></div>';
+  $('mBox').innerHTML='<div class="rc-done"><div class="ok">💳</div><h3>前往 LINE Pay 付款…</h3><div class="modal-tip" style="text-align:left">訂單 #'+esc(o&&o.no||'')+' 已成功下單，店家會先開始製作。請在 LINE Pay 完成付款；若付款中斷，可重試或改現場掃碼。</div></div>';
   let r=null;
   for(let n=0;n<3;n++){                                   // 網路不穩、系統忙碌時自動再試（最多 3 次），不用顧客自己重按
     try{
