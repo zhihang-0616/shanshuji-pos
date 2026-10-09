@@ -2,11 +2,10 @@
 <html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>去中心鹹水雞 X 厝邊溫食 店家POS</title>
 <link rel="manifest" id="mf" href="manifest-admin.json">
-<meta name="apple-mobile-web-app-title" content="店家POS">
 <meta name="theme-color" content="#140a04">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="點餐">
+<meta name="apple-mobile-web-app-title" content="店家POS">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#120a04;--s1:#2a1a0c;--s2:#3b2512;--ln:#7a5420;--tx:#fbefd0;--mu:#d3b887;--ac:#e0b040;--ac2:#ffe9a8;--ok:#4caf7d;--bad:#d9534f;--r:10px}
@@ -2521,7 +2520,7 @@ async function checkOpenReminder(){
 }
 
 /* ===== 採購清單：先列好明天要買的東西；品項記住「單位、單價」，點選後只要輸入數量，金額自動算好並直接算入當天支出 ===== */
-let PLAN={day:'',groups:{},catalog:{},ok:false,loading:false};
+let PLAN={day:'',groups:{},catalog:{},ok:false,loading:false,meta:{cr:30}};
 const DEFAULT_SHOP=[      // 第一次打開採購清單時，自動匯入一次（匯入後可自行刪改，不會再被補回來）
  ['嘉振鹹水雞',[['大型鹹水雞','隻',95],'大型煙燻雞','雞胗','雞皮','雞冠','雞生腸','珍珠蛋','鹹雞湯','香雞湯','香雞油']],
  ['大市場',['油麵','芥蘭','雞軟骨','蒜泥','薑絲','切好小辣','娃娃菜','玉米筍','鴻喜菇','龍鬚菜','水蓮','花椰菜','高麗菜','白蘿蔔','小黃瓜','四季豆','杏鮑菇','金針菇','洋蔥','百頁豆腐','豆干','豆皮','海帶根','紅綠辣椒','香菜','紅蔥頭']],
@@ -2548,6 +2547,98 @@ const planTxt=i=>`${i.name}${(i.qty!==''&&i.qty!=null)?' '+i.qty+(i.unit||''):''
 const planNote=g=>'【採購】'+g.name+'｜'+(Object.values(g.items||{}).filter(itemDone).map(planTxt).join('、')||'（其他費用）');
 const planColl=()=>{try{return JSON.parse(localStorage.getItem('plan_coll')||'{}')}catch(e){return{}}};
 const planCollSet=o=>{try{localStorage.setItem('plan_coll',JSON.stringify(o))}catch(e){}};
+/* ===== 每份克數：依今天的進貨價、菜單售價、成本率、損耗率，算出一份該給多少克 =====
+ * 每份克數 ＝ 售價 × 成本率 ÷ 每克成本（每克成本已把損耗算進去）。結果一律取整數。 */
+const WUNIT={'斤':600,'台斤':600,'公斤':1000,'kg':1000,'KG':1000,'兩':37.5,'克':1,'公克':1,'g':1,'G':1};
+const planCi=(gid,iid)=>{const g=PLAN.groups[gid];return g?(((PLAN.catalog[g.cid]||{}).items||{})[iid]||null):null};
+const menuAll=()=>{const o=[];MENU.forEach(c=>(c.items||[]).forEach(i=>o.push({id:i.id,name:i.name,price:+i.price||0,cat:c.k})));return o};
+function menuMatch(name){      // 品名比對菜單：完全相同優先；否則「名稱互相包含」且只有一個符合才採用
+  const all=menuAll(),n=String(name||'').trim();if(!n)return null;
+  const ex=all.find(m=>m.name===n);if(ex)return ex;
+  const part=all.filter(m=>m.name.includes(n)||n.includes(m.name));
+  return part.length===1?part[0]:null;
+}
+const unitG=(unit,ci)=>WUNIT[String(unit||'').trim()]||(+((ci||{}).gpu)||0);
+function planGram(gid,iid){
+  const g=PLAN.groups[gid],it=g&&(g.items||{})[iid],ci=planCi(gid,iid);if(!it||!ci)return null;
+  const ug=unitG(it.unit,ci);
+  if(!ug)return{need:'gpu',unit:it.unit||''};
+  // 每克成本：今天同品名所有列的「總金額 ÷ 總克數」（買了好幾次、價格不同＝加權平均）；還沒輸入數量就先用單價
+  let amt=0,gr=0;
+  Object.values(PLAN.groups).forEach(gg=>Object.entries(gg.items||{}).forEach(([k,i])=>{
+    if(i.name!==it.name)return;const c=((PLAN.catalog[gg.cid]||{}).items||{})[k]||{},u=unitG(i.unit,c),q=parseFloat(i.qty)||0,a=itemAmt(i);
+    if(u&&q>0&&a>0){amt+=a;gr+=q*u}
+  }));
+  let cpg=gr>0?amt/gr:((+it.price||0)/ug);
+  if(!(cpg>0))return{need:'price'};
+  const loss=Math.min(90,Math.max(0,+ci.loss||0)),eff=cpg/(1-loss/100);
+  let sell=0,link='';
+  const mm=ci.menuId?menuAll().find(m=>m.id===ci.menuId):null;
+  if(mm){sell=mm.price;link=mm.name}
+  else if(+ci.sell>0){sell=+ci.sell;link='手動'}
+  else{const a=menuMatch(it.name);if(a){sell=a.price;link=a.name+'（自動比對）'}}
+  if(!(sell>0))return{need:'sell'};
+  const cr=(+ci.cr>0)?+ci.cr:(PLAN.meta.cr||30);
+  const grams=Math.round(sell*cr/100/eff);
+  return{grams,cost:grams*eff,sell,cr,loss,link,cpg:eff,ci};
+}
+function planGramHtml(gid,iid){
+  const it=(PLAN.groups[gid]||{items:{}}).items[iid],ci=planCi(gid,iid);if(!it||!ci)return '';
+  const r=planGram(gid,iid),tg=`<button class="chip sm" style="padding:2px 8px" onclick="planGToggle('${gid}','${iid}')">⚙ 份量設定</button>`;
+  const base='margin:0 2px 4px 30px;font-size:12.5px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center';
+  if(!r)return '';
+  if(r.need==='gpu'){if(!ci.gOn&&!menuMatch(it.name))return '';return `<div style="${base};color:var(--mu)">📏 單位「${esc(r.unit||'（空白）')}」不是重量，請設定「1 ${esc(r.unit||'單位')} ≈ 幾克」才能算每份克數 ${tg}</div>`}
+  if(r.need==='price')return ci.gOn?`<div style="${base};color:var(--mu)">📏 輸入單價後自動計算每份克數 ${tg}</div>`:'';
+  if(r.need==='sell')return `<div style="${base};color:var(--mu)">📏 找不到菜單售價，請在份量設定連結菜單品項或輸入售價 ${tg}</div>`;
+  const real=Math.round(r.cost*10)/10;
+  return `<div style="${base}"><b style="color:var(--ac2);font-size:15px">📏 每份 ${r.grams} g</b><span style="color:var(--mu)">成本約 $${real}（售價 $${r.sell} × ${r.cr}%${r.loss?'，損耗 '+r.loss+'%':''}）　${esc(r.link)}</span>${tg}</div>`;
+}
+function planGramAll(){
+  Object.entries(PLAN.groups).forEach(([gid,g])=>Object.keys(g.items||{}).forEach(iid=>{const el=$(`pgm_${gid}_${iid}`);if(el)el.innerHTML=planGramHtml(gid,iid)}));
+}
+function planGToggle(gid,iid){
+  const el=$(`pgp_${gid}_${iid}`);if(!el)return;
+  if(el.innerHTML){el.innerHTML='';return}
+  const it=PLAN.groups[gid].items[iid],ci=planCi(gid,iid),ug=WUNIT[String(it.unit||'').trim()];
+  const mk=`planGSave('${gid}','${iid}'`,inp=(k,ph,v,w)=>`<input class="pi" style="width:${w||80}px" inputmode="decimal" placeholder="${ph}" value="${esc(v||'')}" onchange="${mk},'${k}',this.value)">`;
+  const groups={};menuAll().forEach(m=>(groups[m.cat]=groups[m.cat]||[]).push(m));
+  const opts='<option value="">自動比對菜單（品名相同）</option>'+Object.entries(groups).map(([c,l])=>`<optgroup label="${esc(c)}">${l.map(m=>`<option value="${esc(m.id)}"${ci.menuId===m.id?' selected':''}>${esc(m.name)}　$${m.price}</option>`).join('')}</optgroup>`).join('');
+  el.innerHTML=`<div class="fm-sec" style="margin:2px 0 6px 30px;padding:8px 10px;background:rgba(0,0,0,.18);font-size:13px">
+   ${ug?`<div style="color:var(--mu);margin-bottom:6px">單位「${esc(it.unit)}」＝ ${ug} 克（自動換算）</div>`:`<div class="fm-row" style="margin:3px 0"><b style="width:auto">1 ${esc(it.unit||'單位')} ≈</b>${inp('gpu','幾克',ci.gpu,70)}<span>克</span></div>`}
+   <div class="fm-row" style="margin:3px 0"><b style="width:auto">損耗率</b>${inp('loss','例如 15',ci.loss,64)}<span>%（去外葉、去根、去骨等，不確定可不填）</span></div>
+   <div class="fm-row" style="margin:3px 0"><b style="width:auto">成本率</b>${inp('cr','預設 '+(PLAN.meta.cr||30),ci.cr,64)}<span>%（空白＝用預設 ${PLAN.meta.cr||30}%）</span></div>
+   <div class="fm-row" style="margin:3px 0"><b style="width:auto">售價</b><select class="pi" style="max-width:240px" onchange="${mk},'menuId',this.value)">${opts}</select><span>或手動</span>${inp('sell','$',ci.sell,64)}</div>
+   <div style="color:var(--mu);font-size:12px">設定會記住，下次這個品項直接帶出。</div></div>`;
+}
+async function planGSave(gid,iid,key,val){
+  const g=PLAN.groups[gid],ci=planCi(gid,iid);if(!g||!ci)return;
+  let v;
+  if(key==='menuId')v=String(val||'')||null;
+  else{v=parseFloat(val);if(!(v>0))v=null;if(key==='loss'&&v!=null)v=Math.min(90,v);if(key==='cr'&&v!=null)v=Math.min(100,v)}
+  if(v==null)delete ci[key];else ci[key]=v;ci.gOn=true;
+  try{await FB.update(FB.ref(FB.db,'shopCatalog/'+g.cid+'/items/'+iid),{[key]:v,gOn:true})}catch(e){alert('儲存失敗：'+(e.code||e.message));return}
+  planGramAll();
+}
+async function planSetCr(v){
+  const n=Math.min(100,Math.max(1,parseFloat(v)||30));PLAN.meta.cr=n;
+  try{await FB.set(FB.ref(FB.db,'shopMeta/cr'),n)}catch(e){alert('儲存失敗：'+(e.code||e.message));return}
+  const el=$('planCr');if(el)el.value=n;planGramAll();toast('✅ 預設成本率改為 '+n+'%');
+}
+/* 今日份量表：給出餐的人看的清單（字大）；順便把今天的克數記下來，下次可以比較漲跌 */
+async function planGramView(){
+  const rows=[],seen={},save={};
+  Object.entries(PLAN.groups).forEach(([gid,g])=>Object.keys(g.items||{}).forEach(iid=>{
+    const it=g.items[iid],r=planGram(gid,iid);if(!r||!r.grams||seen[it.name])return;seen[it.name]=1;
+    const ci=r.ci,prevDays=Object.keys(ci.gh||{}).filter(d=>d<PLAN.day).sort(),pd=prevDays.pop();
+    rows.push({name:it.name,grams:r.grams,cr:r.cr,gname:g.name,prev:pd?{d:pd,g:ci.gh[pd]}:null});
+    save[g.cid+'/items/'+iid+'/gh/'+PLAN.day]=r.grams;(ci.gh=ci.gh||{})[PLAN.day]=r.grams;
+  }));
+  if(Object.keys(save).length){try{await FB.update(FB.ref(FB.db,'shopCatalog'),save)}catch(e){}}
+  const cmp=r=>{if(!r.prev)return '';const d=r.grams-r.prev.g;return d===0?`<span style="color:var(--mu);font-size:13px">和 ${planMD(r.prev.d)} 一樣</span>`:`<span style="color:${d<0?'var(--bad)':'var(--ok)'};font-size:14px">${d<0?'▼ 比 '+planMD(r.prev.d)+' 少 '+(-d):'▲ 比 '+planMD(r.prev.d)+' 多 '+d} g</span>`};
+  $('mBox').innerHTML=`<div class="oh"><h3>📏 ${planMD(PLAN.day)} 每份克數</h3><button onclick="renderPlan()">返回採購清單</button></div>
+   ${rows.length?`<div class="fm-sec">${rows.map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.08)"><b style="font-size:20px;flex:1">${esc(r.name)}</b><b style="font-size:26px;color:var(--ac2);min-width:90px;text-align:right">${r.grams} g</b><span style="min-width:150px">${cmp(r)}</span></div>`).join('')}</div>
+   <div class="modal-tip">已記住今天的克數，下次打開會和今天比較漲跌。克數依今天的進貨價、菜單售價、成本率、損耗率算出，都是四捨五入的整數。</div>`:'<div class="modal-tip">還沒有可以計算的品項。請在採購清單輸入「數量與單價」，並在品項下方「份量設定」確認售價（連結菜單）與單位換算。</div>'}`;
+}
 async function planSeed(){
   try{
     if((await FB.get(FB.ref(FB.db,'shopMeta/seed1'))).val())return;
@@ -2572,8 +2663,8 @@ async function planSeed(){
 async function planLoad(day){
   PLAN.day=day;PLAN.ok=false;PLAN.loading=true;
   try{
-    const [p,c]=await Promise.all([FB.get(FB.ref(FB.db,'shopPlan/'+day)),FB.get(FB.ref(FB.db,'shopCatalog'))]);
-    PLAN.groups=p.val()||{};PLAN.catalog=c.val()||{};
+    const [p,c,cr]=await Promise.all([FB.get(FB.ref(FB.db,'shopPlan/'+day)),FB.get(FB.ref(FB.db,'shopCatalog')),FB.get(FB.ref(FB.db,'shopMeta/cr'))]);
+    PLAN.groups=p.val()||{};PLAN.catalog=c.val()||{};PLAN.meta={cr:(+cr.val()>0)?+cr.val():30};
     await planSeed();
     // 舊版清單（已經算入過支出、還沒有「已採購」勾選）→ 視為已採購，避免支出被洗掉
     for(const [gid,g] of Object.entries(PLAN.groups)){
@@ -2610,6 +2701,7 @@ function planBody(){
     <div class="fm-row"><b>新增群組</b><input id="pgName" lang="zh-TW" list="pgList" placeholder="例如：大市場（打新的會自動記起來）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddGroup()}"><button class="chip sm" onclick="planAddGroup()">＋ 加入</button></div>
     <datalist id="pgList">${Object.values(PLAN.catalog).map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
     <div class="chips pcc" id="pgChips">${planGroupChips()}</div>
+    <div class="fm-row"><b style="width:auto">預設成本率</b><input id="planCr" class="pi" style="width:64px" inputmode="decimal" value="${PLAN.meta.cr||30}" onchange="planSetCr(this.value)"><span style="font-size:12px;color:var(--mu)">%　每份克數＝售價×成本率÷每克成本（每個品項可在「⚙ 份量設定」個別調整）</span><button class="chip sm" onclick="planGramView()">📏 今日份量表</button></div>
     <div class="fm-line"><span>預計 <b id="planPlanned">${money(S.p)}</b>　已採購（算入支出）<b id="planBought" style="color:var(--ok)">${money(S.b)}</b></span><span><button class="chip sm" onclick="planCollapseAll(false)">全部展開</button> <button class="chip sm" onclick="planCollapseAll(true)">全部收合</button></span></div>
   </div>
   <div id="planGroups">${Object.entries(PLAN.groups).map(([gid,g])=>planCard(gid,g)).join('')}</div>`;
@@ -2636,7 +2728,7 @@ function planItemsHtml(gid){
   const g=PLAN.groups[gid]||{},its=Object.entries(g.items||{});
   if(!its.length)return '<div style="color:var(--mu);font-size:13px;padding:4px 2px">還沒有品項，請點下面的常用品項，或在最下面新增</div>';
   const all=its.every(([,i])=>itemDone(i));
-  return `<div class="pit2 phd"><input type="checkbox" title="全選／全不選" ${all?'checked':''} onchange="planCheckAll('${gid}',this.checked)"><span>品項</span><span>數量</span><span>單位</span><span>單價</span><span>金額</span><span>備註</span><span></span></div>`+its.map(([iid,i])=>planItemRow(gid,iid,i)).join('');
+  return `<div class="pit2 phd"><input type="checkbox" title="全選／全不選" ${all?'checked':''} onchange="planCheckAll('${gid}',this.checked)"><span>品項</span><span>數量</span><span>單位</span><span>單價</span><span>金額</span><span>備註</span><span></span></div>`+its.map(([iid,i])=>planItemRow(gid,iid,i)+`<div id="pgw_${gid}_${iid}"><div id="pgm_${gid}_${iid}">${planGramHtml(gid,iid)}</div><div id="pgp_${gid}_${iid}"></div></div>`).join('');
 }
 function planItemChips(gid){
   const g=PLAN.groups[gid]||{},cat=PLAN.catalog[g.cid]||{},have=g.items||{};
@@ -2790,7 +2882,7 @@ async function planItemSave(gid,iid,key){
         toast(`💾 已記住「${it.name}」${ci.unit?ci.unit:''}${(+ci.price)?' $'+ci.price:''}${ci.note?'（'+ci.note+'）':''}，下次直接帶出`)}catch(e){}
     }
   }
-  planTotalsOnly(gid);await syncPlanExpense(gid);
+  planTotalsOnly(gid);planGramAll();await syncPlanExpense(gid);
 }
 async function planDelItem(gid,iid){
   const g=PLAN.groups[gid];if(!g)return;
