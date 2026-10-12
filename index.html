@@ -257,6 +257,19 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  .m-box{padding:16px;max-height:92vh;max-height:calc(100dvh - 40px)}.m-box.wide,.m-box.xl{max-width:100%}
  .tbw table{min-width:560px}
 }
+
+.gcat .gr{border-top:1px solid rgba(255,255,255,.08);padding:8px 2px}
+.gcat .gr:first-of-type{border-top:0}
+.gr .gn{font-weight:800;font-size:15px;margin-bottom:4px}
+.gr .gin{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.gr .gl{font-size:12px;color:var(--mu)}
+.gr .gs{width:70px}.gr .gx{width:54px}.gr .gu{width:66px}
+.gr .gres{margin-top:5px;font-size:14px}
+.gr .gnum{font-size:26px;color:var(--ac);font-weight:900}
+.gr .gsrc{font-size:11px;color:var(--mu);margin-top:2px;line-height:1.5}
+.gr .gmn{margin-top:4px;max-width:100%;font-size:12px}
+.gr input.pi,.gr select.pi{padding:3px 6px!important;font-size:13px!important;border-radius:6px!important;height:30px;box-sizing:border-box;min-width:0}
+.gr select.gu{padding:3px 2px!important}
 </style></head>
 <body id="bodyRoot">
 <header class="top">
@@ -591,6 +604,7 @@ function itemsMenu(){
     <button class="opt-btn" onclick="openSoldOutListModal()">📋 售完品項（恢復販售）</button>
     <button class="opt-btn" onclick="openStock()">📦 今日庫存（限量品項）</button>
     <button class="opt-btn" onclick="openPlan()">🛒 採購清單（算入支出）</button>
+    <button class="opt-btn" onclick="openGram()">📏 每份克數計算（依菜價算每份幾克）</button>
     ${isManager()?'<button class="opt-btn" onclick="openMenuEditor()">✏️ 菜單編輯（群組、品項、套餐、選項）</button>':''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
@@ -2531,6 +2545,184 @@ async function checkOpenReminder(){
 }
 
 /* ===== 採購清單：先列好明天要買的東西；品項記住「單位、單價」，點選後只要輸入數量，金額自動算好並直接算入當天支出 ===== */
+/* ===== 每份克數計算（品項管理 → 獨立頁面）=====
+   品項＝採購清單的「常用群組／常用品項」（shopCatalog），新增／改名／刪除後重新打開本頁就同步。
+   買價：優先帶入採購清單最近一次的備註（例如「1斤30」「100克15」「30元/斤」），其次單價＋單位；也可手動輸入並記住。
+   售價：連結菜單品項（可改），或手動輸入。成本率預設 30%，可全部調、也可單項調。
+   公式：每份克數 ＝ 售價 × 成本率 ÷ 每克買價（四捨五入成整數）。設定存在 shopMeta/gram、shopMeta/gramCr。 */
+const GU={'斤':600,'公斤':1000,'克':1,'兩':37.5};
+const GU_OPT=['斤','公斤','克','兩'];
+const gUnitNorm=u=>({'台斤':'斤','公克':'克','kg':'公斤','KG':'公斤','g':'克','G':'克'}[u]||u);
+const gCn=s=>({'一':1,'二':2,'兩':2,'三':3,'四':4,'五':5,'半':0.5}[s]||+s);
+function gramParseNote(t){
+  t=String(t||'').replace(/[，,]/g,' ');
+  const U='公斤|台斤|公克|kg|KG|斤|克|g|G';
+  let m=t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*元?\\s*[\\/／每]\\s*(\\d+(?:\\.\\d+)?|[一二兩三四五半])?\\s*('+U+')'));
+  if(m){const q=m[2]?gCn(m[2]):1,p=+m[1];if(p>0&&q>0)return{q,u:gUnitNorm(m[3]),p}}
+  m=t.match(new RegExp('(\\d+(?:\\.\\d+)?|[一二兩三四五半])?\\s*('+U+')\\s*[\\/／=＝:：]?\\s*(?:約|共|\\$|＄|NT)?\\s*(\\d+(?:\\.\\d+)?)(?![\\d.])(?=\\s|元|塊|$|[，,;；、(（])(?!\\s*(?:公斤|台斤|公克|kg|KG|斤|克|g|G|兩|顆|包|條|個))'));
+  if(m){const q=m[1]?gCn(m[1]):1,p=+m[3];if(p>0&&q>0)return{q,u:gUnitNorm(m[2]),p}}
+  return null;
+}
+function gramDerive(i){
+  const n=gramParseNote(i.note);
+  if(n)return{...n,src:'備註「'+String(i.note).trim().slice(0,24)+'」'};
+  const u=gUnitNorm(String(i.unit||'').trim());
+  if(GU[u]&&+i.price>0)return{q:1,u,p:+i.price,src:'單價 $'+i.price+'／'+u};
+  if(GU[u]&&+i.qty>0&&+i.amount>0)return{q:+i.qty,u,p:+i.amount,src:'金額 $'+i.amount+'（'+i.qty+u+'）'};
+  return null;
+}
+function gramBuildAuto(plan){
+  const A={};
+  Object.keys(plan||{}).sort().reverse().forEach(day=>{
+    Object.values(plan[day]||{}).forEach(g=>{
+      Object.values((g&&g.items)||{}).forEach(i=>{
+        if(!i||!i.name||A[i.name])return;
+        const d=gramDerive(i);if(d){d.day=day;A[i.name]=d}
+      });
+    });
+  });
+  return A;
+}
+let GR={ok:false,loading:false,cat:{},meta:{},auto:{},cr:30,menu:[]};
+function gramMenuList(){
+  const L=[];
+  (MENU||[]).forEach(c=>{
+    const t=String(c.k||'').split(/[（(\n]/)[0];
+    (c.items||[]).forEach(it=>{if(!(it.d&&it.d.length))L.push({id:it.id,name:it.name,price:+it.price||0,grp:t})});
+  });
+  return L;
+}
+async function gramLoad(){
+  GR.loading=true;
+  try{
+    const [c,m,p]=await Promise.all([FB.get(FB.ref(FB.db,'shopCatalog')),FB.get(FB.ref(FB.db,'shopMeta')),FB.get(FB.ref(FB.db,'shopPlan'))]);
+    GR.cat=c.val()||{};const mv=m.val()||{};GR.meta=mv.gram||{};GR.cr=+mv.gramCr>0?+mv.gramCr:30;
+    GR.auto=gramBuildAuto(p.val());
+  }catch(e){alert('讀取失敗：'+(e.code||e.message))}
+  GR.menu=gramMenuList();GR.ok=true;GR.loading=false;
+}
+function openGram(){
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xl';GR.ok=false;
+  $('modal').classList.add('open');renderGram();
+}
+function renderGram(){
+  const head=`<div class="oh"><h3>📏 每份克數計算</h3><button onclick="itemsMenu()">返回</button></div>`;
+  if(!GR.ok){
+    $('mBox').innerHTML=head+'<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+    if(!GR.loading)gramLoad().then(()=>renderGram());
+    return;
+  }
+  const cats=Object.entries(GR.cat).sort(([,a],[,b])=>byO(a,b));
+  const body=cats.map(([cid,c])=>{
+    const its=Object.entries(c.items||{}).sort(([,a],[,b])=>byO(a,b));
+    if(!its.length)return'';
+    return `<div class="fm-sec gcat"><div class="fm-title">🛒 ${esc(c.name)}</div>${its.map(([iid,i])=>gramRow(iid,i.name)).join('')}</div>`;
+  }).join('')||'<div style="text-align:center;color:var(--mu);padding:30px">採購清單還沒有常用品項，請先到「採購清單」新增。</div>';
+  $('mBox').innerHTML=head+`<div class="fm-sec" style="padding:10px 14px">
+    <div class="modal-tip" style="text-align:left;margin:0 0 6px">每個品項填好 <b>買價（每幾斤／公斤／克多少錢）</b>、<b>售價</b>、<b>成本率</b>，就會算出<b>一份要放幾克</b>。品項跟「採購清單」的常用品項同步；買價會自動帶入採購清單的備註（例如「1斤30」）。</div>
+    <div class="fm-row"><b>預設成本率</b><input id="gCr" class="pi" inputmode="decimal" value="${GR.cr}" style="max-width:80px" onchange="gramSetCr()"><span>%（單項沒另外設定時用這個）</span><button class="chip sm" onclick="GR.ok=false;renderGram()">🔄 重新同步</button></div>
+    <div class="fm-row"><b>搜尋</b><input id="gFind" class="pi" lang="zh-TW" placeholder="輸入品項名稱" oninput="gramFind()" style="max-width:220px"></div>
+  </div>`+body+`<div class="m-btns"><button class="btn-cancel" onclick="itemsMenu()">返回</button></div>`;
+  cats.forEach(([,c])=>Object.entries(c.items||{}).forEach(([iid,i])=>gramLive(iid)));
+}
+function gramEff(iid,name){
+  const g=GR.meta[iid]||{},a=GR.auto[name];
+  if(+g.p>0&&(!a||a.day<=(g.ad||'')))return{p:+g.p,q:+g.q||1,u:g.u||'斤',src:'手動輸入'};
+  if(a)return{p:a.p,q:a.q,u:a.u,src:planMD(a.day)+' 採購'+a.src};
+  return null;
+}
+function gramSell(iid,name){
+  const g=GR.meta[iid]||{},L=GR.menu;
+  if(+g.sell>0)return{v:+g.sell,src:'手動輸入'};
+  let m=g.mid&&L.find(x=>x.id===g.mid);
+  if(!m)m=L.find(x=>x.name===name);
+  if(!m&&name.length>=2){const c=L.filter(x=>x.name.includes(name));if(c.length===1)m=c[0]}
+  return m?{v:m.price,src:'菜單「'+m.name+'」',mid:m.id}:null;
+}
+function gramRow(iid,name){
+  const e=gramEff(iid,name),s=gramSell(iid,name),g=GR.meta[iid]||{};
+  const mid=g.mid||'';
+  const opts=`<option value="">自動對應菜單</option>`+GR.menu.map(x=>`<option value="${esc(x.id)}"${x.id===mid?' selected':''}>${esc(x.grp)}｜${esc(x.name)} $${x.price}</option>`).join('');
+  return `<div class="gr" id="gr_${iid}" data-n="${esc(name)}">
+   <div class="gn">${esc(name)}</div>
+   <div class="gin">
+    <span class="gl">買價 $</span><input id="gp_${iid}" class="pi gs" inputmode="decimal" value="${e?e.p:''}" oninput="gramLive('${iid}')" onchange="gramSavePrice('${iid}')">
+    <span class="gl">／</span><input id="gq_${iid}" class="pi gx" inputmode="decimal" value="${e?e.q:1}" oninput="gramLive('${iid}')" onchange="gramSavePrice('${iid}')">
+    <select id="gu_${iid}" class="pi gu" onchange="gramLive('${iid}');gramSavePrice('${iid}')">${GU_OPT.map(u=>`<option${(e?e.u:'斤')===u?' selected':''}>${u}</option>`).join('')}</select>
+    <span class="gl">售價 $</span><input id="gs_${iid}" class="pi gs" inputmode="decimal" value="${s?s.v:''}" oninput="gramLive('${iid}')" onchange="gramSaveSell('${iid}')">
+    <span class="gl">成本率</span><input id="gc_${iid}" class="pi gx" inputmode="decimal" placeholder="${GR.cr}" value="${+g.cr>0?g.cr:''}" oninput="gramLive('${iid}')" onchange="gramSaveCr('${iid}')"><span class="gl">%</span>
+   </div>
+   <div class="gres" id="gres_${iid}"></div>
+   <div class="gsrc" id="gsrc_${iid}"></div>
+   <select id="gm_${iid}" class="pi gmn" onchange="gramSaveMid('${iid}')" title="售價對應的菜單品項">${opts}</select>
+  </div>`;
+}
+function gramVals(iid){
+  const v=id=>($(id+'_'+iid)||{}).value;
+  const p=parseFloat(v('gp')),q=parseFloat(v('gq'))||1,u=v('gu')||'斤',sell=parseFloat(v('gs')),cr=parseFloat(v('gc'))||GR.cr;
+  return{p,q,u,sell,cr};
+}
+function gramLive(iid){
+  const el=$('gres_'+iid);if(!el)return;
+  const {p,q,u,sell,cr}=gramVals(iid);
+  if(!(p>0)||!(sell>0)){el.innerHTML=`<span class="mu">${!(p>0)?'請輸入買價':'請輸入售價'}</span>`;gramSrc(iid);return}
+  const cpg=p/(q*GU[u]);                       // 每克買價
+  const grams=Math.round(sell*cr/100/cpg);
+  const cost=Math.round(grams*cpg*10)/10;
+  el.innerHTML=`每份 <b class="gnum">${grams}</b> 克<span class="mu">　成本 $${cost}／售價 $${sell}（${cr}%）</span>`;
+  gramSrc(iid);
+}
+function gramSrc(iid){
+  const el=$('gsrc_'+iid),row=$('gr_'+iid);if(!el||!row)return;
+  const name=row.dataset.n,e=gramEff(iid,name),s=gramSell(iid,name),g=GR.meta[iid]||{};
+  const a=GR.auto[name];
+  let t='買價：'+(e?e.src:'尚無，請輸入（或在採購清單備註寫「1斤30」）');
+  if(a&&e&&e.src==='手動輸入')t+='（採購清單 '+planMD(a.day)+' 有「'+a.q+a.u+' $'+a.p+'」，之後有更新的備註會自動換成新的）';
+  t+='　｜　售價：'+(s?s.src:'尚無，請輸入或選菜單品項');
+  el.textContent=t;
+}
+function gramFind(){
+  const k=($('gFind').value||'').trim();
+  document.querySelectorAll('#mBox .gr').forEach(r=>{r.style.display=(!k||r.dataset.n.includes(k))?'':'none'});
+}
+async function gramPatch(iid,patch){
+  const cur={...(GR.meta[iid]||{})};
+  Object.entries(patch).forEach(([k,v])=>{if(v===null||v===undefined||v==='')delete cur[k];else cur[k]=v});
+  cur.at=Date.now();GR.meta[iid]=cur;
+  const w={...patch,at:cur.at};Object.keys(w).forEach(k=>{if(w[k]===undefined||w[k]==='')w[k]=null});
+  try{await FB.update(FB.ref(FB.db,'shopMeta/gram/'+iid),w)}catch(e){alert('儲存失敗：'+(e.code||e.message))}
+}
+async function gramSavePrice(iid){
+  const row=$('gr_'+iid);if(!row)return;
+  const {p,q,u}=gramVals(iid),a=GR.auto[row.dataset.n];
+  if(p>0)await gramPatch(iid,{p,q,u,ad:(a&&a.day)||''});
+  else await gramPatch(iid,{p:null,q:null,u:null,ad:null});   // 清空 → 回到採購清單備註的買價
+  if(!(p>0)){const e=gramEff(iid,row.dataset.n);if(e){$('gp_'+iid).value=e.p;$('gq_'+iid).value=e.q;$('gu_'+iid).value=e.u}}
+  gramLive(iid);
+}
+async function gramSaveSell(iid){
+  const v=parseFloat($('gs_'+iid).value);
+  await gramPatch(iid,{sell:v>0?v:null});
+  if(!(v>0)){const s=gramSell(iid,$('gr_'+iid).dataset.n);$('gs_'+iid).value=s?s.v:''}
+  gramLive(iid);
+}
+async function gramSaveMid(iid){
+  await gramPatch(iid,{mid:$('gm_'+iid).value||null,sell:null});     // 改選菜單品項 → 售價改跟菜單走
+  const s=gramSell(iid,$('gr_'+iid).dataset.n);$('gs_'+iid).value=s?s.v:'';
+  gramLive(iid);
+}
+async function gramSaveCr(iid){
+  const v=parseFloat($('gc_'+iid).value);
+  await gramPatch(iid,{cr:v>0?Math.min(100,v):null});
+  gramLive(iid);
+}
+async function gramSetCr(){
+  let v=parseFloat($('gCr').value);if(!(v>0))v=30;v=Math.min(100,v);$('gCr').value=v;GR.cr=v;
+  try{await FB.set(FB.ref(FB.db,'shopMeta/gramCr'),v)}catch(e){alert('儲存失敗：'+(e.code||e.message))}
+  document.querySelectorAll('#mBox .gr').forEach(r=>{const iid=r.id.slice(3);const c=$('gc_'+iid);if(c)c.placeholder=v;gramLive(iid)});
+}
+
 let PLAN={day:'',groups:{},catalog:{},ok:false,loading:false};
 const DEFAULT_SHOP=[      // 第一次打開採購清單時，自動匯入一次（匯入後可自行刪改，不會再被補回來）
  ['嘉振鹹水雞',[['大型鹹水雞','隻',95],'大型煙燻雞','雞胗','雞皮','雞冠','雞生腸','珍珠蛋','鹹雞湯','香雞湯','香雞油']],
