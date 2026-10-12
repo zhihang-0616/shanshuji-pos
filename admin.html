@@ -2583,7 +2583,7 @@ function gramBuildAuto(plan){
   });
   return A;
 }
-let GR={ok:false,loading:false,cat:{},meta:{},auto:{},cr:30,menu:[]};
+let GR={ok:false,loading:false,cat:{},meta:{},sel:{},auto:{},cr:30,menu:[]};
 function gramMenuList(){
   const L=[];
   (MENU||[]).forEach(c=>{
@@ -2596,7 +2596,7 @@ async function gramLoad(){
   GR.loading=true;
   try{
     const [c,m,p]=await Promise.all([FB.get(FB.ref(FB.db,'shopCatalog')),FB.get(FB.ref(FB.db,'shopMeta')),FB.get(FB.ref(FB.db,'shopPlan'))]);
-    GR.cat=c.val()||{};const mv=m.val()||{};GR.meta=mv.gram||{};GR.cr=+mv.gramCr>0?+mv.gramCr:30;
+    GR.cat=c.val()||{};const mv=m.val()||{};GR.meta=mv.gram||{};GR.sel=mv.gramSel||{};GR.cr=+mv.gramCr>0?+mv.gramCr:30;
     GR.auto=gramBuildAuto(p.val());
   }catch(e){alert('讀取失敗：'+(e.code||e.message))}
   GR.menu=gramMenuList();GR.ok=true;GR.loading=false;
@@ -2606,6 +2606,38 @@ function openGram(){
   $('mBox').className='m-box xl';GR.ok=false;
   $('modal').classList.add('open');renderGram();
 }
+const gramColl=()=>{try{return JSON.parse(localStorage.getItem('gram_coll')||'{}')}catch(e){return{}}};
+function gramToggle(cid){
+  const c=gramColl();c[cid]=!c[cid];try{localStorage.setItem('gram_coll',JSON.stringify(c))}catch(e){}
+  const b=$('gb_'+cid),a=$('ga_'+cid);if(b)b.style.display=c[cid]?'none':'block';if(a)a.textContent=c[cid]?'▶':'▼';
+}
+function gramCollAll(v){
+  const c={};Object.keys(GR.sel).forEach(k=>{c[k]=v});try{localStorage.setItem('gram_coll',JSON.stringify(c))}catch(e){}
+  Object.keys(GR.sel).forEach(k=>{const b=$('gb_'+k),a=$('ga_'+k);if(b)b.style.display=v?'none':'block';if(a)a.textContent=v?'▶':'▼'});
+}
+const gramSelItems=cid=>Object.keys(GR.sel[cid]||{}).filter(k=>k!=='_'&&GR.cat[cid]&&(GR.cat[cid].items||{})[k]);
+function gramGroupChips(){
+  const list=Object.entries(GR.cat).filter(([id])=>!GR.sel[id]).sort(([,a],[,b])=>byO(a,b));
+  if(!list.length)return'';
+  return '<span style="color:var(--mu);font-size:12px;align-self:center">常用群組：</span>'+list.map(([id,c])=>`<button class="chip sm" onclick="gramAddGroup('${id}')">＋ ${esc(c.name)}</button>`).join('');
+}
+function gramItemChips(cid){
+  const c=GR.cat[cid]||{},have=GR.sel[cid]||{};
+  const list=Object.entries(c.items||{}).filter(([id])=>!have[id]).sort(([,a],[,b])=>byO(a,b));
+  if(!list.length)return '<span style="color:var(--mu);font-size:12px">常用品項都已經加進來了</span>';
+  return list.map(([id,i])=>`<button class="chip sm" onclick="gramAddItem('${cid}','${id}')">＋ ${esc(i.name)}</button>`).join('');
+}
+function gramCard(cid){
+  const c=GR.cat[cid];if(!c)return'';
+  const coll=!!gramColl()[cid],its=gramSelItems(cid).sort((x,y)=>byO(c.items[x],c.items[y]));
+  return `<div class="pgc" id="gc_g_${cid}">
+   <div class="pgh" onclick="gramToggle('${cid}')"><span id="ga_${cid}">${coll?'▶':'▼'}</span><b class="pgn">📏 ${esc(c.name)}</b><span class="pgs">${its.length} 項</span><span style="flex:1"></span><button class="chip sm" onclick="event.stopPropagation();gramDelGroup('${cid}')">移除群組</button></div>
+   <div class="pgb gcat" id="gb_${cid}" style="display:${coll?'none':'block'}">
+    ${its.length?its.map(iid=>gramRow(iid,c.items[iid].name,cid)).join(''):'<div style="color:var(--mu);font-size:13px;padding:4px 2px">還沒有品項，請點下面的常用品項加入</div>'}
+    <div style="color:var(--mu);font-size:12px;margin:8px 0 3px">常用品項（點一下加入，再輸入買價與售價）</div>
+    <div class="chips pcc" id="gic_${cid}">${gramItemChips(cid)}</div>
+   </div></div>`;
+}
 function renderGram(){
   const head=`<div class="oh"><h3>📏 每份克數計算</h3><button onclick="itemsMenu()">返回</button></div>`;
   if(!GR.ok){
@@ -2613,18 +2645,35 @@ function renderGram(){
     if(!GR.loading)gramLoad().then(()=>renderGram());
     return;
   }
-  const cats=Object.entries(GR.cat).sort(([,a],[,b])=>byO(a,b));
-  const body=cats.map(([cid,c])=>{
-    const its=Object.entries(c.items||{}).sort(([,a],[,b])=>byO(a,b));
-    if(!its.length)return'';
-    return `<div class="fm-sec gcat"><div class="fm-title">🛒 ${esc(c.name)}</div>${its.map(([iid,i])=>gramRow(iid,i.name)).join('')}</div>`;
-  }).join('')||'<div style="text-align:center;color:var(--mu);padding:30px">採購清單還沒有常用品項，請先到「採購清單」新增。</div>';
+  const sc=$('mBox').scrollTop;
+  const cids=Object.keys(GR.sel).filter(id=>GR.cat[id]).sort((a,b)=>byO(GR.cat[a],GR.cat[b]));
   $('mBox').innerHTML=head+`<div class="fm-sec" style="padding:10px 14px">
-    <div class="modal-tip" style="text-align:left;margin:0 0 6px">每個品項填好 <b>買價（每幾斤／公斤／克多少錢）</b>、<b>售價</b>、<b>成本率</b>，就會算出<b>一份要放幾克</b>。品項跟「採購清單」的常用品項同步；買價會自動帶入採購清單的備註（例如「1斤30」）。</div>
-    <div class="fm-row"><b>預設成本率</b><input id="gCr" class="pi" inputmode="decimal" value="${GR.cr}" style="max-width:80px" onchange="gramSetCr()"><span>%（單項沒另外設定時用這個）</span><button class="chip sm" onclick="GR.ok=false;renderGram()">🔄 重新同步</button></div>
-    <div class="fm-row"><b>搜尋</b><input id="gFind" class="pi" lang="zh-TW" placeholder="輸入品項名稱" oninput="gramFind()" style="max-width:220px"></div>
-  </div>`+body+`<div class="m-btns"><button class="btn-cancel" onclick="itemsMenu()">返回</button></div>`;
-  cats.forEach(([,c])=>Object.entries(c.items||{}).forEach(([iid,i])=>gramLive(iid)));
+    <div class="modal-tip" style="text-align:left;margin:0 0 6px">先加入要算的群組和品項（跟採購清單的常用群組、常用品項同步）。每個品項填 <b>買價</b>（每幾斤／公斤／克多少錢）、<b>售價</b>、<b>成本率</b>，就會算出<b>一份要放幾克</b>。買價會自動帶入採購清單的備註（例如「1斤30」）。</div>
+    <div class="fm-row"><b>預設成本率</b><input id="gCr" class="pi" inputmode="decimal" value="${GR.cr}" style="max-width:80px" onchange="gramSetCr()"><span>%（單項沒另外設定時用這個）</span></div>
+    <div class="chips pcc" id="ggChips">${gramGroupChips()}</div>
+    <div class="fm-line"><span><button class="chip sm" onclick="GR.ok=false;renderGram()">🔄 重新同步採購清單</button></span><span><button class="chip sm" onclick="gramCollAll(false)">全部展開</button> <button class="chip sm" onclick="gramCollAll(true)">全部收合</button></span></div>
+  </div>
+  <div id="gGroups">${cids.map(gramCard).join('')||'<div style="text-align:center;color:var(--mu);padding:24px">還沒有加入任何群組，請點上面的「＋ 群組」</div>'}</div>
+  <div class="m-btns"><button class="btn-cancel" onclick="itemsMenu()">返回</button></div>`;
+  cids.forEach(cid=>gramSelItems(cid).forEach(iid=>gramLive(iid)));
+  $('mBox').scrollTop=sc;
+}
+async function gramSelSave(cid,val){
+  try{await FB.set(FB.ref(FB.db,'shopMeta/gramSel/'+cid),val)}catch(e){alert('儲存失敗：'+(e.code||e.message))}
+}
+async function gramAddGroup(cid){
+  GR.sel[cid]={_:1};renderGram();await gramSelSave(cid,GR.sel[cid]);
+}
+async function gramDelGroup(cid){
+  const c=GR.cat[cid];if(!confirm('把「'+(c?c.name:'')+'」從這一頁移除？（採購清單不受影響，買價與售價的設定會保留）'))return;
+  delete GR.sel[cid];renderGram();await gramSelSave(cid,null);
+}
+async function gramAddItem(cid,iid){
+  GR.sel[cid]=GR.sel[cid]||{_:1};GR.sel[cid][iid]=1;renderGram();await gramSelSave(cid,GR.sel[cid]);
+  const el=$('gp_'+iid);if(el&&!el.value)el.focus();
+}
+async function gramDelItem(cid,iid){
+  if(GR.sel[cid])delete GR.sel[cid][iid];renderGram();await gramSelSave(cid,GR.sel[cid]);
 }
 function gramEff(iid,name){
   const g=GR.meta[iid]||{},a=GR.auto[name];
@@ -2640,12 +2689,12 @@ function gramSell(iid,name){
   if(!m&&name.length>=2){const c=L.filter(x=>x.name.includes(name));if(c.length===1)m=c[0]}
   return m?{v:m.price,src:'菜單「'+m.name+'」',mid:m.id}:null;
 }
-function gramRow(iid,name){
+function gramRow(iid,name,cid){
   const e=gramEff(iid,name),s=gramSell(iid,name),g=GR.meta[iid]||{};
   const mid=g.mid||'';
   const opts=`<option value="">自動對應菜單</option>`+GR.menu.map(x=>`<option value="${esc(x.id)}"${x.id===mid?' selected':''}>${esc(x.grp)}｜${esc(x.name)} $${x.price}</option>`).join('');
   return `<div class="gr" id="gr_${iid}" data-n="${esc(name)}">
-   <div class="gn">${esc(name)}</div>
+   <div class="gn">${esc(name)}<button class="pdel" style="float:right" title="從這一頁移除" onclick="gramDelItem('${cid}','${iid}')">✕</button></div>
    <div class="gin">
     <span class="gl">買價 $</span><input id="gp_${iid}" class="pi gs" inputmode="decimal" value="${e?e.p:''}" oninput="gramLive('${iid}')" onchange="gramSavePrice('${iid}')">
     <span class="gl">／</span><input id="gq_${iid}" class="pi gx" inputmode="decimal" value="${e?e.q:1}" oninput="gramLive('${iid}')" onchange="gramSavePrice('${iid}')">
@@ -2681,10 +2730,6 @@ function gramSrc(iid){
   if(a&&e&&e.src==='手動輸入')t+='（採購清單 '+planMD(a.day)+' 有「'+a.q+a.u+' $'+a.p+'」，之後有更新的備註會自動換成新的）';
   t+='　｜　售價：'+(s?s.src:'尚無，請輸入或選菜單品項');
   el.textContent=t;
-}
-function gramFind(){
-  const k=($('gFind').value||'').trim();
-  document.querySelectorAll('#mBox .gr').forEach(r=>{r.style.display=(!k||r.dataset.n.includes(k))?'':'none'});
 }
 async function gramPatch(iid,patch){
   const cur={...(GR.meta[iid]||{})};
