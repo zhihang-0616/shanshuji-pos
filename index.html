@@ -603,7 +603,6 @@ function itemsMenu(){
     <button class="opt-btn" onclick="closeModal();toggleSoldOutMode()">🔴 餐點管理（點品項標示售完）</button>
     <button class="opt-btn" onclick="openSoldOutListModal()">📋 售完品項（恢復販售）</button>
     <button class="opt-btn" onclick="openStock()">📦 今日庫存（限量品項）</button>
-    <button class="opt-btn" onclick="openPlan()">🛒 採購清單（算入支出）</button>
     <button class="opt-btn" onclick="openGram()">📏 每份克數計算（依菜價算每份幾克）</button>
     ${isManager()?'<button class="opt-btn" onclick="openMenuEditor()">✏️ 菜單編輯（群組、品項、套餐、選項）</button>':''}
    </div>
@@ -1479,7 +1478,7 @@ function renderOrders(){
   const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['all','全部',all.length]];
   const warnN=all.filter(o=>anomalies(o).length).length;if(warnN)F.push(['warn','⚠ 異常',warnN]);
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='warn'?anomalies(o).length>0:ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
-    .sort((a,b)=>{const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
+    .sort((a,b)=>{const na=a.status==='new'?0:1,nb=b.status==='new'?0:1;if(na!==nb)return na-nb;const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
   const cards=list.map(o=>{
     const items=itemsBlock(o,true);
     const opt=o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
@@ -2327,9 +2326,9 @@ async function renderMonthReport(){
 }
 
 /* --- 盤點 / 支出 輸入畫面（店員、店長都可用）--- */
-let CASH={day:'',data:{},tab:null,cnt:null,ex:{type:'進貨',amount:'',note:''}};
+let CASH={day:'',data:{},tab:null,cnt:null,ex:{type:'雜支',amount:'',note:''}};
 async function openCash(day,tab){
-  CASH={day:day||today8(),data:{},tab:tab||null,cnt:null,ex:{type:'進貨',amount:'',note:''}};
+  CASH={day:day||today8(),data:{},tab:tab||null,cnt:null,ex:{type:'雜支',amount:'',note:''}};
   viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box xl';
   $('mBox').innerHTML='<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
   $('modal').classList.add('open');
@@ -2423,8 +2422,8 @@ function expListHtml(){
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
   return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出（${CASH.day===today8()?'今天':dayLabel(CASH.day)}）</div>
-    <div class="chips" id="exChips">${EXP_TYPES.map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
-    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：選進貨、雜支、退款、其他支出或存鈔。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋「進貨/材料 $3988」（收銀機實際只增加 $12）。</div>
+    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 進貨/材料（採購清單）</button>${EXP_TYPES.filter(([k])=>k!=='進貨').map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
+    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：進貨/材料請點最前面的「🛒 進貨/材料（採購清單）」勾選買到的品項；雜支、退款、其他支出、存鈔在這裡直接選。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋採購清單算入進貨/材料 $3988（收銀機實際只增加 $12）。</div>
     <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
     <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" list="exNoteList" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2（打過的會記住）" oninput="CASH.ex.note=this.value;exNoteIn(this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
     <datalist id="exNoteList">${Object.keys(expMemo()).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
@@ -2841,7 +2840,7 @@ function openPlan(day){
   renderPlan();
 }
 function renderPlan(){
-  const head=`<div class="oh"><h3>🛒 採購清單</h3><button onclick="itemsMenu()">返回</button></div>`;
+  const head=`<div class="oh"><h3>🛒 進貨/材料（採購清單）</h3><button onclick="openCash(CASH&&CASH.day?CASH.day:undefined,'exp')">返回收銀盤點</button></div>`;
   if(!PLAN.ok){
     $('mBox').innerHTML=head+'<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
     if(!PLAN.loading)planLoad(PLAN.day).then(()=>renderPlan());
