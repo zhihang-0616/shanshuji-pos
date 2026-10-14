@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>去中心鹹水雞 X 厝邊溫食 店家POS</title>
+<title>去中心鹹水雞 X 厝邊溫食店家POS</title>
 <link rel="manifest" id="mf" href="manifest-admin.json">
 <meta name="theme-color" content="#140a04">
 <link rel="icon" type="image/png" href="logo.png">
@@ -1528,7 +1528,7 @@ function renderOrders(){
       ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">拒單</button>`:''}
       ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
-      ${o.status!=='cancelled'&&prnCfg().on?`<button class="oc-no" onclick="prnManual('${o.id}','k')">🖨 廚房單</button><button class="oc-no" onclick="prnManual('${o.id}','r')">🧾 收據</button>`:''}
+      <button class="oc-no" onclick="prnManual('${o.id}','k')">🖨 廚房單</button><button class="oc-no" onclick="prnManual('${o.id}','r')">🧾 收據</button>
       ${nx?`<button class="oc-go" onclick="${nx[0]==='picked'?`pickup('${o.id}')`:`setOrderStatus('${o.id}','${nx[0]}')`}">${nx[1]}</button>`:''}
      </div></div>`;
   }).join('');
@@ -1768,7 +1768,7 @@ async function loadHistory(){
 function renderHist(){
   const box=$('hRes');if(!box)return;
   const S=summarize(HIST);
-  const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${itemsBlock(o,false)}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}${o.late?'<br><span class="mu">補單</span>':''}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
+  const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${itemsBlock(o,false)}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}${o.late?'<br><span class="mu">補單</span>':''}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="prnManual('${o.id}','k')">🖨廚房單</button><button class="rb" onclick="prnManual('${o.id}','r')">🧾收據</button><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
   box.innerHTML=`<div class="fm-sec">
     <div class="fm-line"><span>訂單數（不含已取消）</span><span>${S.ok.length} 單</span></div>
     <div class="fm-line"><span>已拒單</span><span>${S.cancelled} 單</span></div>
@@ -2143,11 +2143,15 @@ function prnKitchenRows(o){
   })}else{
     addItems(o.items||[]);
     const opt=[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
-    if(opt)R.push({gap:4},{t:opt,s:2,b:true});
+    const g=(o.gear||[]).length?'配備：'+o.gear.join('、'):'';
+    if(opt||g)R.push({gap:4},{t:[opt,g].filter(Boolean).join('　'),s:2,b:true});
+    if(o.note)R.push({t:'備註：'+o.note,s:2,b:true});
   }
   R.push({dash:1});
-  if((o.gear||[]).length)R.push({t:'配備：'+o.gear.join('、'),s:1,b:true});
-  if(o.note)R.push({t:'備註：'+o.note,s:2,b:true});
+  if(P){
+    if((o.gear||[]).length)R.push({t:'配備：'+o.gear.join('、'),s:2,b:true});
+    if(o.note)R.push({t:'備註：'+o.note,s:2,b:true});
+  }
   R.push({t:[o.name,o.phone].filter(Boolean).join('　'),s:1},{t:'列印 '+fmtDT(Date.now()),s:1,a:'r'});
   return R;
 }
@@ -2178,7 +2182,8 @@ async function prnAfterPay(o){
   else if(drawer){const r=await prnSend('/drawer',{});if(!r.ok)prnFail(r)}
 }
 async function prnManual(id,kind){
-  const o=ORDERS[id];if(!o)return;
+  const o=ORDERS[id]||(typeof HIST!=='undefined'&&HIST.find(x=>x.id===id));if(!o)return;
+  if(!prnCfg().on){toast('🖨 尚未開啟出單機：請到「後台管理 → 出單設定」勾選啟用',()=>{});return}
   const r=await prnPrint(kind==='k'?prnKitchenRows(o):prnReceiptRows(o));
   toast(r.ok?'🖨 已送出':'🖨 出單失敗：'+r.err,()=>{});
 }
