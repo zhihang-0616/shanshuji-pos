@@ -2246,7 +2246,7 @@ function notifyLine(id){
 
 /* ===== 收銀盤點 / 日報表 / 彙整匯出 ===== */
 const DENOMS=[1000,500,100,50,10,5,1];
-const EXP_TYPES=[['進貨','進貨/材料'],['雜支','雜支'],['退款','退款'],['其他','其他支出'],['存鈔','存鈔（存起來）'],['補入','補入收銀機']];
+const EXP_TYPES=[['進貨','進貨/材料'],['雜支','雜支'],['退款','退款'],['其他','其他支出'],['存鈔','存鈔'],['補入','補入收銀機']];
 const expLabel=k=>(EXP_TYPES.find(x=>x[0]===k)||[k,k])[1];
 const dayStartMs=day=>new Date(+day.slice(0,4),+day.slice(4,6)-1,+day.slice(6,8),2,0,0,0).getTime();
 const dayPlain=day=>day.slice(0,4)+'/'+day.slice(4,6)+'/'+day.slice(6,8);
@@ -2375,7 +2375,7 @@ function cashCnt(d,v){
 function cashNext(d){const i=DENOMS.indexOf(d),n=DENOMS[i+1],el=$(n?'ca'+n:'cashSave');if(el)el.focus()}
 function renderCash(){
   const D=CASH.data||{},t=CASH.tab,day=CASH.day;
-  const tabs=[['open','開店盤點',!!D.open],['exp','支出／存鈔',false],['close','收店盤點',!!D.close]];
+  const tabs=[['open','開店盤點',!!D.open],['exp','現金進出',false],['close','收店盤點',!!D.close]];
   let body='';
   if(t==='open'||t==='close'){
     if(!CASH.cnt)cntInit(t);
@@ -2384,7 +2384,7 @@ function renderCash(){
       ${rec?`<div class="modal-tip">已盤點：$${rec.total}（${fmtDT(rec.at)}　${esc(rec.by||'')}）。重新輸入後按儲存即可修改。</div>`:''}
       ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input id="ca${d}" class="qt" style="width:130px" type="number" min="0" step="${d}" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="金額" oninput="cashCnt(${d},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();cashNext(${d})}"><span style="flex:1;text-align:right;color:${(CASH.cnt[d]||0)%d===0?'var(--mu)':'var(--bad)'}" id="cs${d}">${cntNote(d)}</span></div>`).join('')}
       <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
-      ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「支出／存鈔」記一筆「<b>補入收銀機</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
+      ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「現金進出」記一筆「<b>補入收銀機</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
   }else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
@@ -2443,8 +2443,8 @@ function expListHtml(){
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
   return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出（${CASH.day===today8()?'今天':dayLabel(CASH.day)}）</div>
-    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 進貨/材料（採購清單）</button>${['雜支','存鈔','補入','退款'].map(k=>EXP_TYPES.find(x=>x[0]===k)).map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
-    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：進貨/材料請點最前面的「🛒 進貨/材料（採購清單）」勾選買到的品項；雜支、退款、存鈔在這裡直接選。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋採購清單算入進貨/材料 $3988（收銀機實際只增加 $12）。</div>
+    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 採購進貨</button>${['雜支','存鈔','補入'].map(k=>EXP_TYPES.find(x=>x[0]===k)).map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
+    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：買東西請點最前面的「🛒 採購進貨」，勾選買到的品項就會自動記帳；雜支、存鈔在這裡直接選。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋採購清單算入進貨/材料 $3988（收銀機實際只增加 $12）。</div>
     <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
     <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" list="exNoteList" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2（打過的會記住）" oninput="CASH.ex.note=this.value;exNoteIn(this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
     <datalist id="exNoteList">${Object.keys(expMemo()).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
@@ -2861,7 +2861,7 @@ function openPlan(day){
   renderPlan();
 }
 function renderPlan(){
-  const head=`<div class="oh"><h3>🛒 進貨/材料（採購清單）</h3><button onclick="openCash(CASH&&CASH.day?CASH.day:undefined,'exp')">返回收銀盤點</button></div>`;
+  const head=`<div class="oh"><h3>🛒 採購進貨</h3><button onclick="openCash(CASH&&CASH.day?CASH.day:undefined,'exp')">返回收銀盤點</button></div>`;
   if(!PLAN.ok){
     $('mBox').innerHTML=head+'<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
     if(!PLAN.loading)planLoad(PLAN.day).then(()=>renderPlan());
