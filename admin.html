@@ -2443,8 +2443,8 @@ function expListHtml(){
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
   return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出（${CASH.day===today8()?'今天':dayLabel(CASH.day)}）</div>
-    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 進貨/材料（採購清單）</button>${EXP_TYPES.filter(([k])=>k!=='進貨').map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
-    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：進貨/材料請點最前面的「🛒 進貨/材料（採購清單）」勾選買到的品項；雜支、退款、其他支出、存鈔在這裡直接選。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋採購清單算入進貨/材料 $3988（收銀機實際只增加 $12）。</div>
+    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 進貨/材料（採購清單）</button>${['雜支','存鈔','補入','退款'].map(k=>EXP_TYPES.find(x=>x[0]===k)).map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
+    <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：進貨/材料請點最前面的「🛒 進貨/材料（採購清單）」勾選買到的品項；雜支、退款、存鈔在這裡直接選。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋採購清單算入進貨/材料 $3988（收銀機實際只增加 $12）。</div>
     <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
     <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" list="exNoteList" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2（打過的會記住）" oninput="CASH.ex.note=this.value;exNoteIn(this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
     <datalist id="exNoteList">${Object.keys(expMemo()).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
