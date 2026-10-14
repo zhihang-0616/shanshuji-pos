@@ -1720,14 +1720,35 @@ function openHistory(keep){
   $('mBox').className='m-box xl';
   $('mBox').innerHTML=`<div class="oh"><h3>🗂 歷史訂單與匯出</h3><button onclick="openAdminPanel()">返回</button></div>
    <div class="fm-sec">
-    <div class="fm-row"><b>起日</b><input type="date" id="hS" value="${HR?HR.s:dashDay(today8())}"><b>迄日</b><input type="date" id="hE" value="${HR?HR.e:dashDay(today8())}"></div>
+    <div class="fm-row"><b>起日</b><input type="date" id="hS" value="${HR?HR.s:dashDay(today8())}" onchange="histLbl()"><b>迄日</b><input type="date" id="hE" value="${HR?HR.e:dashDay(today8())}" onchange="histLbl()"></div>
+    <div class="fm-row" style="gap:6px"><button class="chip" id="hPrev" onclick="histShift(-1)">◀ 前一天</button><button class="chip" onclick="histToday()">今天</button><button class="chip" id="hNext" onclick="histShift(1)">後一天 ▶</button></div>
     <div class="m-btns"><button class="btn-confirm" id="hBtn" onclick="loadHistory()">查詢</button><button class="btn-cancel" onclick="exportCSV()">⬇ 匯出 Excel (CSV)</button></div>
    </div>
    <div class="modal-tip">日期以營業日計算：每日 02:00 至隔日 02:00。</div>
    <div id="hRes"><div style="text-align:center;color:var(--mu);padding:20px">請選擇日期後按「查詢」</div></div>`;
   $('modal').classList.add('open');
+  histLbl();
   if(keep&&HR)loadHistory();
 }
+/* 前一天／後一天：單日就是 ±1 天；選了一段區間，就整段往前／往後移動同樣的天數。移完自動查詢 */
+function histSpan(){
+  const s=($('hS').value||'').replace(/-/g,''),e=($('hE').value||'').replace(/-/g,'');
+  if(!/^\d{8}$/.test(s)||!/^\d{8}$/.test(e)||s>e)return 1;
+  return Math.max(1,Math.round((dayStartMs(e)-dayStartMs(s))/86400000)+1);
+}
+function histLbl(){
+  const n=histSpan(),a=$('hPrev'),b=$('hNext');
+  if(a)a.textContent=n>1?'◀ 前'+n+'天':'◀ 前一天';
+  if(b)b.textContent=n>1?'後'+n+'天 ▶':'後一天 ▶';
+}
+function histShift(dir){
+  const sv=($('hS').value||'').replace(/-/g,''),ev=($('hE').value||'').replace(/-/g,'');
+  if(!/^\d{8}$/.test(sv)||!/^\d{8}$/.test(ev)||sv>ev){alert('請先選擇正確的日期區間');return}
+  const n=histSpan()*dir;
+  $('hS').value=dashDay(shiftDay(sv,n));$('hE').value=dashDay(shiftDay(ev,n));
+  histLbl();loadHistory();
+}
+function histToday(){$('hS').value=$('hE').value=dashDay(today8());histLbl();loadHistory()}
 async function loadHistory(){
   const s=$('hS').value,e=$('hE').value;
   if(!s||!e||s>e){alert('請選擇正確的日期區間');return}
