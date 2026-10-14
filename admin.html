@@ -68,7 +68,22 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .pit2 input[type=checkbox]{width:18px;height:18px;accent-color:var(--ok);margin:0}
 .pdel{background:none;border:0;color:var(--bad);cursor:pointer;font-size:14px;padding:0}
 .pmr{display:grid;grid-template-columns:minmax(90px,1.4fr) 62px 76px minmax(70px,1fr) auto;gap:4px 6px;align-items:center;margin:3px 0}
-@media(max-width:700px){.pit2{grid-template-columns:24px 1fr 54px 44px 54px 68px 22px}.pit2 .nt{grid-column:2/8}.pit2.phd span:nth-child(7){display:none}}
+.pit2 label.lb{display:contents}.pit2 label.lb small{display:none}
+@media(max-width:700px){
+ .pit2{grid-template-columns:24px repeat(4,minmax(0,1fr)) 22px;gap:4px 6px;padding:8px 2px}
+ .pit2 .pnm{grid-column:2/6;grid-row:1;white-space:normal;overflow:visible;font-size:15px}
+ .pit2>input[type=checkbox]{grid-column:1;grid-row:1}
+ .pit2>.pdel{grid-column:6;grid-row:1;font-size:18px}
+ .pit2 label.lb{display:flex;flex-direction:column;gap:1px;min-width:0;grid-row:2}
+ .pit2 label.lb small{display:block;font-size:11px;color:var(--mu)}
+ .pit2>label.lb:nth-of-type(1){grid-column:2}.pit2>label.lb:nth-of-type(2){grid-column:3}.pit2>label.lb:nth-of-type(3){grid-column:4}.pit2>label.lb:nth-of-type(4){grid-column:5}
+ .pit2 .nt{grid-column:2/7;grid-row:3}
+ .pit2 input.pi{height:34px!important;font-size:15px!important}
+ .pit2.phd{grid-template-columns:24px 1fr;padding:4px 2px}.pit2.phd span:nth-child(n+3){display:none}
+ .pgc .pgh{flex-wrap:wrap;gap:4px 8px}
+ .pgc .pgh .pgn{white-space:nowrap}
+ .pgc .pgh .pgs{order:5;flex-basis:100%;padding-left:22px}
+}
 .pit{border:1px solid var(--ln);border-radius:12px;padding:8px 10px;margin:8px 0;background:rgba(0,0,0,.12)}
 .pih{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .pir{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
@@ -2870,10 +2885,10 @@ function planItemRow(gid,iid,i){
   return `<div class="pit2${itemDone(i)?' done':''}" id="pit_${k}">
    <input type="checkbox" title="買到了就打勾" ${itemDone(i)?'checked':''} onchange="planCheck(${pe},this.checked)">
    <span class="pnm" title="${esc(i.name)}">${esc(i.name)}</span>
-   <input id="q_${k}" class="pi" inputmode="decimal" placeholder="數量" value="${esc(i.qty??'')}" oninput="planLive(${pe})" onchange="planItemSave(${pe},'qty')">
-   <input id="u_${k}" class="pi" lang="zh-TW" placeholder="單位" value="${esc(i.unit||'')}" onchange="planItemSave(${pe},'unit')">
-   <input id="p_${k}" class="pi" inputmode="decimal" placeholder="單價" value="${esc((+i.price||0)||'')}" oninput="planLive(${pe})" onchange="planItemSave(${pe},'price')">
-   <input id="m_${k}" class="pi" inputmode="decimal" placeholder="金額" value="${esc(itemAmt(i)||'')}" onchange="planItemSave(${pe},'amount')">
+   <label class="lb"><small>數量</small><input id="q_${k}" class="pi" inputmode="decimal" placeholder="數量" value="${esc(i.qty??'')}" oninput="planLive(${pe})" onchange="planItemSave(${pe},'qty')"></label>
+   <label class="lb"><small>單位</small><input id="u_${k}" class="pi" lang="zh-TW" placeholder="單位" value="${esc(i.unit||'')}" onchange="planItemSave(${pe},'unit')"></label>
+   <label class="lb"><small>單價</small><input id="p_${k}" class="pi" inputmode="decimal" placeholder="單價" value="${esc((+i.price||0)||'')}" oninput="planLive(${pe})" onchange="planItemSave(${pe},'price')"></label>
+   <label class="lb"><small>金額</small><input id="m_${k}" class="pi" inputmode="decimal" placeholder="金額" value="${esc(itemAmt(i)||'')}" onchange="planItemSave(${pe},'amount')"></label>
    <input id="n_${k}" class="pi nt" lang="zh-TW" placeholder="備註" value="${esc(i.note||'')}" onchange="planItemSave(${pe},'note')">
    <button class="pdel" title="刪除這個品項" onclick="planDelItem(${pe})">✕</button>
   </div>`;
@@ -3017,6 +3032,11 @@ async function planItemSave(gid,iid,key){
   if(key==='amount'){
     const a=r2(parseFloat(val('m'))||0);
     if(a>0&&q>0&&!price){price=r2(a/q);it.manual=Math.abs(a-r2(q*price))>0.005}      // 還沒設單價：只輸入總金額，就自動算出單價
+    else if(a>0&&!q&&price>0){                                                          // 數量不知道（例如買一顆，店家秤出總價）：數量＝金額÷單價
+      it.qty=String(r2(a/price));it.manual=Math.abs(a-r2((+it.qty)*price))>0.005;
+      const qe=$('q_'+k);if(qe)qe.value=it.qty;
+      toast(`🧮 已換算數量：${it.qty}${it.unit||''}（$${a} ÷ 單價 $${price}）`,()=>{});
+    }
     else it.manual=a>0&&Math.abs(a-r2(q*price))>0.005;
     it.amount=a;
   }else if(!it.manual)it.amount=r2(q*price);
