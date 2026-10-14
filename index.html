@@ -1528,6 +1528,7 @@ function renderOrders(){
       ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">拒單</button>`:''}
       ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
+      ${o.status!=='cancelled'&&prnCfg().on?`<button class="oc-no" onclick="prnManual('${o.id}','k')">🖨 廚房單</button><button class="oc-no" onclick="prnManual('${o.id}','r')">🧾 收據</button>`:''}
       ${nx?`<button class="oc-go" onclick="${nx[0]==='picked'?`pickup('${o.id}')`:`setOrderStatus('${o.id}','${nx[0]}')`}">${nx[1]}</button>`:''}
      </div></div>`;
   }).join('');
@@ -1541,6 +1542,7 @@ function renderOrders(){
 function setOrderStatus(id,st){
   const data={status:st,updatedAt:Date.now()},k={making:'acceptedAt',done:'doneAt',picked:'pickedAt'}[st];if(k)data[k]=Date.now();
   FB.update(FB.ref(FB.db,'orders/'+id),data).catch(e=>alert('更新失敗：'+(e.code||e.message)));
+  if(st==='making')prnKitchenAuto(id);      // 接單 → 自動印廚房單（出單設定開啟才會印）
 }
 function cancelOrder(id){openVoid(id,'orders')}
 
@@ -1657,6 +1659,7 @@ function openAdminPanel(){
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
+    <button class="opt-btn" onclick="openPrnSettings()">🖨 出單設定（出單機、錢櫃）</button>
     <button class="opt-btn" onclick="openBackup()">💾 資料備份</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
    </div>
@@ -2040,11 +2043,178 @@ async function confirmPay(){
     if(total!==(+o.total||0))adj.push(`金額 $${o.total}→$${total}`);
     if(adj.length)logAct('結帳調整',PAY.id,o.no,adj.join('｜'));
   }catch(e){alert('結帳失敗：'+(e.code||e.message));b.disabled=false;b.textContent='結帳';return}
+  prnAfterPay({...o,...data,id:PAY.id});      // 結帳 → 自動印收據、現金彈開錢櫃（出單設定開啟才會做）
   $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>結帳完成 #${esc(o.no)}</h3>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
     ${cash?`<div class="rc-no">找零 $${chg}</div><div class="rc-row" style="justify-content:center;gap:8px"><span>收到</span><span>$${recv}</span></div>`:''}
     <div class="modal-tip" style="text-align:left;margin-top:10px">這筆訂單已結束。</div>
    </div><div class="m-btns"><button class="btn-confirm" onclick="openOrders()">完成</button></div>`;
+}
+
+/* ===== 出單機（POS 電腦用）=====
+   做法：網頁把單據畫成圖片（中文不會亂碼）→ 交給這台電腦上的「出單小幫手」→ 用網路線送到出單機；現金結帳時順便彈開錢櫃。
+   設定只存在「這台電腦」的瀏覽器（localStorage），其他手機／平板不會出單。 */
+const PRN_DEF={on:false,url:'http://127.0.0.1:9101',kitchen:true,receipt:true,drawerCash:true};
+const prnCfg=()=>{try{return{...PRN_DEF,...JSON.parse(localStorage.getItem('prn_cfg')||'{}')}}catch(e){return{...PRN_DEF}}};
+const prnCfgSave=c=>{try{localStorage.setItem('prn_cfg',JSON.stringify(c))}catch(e){}};
+const PRN_W=576;                                   // 80mm 紙＝576 點
+const PRN_FONT='"Noto Sans TC","Microsoft JhengHei","PingFang TC","Heiti TC",sans-serif';
+const PRN_SZ={1:24,2:34,3:56};
+function prnRender(rows){
+  const mc=document.createElement('canvas').getContext('2d');
+  const fnt=(s,b)=>(b?'700 ':'400 ')+(PRN_SZ[s]||24)+'px '+PRN_FONT;
+  const wid=(t,s,b)=>{mc.font=fnt(s,b);return mc.measureText(t).width};
+  const wrap=(t,s,b,max)=>{
+    const out=[];let cur='';
+    for(const ch of String(t)){
+      if(ch==='\n'){out.push(cur);cur='';continue}
+      if(cur&&wid(cur+ch,s,b)>max){out.push(cur);cur=ch}else cur+=ch;
+    }
+    out.push(cur);return out;
+  };
+  const ops=[];let y=6;
+  rows.forEach(r=>{
+    if(r.gap){y+=r.gap;return}
+    if(r.dash){ops.push({k:'dash',y:y+6});y+=14;return}
+    const s=r.s||1,b=!!r.b,lh=Math.round((PRN_SZ[s]||24)*1.35);
+    if(r.l!==undefined){                           // 左右對齊：品名在左、金額在右
+      const rw=wid(String(r.r||''),s,b);
+      const lines=wrap(r.l,s,b,PRN_W-rw-12);
+      lines.forEach((t,i)=>{ops.push({k:'t',t,x:0,y,s,b,a:'l'});if(i===0&&r.r!==undefined)ops.push({k:'t',t:String(r.r),x:PRN_W,y,s,b,a:'r'});y+=lh});
+      return;
+    }
+    wrap(r.t,s,b,PRN_W).forEach(t=>{ops.push({k:'t',t,y,s,b,a:r.a||'l'});y+=lh});
+  });
+  y+=10;
+  const cv=document.createElement('canvas');cv.width=PRN_W;cv.height=y;
+  const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,PRN_W,y);c.fillStyle='#000';c.textBaseline='top';
+  ops.forEach(o=>{
+    if(o.k==='dash'){c.fillRect(0,o.y,PRN_W,2);return}
+    c.font=fnt(o.s,o.b);
+    if(o.a==='c'){c.textAlign='center';c.fillText(o.t,PRN_W/2,o.y)}
+    else if(o.a==='r'){c.textAlign='right';c.fillText(o.t,PRN_W,o.y)}
+    else{c.textAlign='left';c.fillText(o.t,0,o.y)}
+  });
+  return cv;
+}
+function prnBits(cv){                              // 畫布 → 1 位元黑白點陣（每列 72 bytes）
+  const w=cv.width,h=cv.height,wb=w>>3,px=cv.getContext('2d').getImageData(0,0,w,h).data,out=new Uint8Array(wb*h);
+  for(let yy=0;yy<h;yy++)for(let x=0;x<w;x++){
+    const i=(yy*w+x)*4,lum=px[i]*.3+px[i+1]*.59+px[i+2]*.11;
+    if(lum<170)out[yy*wb+(x>>3)]|=0x80>>(x&7);
+  }
+  return{w:wb,h,data:out};
+}
+function prnB64(u8){let s='';for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s)}
+async function prnSend(path,body){
+  const c=prnCfg(),ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),8000);
+  try{
+    const r=await fetch(c.url.replace(/\/$/,'')+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{}),signal:ctl.signal});
+    const j=await r.json().catch(()=>({}));
+    return(r.ok&&j.ok)?{ok:true}:{ok:false,err:j.err||('HTTP '+r.status)};
+  }catch(e){return{ok:false,err:'連不到「出單小幫手」，請確認這台電腦上的小幫手視窗有開著'}}
+  finally{clearTimeout(to)}
+}
+async function prnPrint(rows,opt){
+  opt=opt||{};
+  const b=prnBits(prnRender(rows));
+  return prnSend('/print',{w:b.w,h:b.h,data:prnB64(b.data),drawer:!!opt.drawer,cut:true});
+}
+async function prnDrawer(){
+  const r=await prnSend('/drawer',{});
+  toast(r.ok?'🔓 已送出開錢櫃指令':'🖨 開錢櫃失敗：'+r.err,()=>{});
+}
+const prnFail=r=>toast('🖨 出單失敗：'+r.err,()=>{});
+const incPlain=x=>{try{return(x.inc!=null?x.inc:(()=>{const id=baseId(x.id);return incText(find(id),catOf(id))})())||''}catch(e){return''}};
+const prnPayTxt=o=>o.paid?('已付款（'+(o.pay||'')+'）'):('未付款（'+(o.pay||'')+'）');
+/* 廚房單：大字、重點是品項與數量 */
+function prnKitchenRows(o){
+  const R=[],P=peopleOf(o);
+  R.push({t:'廚房單',s:2,b:true,a:'c'},{t:'#'+o.no,s:3,b:true,a:'c'},{t:'取餐 '+(o.time||''),s:2,b:true,a:'c'});
+  R.push({t:((o.src&&o.src!=='線上')?o.src:'線上')+'　'+prnPayTxt(o)+(o.late?'　【補單】':''),s:1,a:'c'},{dash:1});
+  const addItems=(items)=>items.forEach(x=>{
+    R.push({t:x.name+'  ×'+x.qty,s:2,b:true});
+    const inc=incPlain(x);if(inc)R.push({t:'　└ '+inc,s:1});
+  });
+  if(P){P.forEach(pp=>{
+    R.push({t:'【'+(pp.name||'')+'】'+[pp.flavor,pp.spice,pp.salt].filter(Boolean).join(' / '),s:1,b:true});
+    if(pp.note)R.push({t:'備註：'+pp.note,s:1});
+    addItems(pp.items);R.push({gap:6});
+  })}else{
+    addItems(o.items||[]);
+    const opt=[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
+    if(opt)R.push({gap:4},{t:opt,s:2,b:true});
+  }
+  R.push({dash:1});
+  if((o.gear||[]).length)R.push({t:'配備：'+o.gear.join('、'),s:1,b:true});
+  if(o.note)R.push({t:'備註：'+o.note,s:2,b:true});
+  R.push({t:[o.name,o.phone].filter(Boolean).join('　'),s:1},{t:'列印 '+fmtDT(Date.now()),s:1,a:'r'});
+  return R;
+}
+/* 收據：有單價、小計、折扣、付款方式、找零 */
+function prnReceiptRows(o){
+  const R=[],P=peopleOf(o),sub=(o.items||[]).reduce((a,x)=>a+(+x.price||0)*(+x.qty||0),0);
+  R.push({t:'去中心鹹水雞 X 厝邊溫食',s:2,b:true,a:'c'},{t:'收　據',s:1,a:'c'},{gap:4},{t:'編號 #'+o.no+'　'+fmtDT(o.paidAt||Date.now()),s:1},{dash:1});
+  const addItems=(items)=>items.forEach(x=>R.push({l:x.name+' ×'+x.qty,r:'$'+((+x.price||0)*(+x.qty||0)),s:1}));
+  if(P)P.forEach(pp=>{R.push({t:'【'+(pp.name||'')+'】',s:1,b:true});addItems(pp.items)});else addItems(o.items||[]);
+  R.push({dash:1},{l:'小計',r:'$'+(o.subtotal!=null?o.subtotal:sub),s:1});
+  const adj=(+o.extra||0)-(+o.discount||0);
+  if(adj)R.push({l:adj>0?'加價':'折扣／折讓',r:(adj>0?'+':'-')+'$'+Math.abs(adj),s:1});
+  R.push({l:'應付總額',r:'$'+o.total,s:2,b:true},{gap:4},{l:'付款方式',r:o.pay||'',s:1});
+  if(o.pay==='現金'&&o.received!=null)R.push({l:'收到',r:'$'+o.received,s:1},{l:'找零',r:'$'+(o.change||0),s:1});
+  R.push({dash:1},{t:'謝謝光臨，歡迎再來！',s:1,a:'c'});
+  return R;
+}
+/* 自動出單：接單 → 廚房單；結帳 → 收據（現金會彈開錢櫃） */
+async function prnKitchenAuto(id){
+  const c=prnCfg();if(!c.on||!c.kitchen)return;
+  const o=ORDERS[id];if(!o)return;
+  const r=await prnPrint(prnKitchenRows(o));if(!r.ok)prnFail(r);
+}
+async function prnAfterPay(o){
+  const c=prnCfg();if(!c.on)return;
+  const drawer=!!(c.drawerCash&&o.pay==='現金');
+  if(c.receipt){const r=await prnPrint(prnReceiptRows(o),{drawer});if(!r.ok)prnFail(r)}
+  else if(drawer){const r=await prnSend('/drawer',{});if(!r.ok)prnFail(r)}
+}
+async function prnManual(id,kind){
+  const o=ORDERS[id];if(!o)return;
+  const r=await prnPrint(kind==='k'?prnKitchenRows(o):prnReceiptRows(o));
+  toast(r.ok?'🖨 已送出':'🖨 出單失敗：'+r.err,()=>{});
+}
+/* 出單設定頁（後台管理 → 出單設定） */
+function openPrnSettings(){
+  const c=prnCfg();
+  viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box';
+  const ck=(id,v,t)=>`<div class="fm-row" style="gap:8px"><input type="checkbox" id="${id}" ${v?'checked':''} onchange="prnSettingsSave()"><span style="font-size:15px">${t}</span></div>`;
+  $('mBox').innerHTML=meHead('🖨 出單設定','openAdminPanel()')+`<div class="fm-sec">
+   <div class="modal-tip" style="text-align:left">這些設定<b>只存在這台電腦</b>。請在「接出單機的那台 POS 電腦」設定一次。使用前，這台電腦要先啟動「出單小幫手」（步驟看「出單設定步驟.md」）。</div>
+   ${ck('pcOn',c.on,'<b>啟用出單機</b>')}
+   ${ck('pcK',c.kitchen,'按「接單」時，自動印<b>廚房單</b>')}
+   ${ck('pcR',c.receipt,'按「結帳」時，自動印<b>收據</b>')}
+   ${ck('pcD',c.drawerCash,'<b>現金</b>結帳時，自動<b>彈開錢櫃</b>')}
+   <div class="fm-row"><b style="width:auto">小幫手網址</b><input id="pcU" value="${esc(c.url)}" onchange="prnSettingsSave()"></div>
+   <div id="pcSt" class="mu" style="min-height:22px;margin:6px 0"></div>
+   <div class="m-btns" style="position:static;margin:0;padding:0;border:0"><button class="btn-cancel" onclick="prnCheck()">檢查連線</button><button class="btn-cancel" onclick="prnTest()">測試列印</button><button class="btn-confirm" onclick="prnDrawer()">🔓 開錢櫃</button></div>
+  </div>`;
+  $('modal').classList.add('open');
+}
+function prnSettingsSave(){
+  const c=prnCfg();
+  c.on=$('pcOn').checked;c.kitchen=$('pcK').checked;c.receipt=$('pcR').checked;c.drawerCash=$('pcD').checked;
+  c.url=($('pcU').value||PRN_DEF.url).trim();prnCfgSave(c);
+}
+async function prnCheck(){
+  prnSettingsSave();const st=$('pcSt');st.textContent='檢查中…';
+  try{
+    const r=await fetch(prnCfg().url.replace(/\/$/,'')+'/ping'),j=await r.json();
+    st.innerHTML=j.printer?'<span style="color:var(--ok)">✔ 小幫手正常，也連得到出單機（'+esc(j.ip)+'）</span>':'<span style="color:var(--bad)">小幫手有開，但連不到出單機（'+esc(j.ip||'')+'）。請檢查網路線、電腦的有線網路 IP（192.168.123.x）、出單機電源。</span>';
+  }catch(e){st.innerHTML='<span style="color:var(--bad)">✘ 連不到「出單小幫手」。請確認這台電腦上的小幫手視窗有開著；第一次連線時，瀏覽器若跳出「存取區域網路裝置」請按「允許」。</span>'}
+}
+async function prnTest(){
+  prnSettingsSave();const st=$('pcSt');st.textContent='送出測試單…';
+  const r=await prnPrint([{t:'出單測試',s:2,b:true,a:'c'},{t:'去中心鹹水雞 X 厝邊溫食',s:1,a:'c'},{dash:1},{l:'高麗菜 ×1',r:'$20',s:1},{l:'沙茶牛肉炒麵 ×1',r:'$120',s:1},{dash:1},{l:'應付總額',r:'$140',s:2,b:true},{gap:4},{t:fmtDT(Date.now()),s:1,a:'c'},{t:'中文、數字 0123456789 正常就代表成功',s:1,a:'c'}]);
+  st.innerHTML=r.ok?'<span style="color:var(--ok)">✔ 已送出，請看出單機有沒有印出來</span>':'<span style="color:var(--bad)">✘ '+esc(r.err)+'</span>';
 }
 
 /* ===== 店長 / 店員 ===== */
@@ -2464,7 +2634,7 @@ function expListHtml(){
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
   return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出（${CASH.day===today8()?'今天':dayLabel(CASH.day)}）</div>
-    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 採購進貨</button>${['雜支','存鈔','補入'].map(k=>EXP_TYPES.find(x=>x[0]===k)).map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
+    <div class="chips" id="exChips"><button class="chip" style="border-color:var(--ac);color:var(--ac2);font-weight:800" onclick="openPlan(CASH.day)">🛒 採購進貨</button>${prnCfg().on?'<button class="chip" onclick="prnDrawer()">🔓 開錢櫃</button>':''}${['雜支','存鈔','補入'].map(k=>EXP_TYPES.find(x=>x[0]===k)).map(([k,n])=>`<button class="chip${CASH.ex.type===k?' on':''}" data-k="${k}" onclick="setExType('${k}')">${n}</button>`).join('')}</div>
     <div class="modal-tip" style="text-align:left">錢<b>拿出收銀機</b>：買東西請點最前面的「🛒 採購進貨」，勾選買到的品項就會自動記帳；雜支、存鈔在這裡直接選。錢<b>放進收銀機</b>：選「補入收銀機」。<br>例：領存鈔 $4000 去買菜，花 $3988，剩 $12 放回收銀機 → 記兩筆：「補入收銀機 $4000」＋採購清單算入進貨/材料 $3988（收銀機實際只增加 $12）。</div>
     <div class="fm-row"><b>金額</b><input id="exAmt" type="number" inputmode="numeric" min="0" value="${esc(CASH.ex.amount)}" placeholder="例如 1000" oninput="CASH.ex.amount=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('exNote').focus()}"></div>
     <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" list="exNoteList" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2（打過的會記住）" oninput="CASH.ex.note=this.value;exNoteIn(this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
