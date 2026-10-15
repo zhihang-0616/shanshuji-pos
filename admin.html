@@ -1454,7 +1454,7 @@ function startOrders(){
     ORDERS=v;
     if(ordInit&&fresh.length){
       if(!muted)beep();const o=v[fresh[fresh.length-1]];fresh.forEach(notifyLine);
-      (async()=>{const c=prnCfg();if(!c.on||!c.kNew)return;for(const id of fresh){const r=await prnPrint(prnKitchenRows({...v[id],id}));if(!r.ok){prnFail(r);break}}})();
+      (async()=>{const c=prnCfg();if(!c.on||(!c.kNew&&!c.rNew))return;for(const id of fresh){const od={...v[id],id};if(c.kNew){const r=await prnPrint(prnKitchenRows(od));if(!r.ok){prnFail(r);return}}if(c.rNew){const r=await prnPrint(prnReceiptRows(od));if(!r.ok){prnFail(r);return}}}})();
       const bad=fresh.filter(id=>anomalies({...v[id],id}).length);if(bad.length)setTimeout(()=>toast(`⚠ 新訂單 #${v[bad[0]].no} 金額異常，請核對（訂單管理有紅色提示）`),2500);
       toast(`🔔 新訂單 #${o.no}　${o.name}　$${o.total}${fresh.length>1?`（共 ${fresh.length} 筆新單）`:''}`);
     }
@@ -1543,7 +1543,6 @@ function renderOrders(){
 function setOrderStatus(id,st){
   const data={status:st,updatedAt:Date.now()},k={making:'acceptedAt',done:'doneAt',picked:'pickedAt'}[st];if(k)data[k]=Date.now();
   FB.update(FB.ref(FB.db,'orders/'+id),data).catch(e=>alert('更新失敗：'+(e.code||e.message)));
-  if(st==='making')prnKitchenAuto(id);      // 接單 → 自動印廚房單（出單設定開啟才會印）
 }
 function cancelOrder(id){openVoid(id,'orders')}
 
@@ -2055,7 +2054,7 @@ async function confirmPay(){
 /* ===== 出單機（POS 電腦用）=====
    做法：網頁把單據畫成圖片（中文不會亂碼）→ 交給這台電腦上的「出單小幫手」→ 用網路線送到出單機；現金結帳時順便彈開錢櫃。
    設定只存在「這台電腦」的瀏覽器（localStorage），其他手機／平板不會出單。 */
-const PRN_DEF={on:false,url:'http://127.0.0.1:9101',kNew:true,kAcc:false,rcp:false,drawerCash:true};
+const PRN_DEF={on:false,url:'http://127.0.0.1:9101',kNew:true,rNew:false,drawerCash:true};
 const prnCfg=()=>{try{return{...PRN_DEF,...JSON.parse(localStorage.getItem('prn_cfg')||'{}')}}catch(e){return{...PRN_DEF}}};
 const prnCfgSave=c=>{try{localStorage.setItem('prn_cfg',JSON.stringify(c))}catch(e){}};
 const PRN_W=576;                                   // 80mm 紙＝576 點
@@ -2170,17 +2169,11 @@ function prnReceiptRows(o){
   R.push({dash:1},{t:'謝謝光臨，歡迎再來！',s:1,a:'c'});
   return R;
 }
-/* 自動出單：接單 → 廚房單；結帳 → 收據（現金會彈開錢櫃） */
-async function prnKitchenAuto(id){
-  const c=prnCfg();if(!c.on||!c.kAcc)return;
-  const o=ORDERS[id];if(!o)return;
-  const r=await prnPrint(prnKitchenRows(o));if(!r.ok)prnFail(r);
-}
+/* 自動出單：客人下單 → 廚房單／收據（可複選）；現金結帳 → 彈開錢櫃 */
 async function prnAfterPay(o){
   const c=prnCfg();if(!c.on)return;
   const drawer=!!(c.drawerCash&&o.pay==='現金');
-  if(c.rcp){const r=await prnPrint(prnReceiptRows(o),{drawer});if(!r.ok)prnFail(r)}
-  else if(drawer){const r=await prnSend('/drawer',{});if(!r.ok)prnFail(r)}
+  if(drawer){const r=await prnSend('/drawer',{});if(!r.ok)prnFail(r)}
 }
 async function prnManual(id,kind){
   const o=ORDERS[id]||(typeof HIST!=='undefined'&&HIST.find(x=>x.id===id));if(!o)return;
@@ -2196,9 +2189,9 @@ function openPrnSettings(){
   $('mBox').innerHTML=meHead('🖨 出單設定','openAdminPanel()')+`<div class="fm-sec">
    <div class="modal-tip" style="text-align:left">這些設定<b>只存在這台電腦</b>。請在「接出單機的那台 POS 電腦」設定一次。使用前，這台電腦要先啟動「出單小幫手」（步驟看「出單設定步驟.md」）。</div>
    ${ck('pcOn',c.on,'<b>啟用出單機</b>')}
-   ${ck('pcN',c.kNew,'客人<b>下單</b>時，自動印<b>廚房單</b>')}
-   ${ck('pcK',c.kAcc,'按「接單」時，再印一次廚房單（通常不用勾）')}
-   ${ck('pcR',c.rcp,'按「結帳」時，自動印<b>收據</b>（通常不用勾，要的時候按單上的 🧾 收據）')}
+   <div class="fm-row" style="gap:8px;flex-wrap:wrap"><span style="font-size:15px">客人<b>下單</b>時，自動印：</span>
+    <label style="display:flex;gap:6px;align-items:center;font-size:15px"><input type="checkbox" id="pcN" ${c.kNew?'checked':''} onchange="prnSettingsSave()"><b>廚房單</b></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:15px"><input type="checkbox" id="pcR" ${c.rNew?'checked':''} onchange="prnSettingsSave()"><b>收據</b></label></div>
    ${ck('pcD',c.drawerCash,'<b>現金</b>結帳時，自動<b>彈開錢櫃</b>')}
    <div class="fm-row"><b style="width:auto">小幫手網址</b><input id="pcU" value="${esc(c.url)}" onchange="prnSettingsSave()"></div>
    <div id="pcSt" class="mu" style="min-height:22px;margin:6px 0"></div>
@@ -2208,7 +2201,7 @@ function openPrnSettings(){
 }
 function prnSettingsSave(){
   const c=prnCfg();
-  c.on=$('pcOn').checked;c.kNew=$('pcN').checked;c.kAcc=$('pcK').checked;c.rcp=$('pcR').checked;c.drawerCash=$('pcD').checked;
+  c.on=$('pcOn').checked;c.kNew=$('pcN').checked;c.rNew=$('pcR').checked;c.drawerCash=$('pcD').checked;
   c.url=($('pcU').value||PRN_DEF.url).trim();prnCfgSave(c);
 }
 async function prnCheck(){
