@@ -2158,15 +2158,33 @@ function prnKitchenRows(o){
 /* 收據：有單價、小計、折扣、付款方式、找零 */
 function prnReceiptRows(o){
   const R=[],P=peopleOf(o),sub=(o.items||[]).reduce((a,x)=>a+(+x.price||0)*(+x.qty||0),0);
-  R.push({t:'去中心鹹水雞 X 厝邊溫食',s:2,b:true,a:'c'},{t:'收　據',s:1,a:'c'},{gap:4},{t:'編號 #'+o.no+'　'+fmtDT(o.paidAt||Date.now()),s:1},{dash:1});
-  const addItems=(items)=>items.forEach(x=>R.push({l:x.name+' ×'+x.qty,r:'$'+((+x.price||0)*(+x.qty||0)),s:1}));
-  if(P)P.forEach(pp=>{R.push({t:'【'+(pp.name||'')+'】',s:1,b:true});addItems(pp.items)});else addItems(o.items||[]);
+  R.push({t:'去中心鹹水雞 X 厝邊溫食',s:2,b:true,a:'c'},{t:'收　據',s:1,a:'c'},{gap:4},{t:'#'+o.no+'　取餐 '+(o.time||''),s:2,b:true,a:'c'});
+  R.push({t:((o.src&&o.src!=='線上')?o.src:'線上')+'　'+fmtDT(o.paidAt||o.createdAt||Date.now())+(o.late?'　【補單】':''),s:1,a:'c'},{dash:1});
+  const addItems=(items)=>items.forEach(x=>{
+    R.push({l:x.name+' ×'+x.qty,r:'$'+((+x.price||0)*(+x.qty||0)),s:2,b:true});
+    const inc=incPlain(x);if(inc)R.push({t:'　└ '+inc,s:1});
+  });
+  if(P){P.forEach(pp=>{
+    R.push({t:'【'+(pp.name||'')+'】'+[pp.flavor,pp.spice,pp.salt].filter(Boolean).join(' / '),s:1,b:true});
+    if(pp.note)R.push({t:'備註：'+pp.note,s:1});
+    addItems(pp.items);R.push({gap:6});
+  })}else{
+    addItems(o.items||[]);
+    const opt=[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
+    const g=(o.gear||[]).length?'配備：'+o.gear.join('、'):'';
+    if(opt||g)R.push({gap:4},{t:[opt,g].filter(Boolean).join('　'),s:2,b:true});
+    if(o.note)R.push({t:'備註：'+o.note,s:2,b:true});
+  }
+  if(P){
+    if((o.gear||[]).length)R.push({t:'配備：'+o.gear.join('、'),s:2,b:true});
+    if(o.note)R.push({t:'備註：'+o.note,s:2,b:true});
+  }
   R.push({dash:1},{l:'小計',r:'$'+(o.subtotal!=null?o.subtotal:sub),s:1});
   const adj=(+o.extra||0)-(+o.discount||0);
   if(adj)R.push({l:adj>0?'加價':'折扣／折讓',r:(adj>0?'+':'-')+'$'+Math.abs(adj),s:1});
-  R.push({l:'應付總額',r:'$'+o.total,s:2,b:true},{gap:4},{l:'付款方式',r:o.pay||'',s:1});
+  R.push({l:'應付總額',r:'$'+o.total,s:2,b:true},{gap:4},{l:'付款方式',r:(o.pay||'')+(o.paid?'（已收）':'（未收）'),s:1});
   if(o.pay==='現金'&&o.received!=null)R.push({l:'收到',r:'$'+o.received,s:1},{l:'找零',r:'$'+(o.change||0),s:1});
-  R.push({dash:1},{t:'謝謝光臨，歡迎再來！',s:1,a:'c'});
+  R.push({t:[o.name,o.phone].filter(Boolean).join('　'),s:1},{dash:1},{t:'謝謝光臨，歡迎再來！',s:1,a:'c'});
   return R;
 }
 /* 自動出單：客人下單 → 廚房單／收據（可複選）；現金結帳 → 彈開錢櫃 */
