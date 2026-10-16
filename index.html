@@ -488,8 +488,7 @@ const waitManual=()=>{const w=SHOP.wait;return w&&w.manual&&+w.manual.until>svNo
 function waitMin(){
   const w=SHOP.wait,t=svNow();if(!w)return 0;
   const m=waitManual();if(m)return +m.min||0;
-  if(!w.at||t-(+w.at)>20*60000)return 0;       // 超過 20 分鐘沒更新（店家平板沒開），就不顯示
-  return +w.min||0;
+  return 0;       // 不再自動預估等候時間（只有店家手動設定才會顯示）
 }
 async function setWaitManual(){
   const m=Math.round(+($('waitIn').value)||0);
@@ -1500,7 +1499,7 @@ function renderOrders(){
   const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['all','全部',all.length]];
   const warnN=all.filter(o=>anomalies(o).length).length;if(warnN)F.push(['warn','⚠ 異常',warnN]);
   const list=all.filter(o=>ordFilter==='all'||(ordFilter==='warn'?anomalies(o).length>0:ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
-    .sort((a,b)=>{const na=a.status==='new'?0:1,nb=b.status==='new'?0:1;if(na!==nb)return na-nb;const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?String(a.no).localeCompare(String(b.no),'zh-Hant',{numeric:true}):(x-y||a.createdAt-b.createdAt)});
+    .sort((a,b)=>{const na=a.status==='new'?0:1,nb=b.status==='new'?0:1;if(na!==nb)return na-nb;const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?(b.createdAt||0)-(a.createdAt||0):(y-x||(b.createdAt||0)-(a.createdAt||0))});
   const cards=list.map(o=>{
     const items=itemsBlock(o,true);
     const opt=o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
@@ -1543,6 +1542,15 @@ function renderOrders(){
 function setOrderStatus(id,st){
   const data={status:st,updatedAt:Date.now()},k={making:'acceptedAt',done:'doneAt',picked:'pickedAt'}[st];if(k)data[k]=Date.now();
   FB.update(FB.ref(FB.db,'orders/'+id),data).catch(e=>alert('更新失敗：'+(e.code||e.message)));
+  if(st==='making')prnOnAccept(id);
+}
+/* 店家自己在網頁點的單：按「接單」時才出單（客人線上下的單，一進來就已經印過了） */
+async function prnOnAccept(id){
+  const o=ORDERS[id],c=prnCfg();
+  if(!o||!o.staff||!c.on||(!c.kNew&&!c.rNew))return;
+  const od={...o,id};
+  if(c.kNew){const r=await prnPrint(prnKitchenRows(od));if(!r.ok){prnFail(r);return}}
+  if(c.rNew){const r=await prnPrint(prnReceiptRows(od));if(!r.ok){prnFail(r)}}
 }
 function cancelOrder(id){openVoid(id,'orders')}
 
@@ -3244,6 +3252,17 @@ async function planItemSave(gid,iid,key){
   const qtyS=val('q').trim(),q=parseFloat(qtyS)||0;
   let price=parseFloat(val('p'))||0;
   it.qty=qtyS;it.unit=val('u').trim();it.note=val('n').trim();
+  let autoP=false;
+  if(!price){                                                   // 沒填單價：從備註讀（例如「1斤33」「33元/斤」），單位空白就一起帶入
+    const n=gramParseNote(it.note);
+    if(n&&(!it.unit||gUnitNorm(it.unit)===n.u)){price=r2(n.p/n.q);autoP=true;if(!it.unit){it.unit=n.u;const ue=$('u_'+k);if(ue)ue.value=n.u}}
+  }
+  const a0=r2(parseFloat(val('m'))||0);
+  if(key!=='amount'&&a0>0&&!q&&price>0){                        // 已有總金額、數量空白：補上單價或備註後，自動換算數量（不動金額）
+    it.qty=String(r2(a0/price));it.manual=Math.abs(a0-r2((+it.qty)*price))>0.005;it.amount=a0;
+    const qe=$('q_'+k);if(qe)qe.value=it.qty;
+    toast(`🧮 已換算數量：${it.qty}${it.unit||''}（$${a0} ÷ 單價 $${price}）`,()=>{});
+  }else
   if(key==='amount'){
     const a=r2(parseFloat(val('m'))||0);
     if(a>0&&q>0&&!price){price=r2(a/q);it.manual=Math.abs(a-r2(q*price))>0.005}      // 還沒設單價：只輸入總金額，就自動算出單價
