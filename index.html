@@ -517,8 +517,8 @@ function openStatusSelector(){
     ${(ovr||vac)?'<button class="opt-btn" onclick="clearOvr()">↩ 恢復依營業時間自動切換</button>':''}
    </div>
    <div class="fm-sec" style="margin:10px 0"><div class="fm-title" style="font-size:13px">預估等候時間（客人看得到）</div>
-    <div style="font-size:13px;color:var(--mu)">${waitManual()?`目前手動設定：約 ${waitManual().min} 分鐘（到 ${twHM(+waitManual().until)}）`:`目前自動估算：約 ${waitAuto().min} 分鐘（進行中 ${waitAuto().n} 張，平均每張約 ${waitAuto().avg} 分鐘）`}</div>
-    <div class="fm-row" style="margin-top:6px"><input id="waitIn" type="number" inputmode="numeric" min="1" max="180" placeholder="手動分鐘，例如 40"><button class="chip sm" onclick="setWaitManual()">手動設定</button><button class="chip sm" onclick="clearWaitManual()">改回自動</button></div></div>
+    <div style="font-size:13px;color:var(--mu)">${waitManual()?`目前手動設定：約 ${waitManual().min} 分鐘（到 ${twHM(+waitManual().until)}）`:'目前沒有顯示等候時間（要顯示給客人時，在下方輸入分鐘再按「手動設定」，2 小時後自動取消）'}</div>
+    <div class="fm-row" style="margin-top:6px"><input id="waitIn" type="number" inputmode="numeric" min="1" max="180" placeholder="手動分鐘，例如 40"><button class="chip sm" onclick="setWaitManual()">手動設定</button><button class="chip sm" onclick="clearWaitManual()">取消顯示</button></div></div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
 }
@@ -1003,11 +1003,17 @@ const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
 const CK={name:'',phone:'',time:'',note:'',gear:[],pay:'現金',pct:100,off:0,err:false,src:'現場',people:[newP()],late:false,lateD:'',lateT:'',lateStatus:'picked',latePaid:true,lateNo:'',walkin:WALKIN_PAGE,x5:'',lpMode:''};
 const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
+/* 客人最早可選的取餐時間：17:30 開店，最快 17:40 才做得出來，所以 06:00～17:40 之間預約都只能選 17:40 以後 */
+const FIRST_PICK='17:40';
+function minPickHM(){const hm=new Date().toTimeString().slice(0,5);return(hm>='06:00'&&hm<FIRST_PICK)?FIRST_PICK:hm}
 function timeSlots(full){
   /* 客人：從現在之後的每 10 分鐘到 23:50；店家（full）：整天 00:00～23:50 */
   const now=new Date();now.setSeconds(0,0);
   const t=full?new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0,0):new Date(now);
-  if(!full)t.setMinutes(Math.ceil(t.getMinutes()/10)*10);
+  if(!full){
+    t.setMinutes(Math.ceil(t.getMinutes()/10)*10);
+    const mp=minPickHM();if(mp===FIRST_PICK&&t.toTimeString().slice(0,5)<mp)t.setHours(17,40,0,0);
+  }
   const day=now.getDate(),out=[];
   while(t.getDate()===day){
     out.push(String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'));
@@ -1165,7 +1171,7 @@ function timeField(key,id,slots){
 function timeOK(){
   const t=normTime(CK.time);
   if(!t)return false;
-  if(!isAdmin&&!CK.late&&t<new Date().toTimeString().slice(0,5))return false;
+  if(!isAdmin&&!CK.late&&t<minPickHM())return false;
   return true;
 }
 const lateMs=()=>{const t=normTime(CK.lateT);return(CK.lateD&&t)?new Date(CK.lateD+'T'+t+':00').getTime():NaN};
@@ -1198,7 +1204,7 @@ function renderCheckout(){
     ${isAdmin?'<div id="custBox"></div>':''}
     <div class="fm-row${e&&!timeOK()?' err':''}"><b>取餐時間*</b>
      ${timeField('ck','ckTime24',slots)}</div>
-    <div class="fm-err">${isAdmin?'請輸入正確的取餐時間（24 小時制，例如 17:30）':'請輸入正確的取餐時間（24 小時制，例如 17:30），不能早於現在'}</div>
+    <div class="fm-err">${isAdmin?'請輸入正確的取餐時間（24 小時制，例如 17:30）':`請輸入正確的取餐時間（24 小時制，例如 17:40），不能早於 ${minPickHM()}`}</div>
     ${!isAdmin&&waitMin()?`<div class="mu" style="font-size:12.5px;margin:-4px 0 8px;color:var(--ac2)">⏱ 目前約等候 ${waitMin()} 分鐘，最快約 ${twHM(svNow()+waitMin()*60000)} 可取餐，取餐時間建議選這個時間之後</div>`:''}
     ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>chip('src',v)).join('')}</div></div>
     <div class="fm-row"><b>補單</b><div class="chips"><button class="chip${CK.late?' on':''}" onclick="toggleLate()">📝 這是補單（事後補登）</button></div></div>${CK.late?lateBlock():''}`:''}
