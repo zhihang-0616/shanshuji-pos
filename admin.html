@@ -375,13 +375,34 @@ let soldOutItems=JSON.parse(localStorage.getItem('sold_out_items')||'{}');
 let soldOutCats=JSON.parse(localStorage.getItem('sold_out_cats')||'{}');
 
 window.addEventListener('DOMContentLoaded',()=>{
-  loadMenuCache();updateStatusDisplay();renderNav();renderGrid();renderCart();setInterval(updateStatusDisplay,30000);
+  pruneSold();loadMenuCache();updateStatusDisplay();renderNav();renderGrid();renderCart();setInterval(updateStatusDisplay,30000);
+  setInterval(()=>{if(pruneSold()){if(isAdmin&&window.FB)saveSold();renderNav();renderGrid()}},60000);
   if(ADMIN_PARAM)setTimeout(()=>{if(!window.FB)alert('雲端元件載入失敗，請檢查網路後重新整理')},8000);
 });
 document.addEventListener('click',()=>{if(isAdmin){unlockAudio();keepAwake();setTimeout(updateSoundBtn,300)}});
 const isClosed=()=>!isAdmin&&curStatus().s==='休息中';
 const norm=v=>v?Object.assign({},v):{};
 const onlyTrue=o=>Object.fromEntries(Object.entries(o).filter(([k,v])=>v));
+/* 售完有兩種：值是 true＝無期限（手動恢復）；值是營業日字串（如 "20261019"）＝當日售完，過了營業日（凌晨 2 點）自動恢復 */
+const soldDay=()=>bizDay(Date.now());
+function pruneSold(){
+  const d=soldDay();let ch=false;
+  const f=o=>{Object.keys(o).forEach(k=>{if(typeof o[k]==='string'&&o[k]!==d){o[k]=false;ch=true}})};
+  f(soldOutItems);f(soldOutCats);
+  if(ch){const S=soldOutItems;S.m5=S.m1||S.m3||false;S.m6=S.m2||S.m4||false}
+  return ch;
+}
+let SOLD_CB=null;
+function askSoldType(name,cb){
+  SOLD_CB=cb;$('mBox').className='m-box';
+  $('mBox').innerHTML=`<h3>「${esc(name)}」標示售完</h3><div class="opt-list">
+   <button class="opt-btn" onclick="soldPick('day')">🌙 當日售完<br><small style="font-weight:400">隔天營業日（凌晨 2 點後）自動恢復販售</small></button>
+   <button class="opt-btn" onclick="soldPick('forever')">⛔ 無期限售完<br><small style="font-weight:400">要等你手動「恢復販售」才會打開</small></button></div>
+   <div class="m-btns"><button class="btn-cancel" onclick="SOLD_CB=null;closeModal()">取消</button></div>`;
+  $('modal').classList.add('open');
+}
+function soldPick(t){const cb=SOLD_CB;SOLD_CB=null;closeModal();if(cb)cb(t==='day'?soldDay():true)}
+const soldTag=v=>typeof v==='string'?'（當日）':'（無期限）';
 function fbReady(){
   FB.onValue(FB.ref(FB.db,'.info/serverTimeOffset'),sn=>{SV_OFF=+sn.val()||0;updateStatusDisplay()});
   FB.onValue(FB.ref(FB.db,'menu/cfg'),sn=>applyMenu(sn.val()));
@@ -391,6 +412,7 @@ function fbReady(){
   FB.onValue(FB.ref(FB.db,'soldOut'),sn=>{
     const v=sn.val()||{};
     soldOutItems=norm(v.items);soldOutCats=norm(v.cats);
+    if(pruneSold()&&isAdmin)setTimeout(saveSold,0);
     localStorage.setItem('sold_out_items',JSON.stringify(soldOutItems));
     localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));
     renderNav();renderGrid();
@@ -633,9 +655,9 @@ function openSoldOutListModal(){
   let h='';
   MENU.forEach((c,idx)=>{
     if(soldOutCats[catKey(idx)]){const [t]=split(c.k);
-      h+=`<div class="sold-item-row"><span class="sold-item-name">📁 群組：${esc(t)}</span><button class="sold-restore-btn" onclick="restoreCat('${catKey(idx)}')">恢復販售</button></div>`}
+      h+=`<div class="sold-item-row"><span class="sold-item-name">📁 群組：${esc(t)}<small style="color:var(--mu)"> ${soldTag(soldOutCats[catKey(idx)])}</small></span><button class="sold-restore-btn" onclick="restoreCat('${catKey(idx)}')">恢復販售</button></div>`}
     c.items.forEach(it=>{
-      if(soldOutItems[it.id])h+=`<div class="sold-item-row"><span class="sold-item-name">🍗 ${esc(it.name)}</span><button class="sold-restore-btn" onclick="restoreItem('${it.id}')">恢復販售</button></div>`;
+      if(soldOutItems[it.id])h+=`<div class="sold-item-row"><span class="sold-item-name">🍗 ${esc(it.name)}<small style="color:var(--mu)"> ${soldTag(soldOutItems[it.id])}</small></span><button class="sold-restore-btn" onclick="restoreItem('${it.id}')">恢復販售</button></div>`;
     });
   });
   if(!h)h='<div style="text-align:center;color:var(--mu);padding:20px">目前沒有任何售完或關閉的品項！</div>';
@@ -652,19 +674,21 @@ function restoreItem(id){
 function toggleCatSoldOut(i,e){
   if(e)e.stopPropagation();
   if(!isSoldOutMode)return;
-  {const k=catKey(i);soldOutCats[k]=!soldOutCats[k];logAct('售完標示',null,'',`群組「${split(MENU[i].k)[0]}」${soldOutCats[k]?'標示售完':'恢復販售'}`)}
-  saveSold();renderNav();renderGrid();
+  const k=catKey(i),nm=split(MENU[i].k)[0];
+  if(soldOutCats[k]){soldOutCats[k]=false;logAct('售完標示',null,'',`群組「${nm}」恢復販售`);saveSold();renderNav();renderGrid();return}
+  askSoldType('群組：'+nm,val=>{soldOutCats[k]=val;logAct('售完標示',null,'',`群組「${nm}」標示售完${soldTag(val)}`);saveSold();renderNav();renderGrid()});
 }
 function toggleItemSoldOut(id){
   if(!isSoldOutMode)return;
-  soldOutItems[id]=!soldOutItems[id];
-  logAct('售完標示',null,'',`「${(find(id)||{}).name||id}」${soldOutItems[id]?'標示售完':'恢復販售'}`);
-  const S=soldOutItems;
-  if(id==='m1'||id==='m3')S.m5=!!(S.m1||S.m3);
-  else if(id==='m5'){S.m1=S.m3=S.m5}
-  if(id==='m2'||id==='m4')S.m6=!!(S.m2||S.m4);
-  else if(id==='m6'){S.m2=S.m4=S.m6}
-  saveSold();renderGrid();
+  const S=soldOutItems,nm=(find(id)||{}).name||id;
+  const link=val=>{
+    if(id==='m1'||id==='m3')S.m5=S.m1||S.m3||false;
+    else if(id==='m5'){S.m1=S.m3=S.m5=val}
+    if(id==='m2'||id==='m4')S.m6=S.m2||S.m4||false;
+    else if(id==='m6'){S.m2=S.m4=S.m6=val}
+  };
+  if(S[id]){S[id]=false;logAct('售完標示',null,'',`「${nm}」恢復販售`);link(false);saveSold();renderGrid();return}
+  askSoldType(nm,val=>{S[id]=val;logAct('售完標示',null,'',`「${nm}」標示售完${soldTag(val)}`);link(val);saveSold();renderGrid()});
 }
 
 function renderNav(){
