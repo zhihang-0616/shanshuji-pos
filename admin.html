@@ -917,7 +917,7 @@ function showComboOptions(item){
 /* 自由流通麵：客人必選包裝方式 */
 const NOODLE_OPTS=['與食材裝一起','麵食另外裝','多數麵食獨立分開裝'];
 let NDL=null;
-const prodQty=(base,p)=>cart.filter(x=>baseId(x.id)===base&&(x.p||0)===p).reduce((a,x)=>a+x.qty,0);
+const prodQty=(base,p)=>EDADD?ED.items.filter(x=>baseId(x.id)===base).reduce((a,x)=>a+(+x.qty||0),0):cart.filter(x=>baseId(x.id)===base&&(x.p||0)===p).reduce((a,x)=>a+x.qty,0);
 const isMultiNoodle=x=>String(x.id).endsWith('_'+NOODLE_OPTS[2]);
 function showNoodleOptions(item){NDL={item,opt:'',qty:1};renderNoodleModal()}
 function renderNoodleModal(){
@@ -950,6 +950,7 @@ function noodleViolation(){
 function addComboWithFlavor(id,name,price,flavor){add(`${name} (${flavor})`,price,`${id}_${flavor}`);closeModal()}
 
 function add(name,price,id){
+  if(EDADD){edPush(name,price,id);return}
   if(!canAdd(id)){toast(`「${itemName(id)}」今日數量不足，無法再增加`);return}
   const e=cart.find(x=>x.id===id&&x.p===curP);
   if(e)e.qty++;else{const id0=baseId(id),inc=incText(find(id0),catOf(id0));cart.push(inc?{id,name,price,qty:1,p:curP,inc}:{id,name,price,qty:1,p:curP})}
@@ -996,7 +997,7 @@ function renderCart(){
   const n=cart.reduce((a,x)=>a+x.qty,0),t=cart.reduce((a,x)=>a+x.qty*x.price,0);
   $('cnt').textContent=`共 ${n} 項`+(multi?`・正在幫「${plabel(curP)}」點餐`:'');$('tot').textContent='$'+t;$('go').disabled=!n||isClosed();
 }
-function closeModal(){viewingOrders=viewingStats=viewingTrack=STKopen=false;$('modal').classList.remove('open');$('mBox').className='m-box'}
+function closeModal(){if(EDADD){EDADD=false;renderEdit();return}viewingOrders=viewingStats=viewingTrack=STKopen=false;$('modal').classList.remove('open');$('mBox').className='m-box'}
 
 /* ===== 取餐資訊 ===== */
 const newP=()=>({name:'',flavor:'',spice:'',salt:'',note:''});
@@ -1852,7 +1853,7 @@ function openEdit(id,from){
   ED={id,no:o.no,orig:o,name:o.name||'',phone:o.phone||'',time:o.time||'',note:o.note||'',src:o.src||'線上',
     gear:[...(o.gear||[])],pay:o.pay||'現金',status:o.status||'new',people,items,adj:(+o.total||0)-sub};
   {const c=new Date(o.createdAt||Date.now());ED.d=ED.d0=`${c.getFullYear()}-${pad2t(c.getMonth()+1)}-${pad2t(c.getDate())}`;ED.at=ED.t0=`${pad2t(c.getHours())}:${pad2t(c.getMinutes())}`}
-  EDFROM=from;viewingOrders=viewingStats=viewingTrack=false;
+  EDADD=false;EDFROM=from;viewingOrders=viewingStats=viewingTrack=false;
   $('mBox').className='m-box xl';renderEdit();$('modal').classList.add('open');
 }
 const edChip=(k,v)=>`<button class="chip${ED[k]===v?' on':''}" onclick="edPick('${k}','${v}')">${v}</button>`;
@@ -1880,10 +1881,20 @@ const edTotal=()=>Math.max(0,edSub()+(parseFloat(ED.adj)||0));
 function edUpdate(){$('edSub').textContent='$'+edSub();$('edTot').textContent='$'+edTotal()}
 function edDel(i){ED.items.splice(i,1);renderEdit()}
 function edAddBlank(){ED.items.push({id:'',name:'',price:0,qty:1,p:0});renderEdit()}
+/* 編輯訂單時從菜單加品項：和點餐一樣，有「必選」的選項（套餐雞肉口味、麵食包裝方式、口味辣度…）要先選才能加入 */
+let EDADD=false;
+function edPush(name,price,id){
+  const ex=ED.items.find(x=>x.id===id&&x.name===name&&x.p===0);
+  ex?ex.qty=(parseInt(ex.qty)||0)+1:ED.items.push({id,name,price,qty:1,p:0});
+}
 function edAddMenu(sel){
   const it=find(sel.value);
-  if(it){const ex=ED.items.find(x=>x.id===it.id&&x.name===it.name&&x.p===0);ex?ex.qty=(parseInt(ex.qty)||0)+1:ED.items.push({id:it.id,name:it.name,price:it.price,qty:1,p:0})}
-  renderEdit();
+  if(!it){renderEdit();return}
+  const cat=catOf(it.id);
+  if(['s1','s2','s3'].includes(it.id)&&cat&&cat.combo){EDADD=true;showComboOptions(it)}
+  else if(cat&&cat.noodle){EDADD=true;showNoodleOptions(it)}
+  else if(effOpts(it,cat).length){EDADD=true;showGenericOpts(it,cat)}
+  else{edPush(it.name,it.price,it.id);renderEdit()}
 }
 function renderEdit(){
   const y=$('mBox').scrollTop,multi=ED.people.length>1;
