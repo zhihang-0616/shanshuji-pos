@@ -22,6 +22,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .brand-center{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
 .brand-center .brand-row{display:flex;align-items:center;white-space:nowrap}
 .brand-center .shop{font-family:"Noto Serif TC","Songti TC","PMingLiU","Microsoft JhengHei",serif;font-weight:900;font-size:28px;letter-spacing:2px;background:linear-gradient(180deg,#fff6c8 0%,#f0c24f 42%,#b57a1b 58%,#f6d77f 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;filter:drop-shadow(0 2px 0 #3d2306) drop-shadow(0 4px 8px rgba(0,0,0,.7))}
+.brand-center .shop-s{font-size:.55em;letter-spacing:1px;font-weight:700}
 .brand-center .sub{font-size:15px;letter-spacing:3px;color:var(--ac2);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)}
 .brand-center .logo{width:72px;height:72px;object-fit:contain;margin-right:12px;filter:drop-shadow(0 0 10px rgba(255,190,60,.55))}
 .brand-center .sep{color:var(--ac);margin:0 12px;font-size:22px}
@@ -256,6 +257,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  .brand-center{grid-area:brand;gap:4px}.top-left{grid-area:left}.top-right{grid-area:right;justify-self:end;gap:6px}
  .brand-center .brand-row{justify-content:center}
  .brand-center .shop{font-size:16px;letter-spacing:0}
+ .brand-center .brand-row{white-space:normal;flex-wrap:wrap}.brand-center .shop-s{font-size:.6em}
  .brand-center .logo{width:34px;height:34px;margin-right:6px}
  .brand-center .sep,.brand-center .sub{display:none}
  .brand-actions{flex-wrap:wrap;justify-content:center;gap:5px}
@@ -297,7 +299,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  <div class="top-left"><div class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">營業中</span></div></div>
  <div class="sp"></div>
  <div class="brand-center">
-  <div class="brand-row"><img class="logo" src="logo.png" alt="去中心鹹水雞"><b class="shop">去中心鹹水雞 X 厝邊溫食</b><span class="sep">｜</span><b class="sub">POS 點餐系統</b></div>
+  <div class="brand-row"><img class="logo" src="logo.png" alt="去中心鹹水雞"><b class="shop">去中心鹹水雞 X 厝邊溫食<small class="shop-s">(炒麵。燴飯專賣店)</small></b><span class="sep">｜</span><b class="sub">POS 點餐系統</b></div>
   <div class="brand-actions">
    <button class="ibtn" id="cashBtn" onclick="openCash()">💵 收銀盤點</button>
    <button class="ibtn" id="ordersBtn" onclick="openOrders()">📦 訂單管理</button>
