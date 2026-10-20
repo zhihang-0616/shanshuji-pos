@@ -1486,7 +1486,7 @@ function startOrders(){
     ORDERS=v;
     if(ordInit&&fresh.length){
       if(!muted)beep();const o=v[fresh[fresh.length-1]];fresh.forEach(notifyLine);
-      (async()=>{const c=prnCfg();if(!c.on||(!c.kNew&&!c.rNew))return;for(const id of fresh){const od={...v[id],id};if(c.kNew){const r=await prnPrint(prnKitchenRows(od));if(!r.ok){prnFail(r);return}}if(c.rNew){const r=await prnPrint(prnReceiptRows(od));if(!r.ok){prnFail(r);return}}}})();
+      prnAutoOrders(fresh.map(id=>({...v[id],id})));
       const bad=fresh.filter(id=>anomalies({...v[id],id}).length);if(bad.length)setTimeout(()=>toast(`⚠ 新訂單 #${v[bad[0]].no} 金額異常，請核對（訂單管理有紅色提示）`),2500);
       toast(`🔔 新訂單 #${o.no}　${o.name}　$${o.total}${fresh.length>1?`（共 ${fresh.length} 筆新單）`:''}`);
     }
@@ -1581,9 +1581,7 @@ function setOrderStatus(id,st){
 async function prnOnAccept(id){
   const o=ORDERS[id],c=prnCfg();
   if(!o||!o.staff||!c.on||(!c.kNew&&!c.rNew))return;
-  const od={...o,id};
-  if(c.kNew){const r=await prnPrint(prnKitchenRows(od));if(!r.ok){prnFail(r);return}}
-  if(c.rNew){const r=await prnPrint(prnReceiptRows(od));if(!r.ok){prnFail(r)}}
+  prnAutoOrders([{...o,id}]);
 }
 function cancelOrder(id){openVoid(id,'orders')}
 
@@ -2176,6 +2174,64 @@ async function prnDrawer(){
   toast(r.ok?'🔓 已送出開錢櫃指令':'🖨 開錢櫃失敗：'+r.err,()=>{});
 }
 const prnFail=r=>toast('🖨 出單失敗：'+r.err,()=>{});
+/* ===== 自動出單的「補印佇列」：出單失敗（沒紙、卡紙、小幫手沒開、斷線…）的單會先存起來，恢復後自動補印，不會漏單 =====
+   只有「自動出單」會進佇列；你手動按的 🖨 廚房單／🧾 收據 失敗時只提示，不進佇列（避免重複印）。 */
+const PRNQ_MAX=40,PRNQ_TTL=3*3600000;
+const prnqLoad=()=>{try{return JSON.parse(localStorage.getItem('prn_queue')||'[]')}catch(e){return[]}};
+const prnqSave=q=>{try{localStorage.setItem('prn_queue',JSON.stringify(q.slice(-PRNQ_MAX)))}catch(e){}prnqUI()};
+let prnFlushing=false;
+function prnqUI(){
+  let el=$('prnQ');const n=prnqLoad().length;
+  if(!n){if(el)el.style.display='none';return}
+  if(!el){
+    el=document.createElement('div');el.id='prnQ';
+    el.style.cssText='position:fixed;left:12px;bottom:12px;z-index:9999;background:#b45309;color:#fff;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.5);display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:92vw';
+    document.body.appendChild(el);
+  }
+  el.style.display='flex';
+  el.innerHTML=`<span>🖨 有 ${n} 張單還沒印出來（會自動補印）</span><button class="chip sm" onclick="prnFlush(true)">立即補印</button><button class="chip sm" onclick="prnqClear()">清除</button>`;
+}
+function prnqClear(){if(!confirm('確定清除所有待補印的單？清除後不會再補印。'))return;prnqSave([])}
+function prnEnqueue(jobs,err){
+  const q=prnqLoad(),now=Date.now();
+  jobs.forEach(j=>q.push({label:j.label,rows:j.rows,at:now}));
+  prnqSave(q);
+  if(err)toast(`🖨 出單失敗（${err}）：已加入補印佇列，恢復後會自動補印`,()=>{});
+}
+async function prnFlush(manual){
+  if(prnFlushing)return;
+  let q=prnqLoad();if(!q.length)return;
+  if(!prnCfg().on){if(manual)toast('🖨 出單機尚未啟用',()=>{});return}
+  prnFlushing=true;
+  try{
+    const now=Date.now(),old=q.filter(x=>now-x.at>PRNQ_TTL).length;
+    q=q.filter(x=>now-x.at<=PRNQ_TTL);prnqSave(q);
+    if(old)toast(`🖨 有 ${old} 張超過 3 小時沒印出的單已略過`,()=>{});
+    let ok=0;
+    while(q.length){
+      const r=await prnPrint(q[0].rows);
+      if(!r.ok){if(manual)toast('🖨 還是印不出來：'+r.err,()=>{});break}
+      q.shift();ok++;prnqSave(q);
+    }
+    if(ok)toast(`🖨 已補印 ${ok} 張${q.length?`，還剩 ${q.length} 張`:''}`,()=>{});
+  }finally{prnFlushing=false}
+}
+/* 一批訂單的自動出單：照設定印廚房單／收據；有一張失敗，這張和後面的都進佇列（順序不亂） */
+async function prnAutoOrders(orders){
+  const c=prnCfg();if(!c.on||(!c.kNew&&!c.rNew))return;
+  const jobs=[];
+  orders.forEach(o=>{
+    if(c.kNew)jobs.push({label:'廚房單 #'+o.no,rows:prnKitchenRows(o)});
+    if(c.rNew)jobs.push({label:'收據 #'+o.no,rows:prnReceiptRows(o)});
+  });
+  if(prnqLoad().length||prnFlushing){prnEnqueue(jobs);prnFlush();return}   // 前面還有沒印的，排在後面
+  for(let i=0;i<jobs.length;i++){
+    const r=await prnPrint(jobs[i].rows);
+    if(!r.ok){prnEnqueue(jobs.slice(i),r.err);return}
+  }
+}
+setInterval(()=>{if(prnqLoad().length)prnFlush()},15000);
+window.addEventListener('load',()=>{prnqUI();setTimeout(()=>prnFlush(),3000)});
 const incPlain=x=>{try{return(x.inc!=null?x.inc:(()=>{const id=baseId(x.id);return incText(find(id),catOf(id))})())||''}catch(e){return''}};
 const prnPayTxt=o=>o.paid?('已付款（'+(o.pay||'')+'）'):('未付款（'+(o.pay||'')+'）');
 /* 廚房單：大字、重點是品項與數量 */
@@ -2277,7 +2333,7 @@ async function prnCheck(){
   prnSettingsSave();const st=$('pcSt');st.textContent='檢查中…';
   try{
     const r=await fetch(prnCfg().url.replace(/\/$/,'')+'/ping'),j=await r.json();
-    st.innerHTML=j.printer?'<span style="color:var(--ok)">✔ 小幫手正常，也連得到出單機（'+esc(j.ip)+'）</span>':'<span style="color:var(--bad)">小幫手有開，但連不到出單機（'+esc(j.ip||'')+'）。請檢查網路線、電腦的有線網路 IP（192.168.123.x）、出單機電源。</span>';
+    st.innerHTML=j.printer?(j.paperOk===false?'<span style="color:var(--bad)">⚠ 連得到出單機（'+esc(j.ip)+'），但：'+esc(j.status||'出單機有狀況')+'</span>':'<span style="color:var(--ok)">✔ 小幫手正常，也連得到出單機（'+esc(j.ip)+'）'+(j.status?'<br>'+esc(j.status):'')+'</span>'):'<span style="color:var(--bad)">小幫手有開，但連不到出單機（'+esc(j.ip||'')+'）。請檢查網路線、電腦的有線網路 IP（192.168.123.x）、出單機電源。</span>';
   }catch(e){st.innerHTML='<span style="color:var(--bad)">✘ 連不到「出單小幫手」。請確認這台電腦上的小幫手視窗有開著；第一次連線時，瀏覽器若跳出「存取區域網路裝置」請按「允許」。</span>'}
 }
 async function prnTest(){
