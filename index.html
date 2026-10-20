@@ -339,7 +339,7 @@ const MENU_DEFAULT=[
  {id:'s2',name:'巨鯨重倉肉多多餐',price:390,c:'雞肉：半隻（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","雞冠","雞腸","雞軟骨","鴨肉丸","鑫鑫腸"]},
  {id:'s3',name:'DAO節點下酒派對餐',price:630,c:'雞肉：全雞（可選 鹹水 / 煙燻）',d:["牛五花","松阪豬","豬耳朵","珍珠蛋","雞冠","雞腸","雞皮","鴨肉丸","貢丸","水晶餃","百頁豆腐"]},
  {id:'s4',name:'輕食減醣套餐',price:139,c:'雞肉：雞胸（可選 鹹水 / 煙燻 +$10）',d:["冬粉","花椰菜","玉米筍","豆皮","高麗菜"],opts:[{n:'雞胸口味',req:true,multi:false,tip:'',ch:[{n:'鹹水雞胸',p:0},{n:'煙燻雞胸',p:10}]}]},
- {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉：雞胸 × 2（可選 鹹水 / 煙燻 +$10）',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"],opts:[{n:'雞胸口味',req:true,multi:false,tip:'',ch:[{n:'鹹水雞胸',p:0},{n:'煙燻雞胸',p:10}]}]}]},
+ {id:'s5',name:'輕食減醣肉多餐',price:239,c:'雞肉：雞胸 × 2（可選 鹹水 / 煙燻）',d:["冬粉","白蘿蔔","高麗菜","玉米筍","龍鬚菜","珍珠蛋"],opts:[{n:'雞胸選擇',req:true,multi:false,tip:'',ch:[{n:'兩份鹹水雞胸',p:0},{n:'兩份煙燻雞胸',p:20},{n:'鹹水雞胸 + 煙燻雞胸',p:10}]}]}]},
 {k:'鏈上綠色資產 (蔬菜)',ic:'🥬',items:mk('v',[["娃娃菜",40],["玉米筍",30],["筍片",25],["水蓮",25],["四季豆",25],["龍鬚菜",25],["花椰菜",25],["鴻喜菇",25],["杏鮑菇",20],["金針菇",20],["小黃瓜",20],["高麗菜",20],["白蘿蔔",20],["黑木耳",20],["洋蔥",20],["海帶",20]])},
 {k:'DAO去中心肉類 (肉類)',ic:'🥩',items:mk('meat',[["松阪豬",75],["牛五花",70],["雞軟骨",40],["雞心",30],["雞胗",30],["雞冠",25],["雞腸",25],["雞皮",25],["珍珠蛋",25],["鑫鑫腸",25]])},
 {k:'節點火鍋料',ic:'🍢',items:mk('f',[["鴨肉丸",30],["貢丸",30],["水晶餃",30],["甜不辣",25],["蟹味棒",25],["皮蛋(溏心)",25],["鹹蛋(碎)",25],["豆干",25],["百頁豆腐",20],["蒟蒻絲",20],["豆皮(炸)",20],["豆皮",20],["米血",20]])},
@@ -754,10 +754,18 @@ const effOpts=(item,cat)=>[...((cat&&cat.opts)||[]),...(item.opts||[])].filter(g
    只有內容物還是舊寫法才會觸發，改完之後你再怎麼編輯都不會被蓋掉。 */
 function migrateLight(m){
   let ch=false;
+  const C5=()=>[{n:'兩份鹹水雞胸',p:0},{n:'兩份煙燻雞胸',p:20},{n:'鹹水雞胸 + 煙燻雞胸',p:10}];
   m.forEach(c=>c.items.forEach(it=>{
     if((it.id==='s4'||it.id==='s5')&&/^雞肉[:：]\s*鹹水雞胸/.test(String(it.c||''))&&!(it.opts||[]).length){
-      it.c=it.id==='s5'?'雞肉：雞胸 × 2（可選 鹹水 / 煙燻 +$10）':'雞肉：雞胸（可選 鹹水 / 煙燻 +$10）';
-      it.opts=[{n:'雞胸口味',req:true,multi:false,tip:'',ch:[{n:'鹹水雞胸',p:0},{n:'煙燻雞胸',p:10}]}];ch=true;
+      if(it.id==='s5'){it.c='雞肉：雞胸 × 2（可選 鹹水 / 煙燻）';it.opts=[{n:'雞胸選擇',req:true,multi:false,tip:'',ch:C5()}]}
+      else{it.c='雞肉：雞胸（可選 鹹水 / 煙燻 +$10）';it.opts=[{n:'雞胸口味',req:true,multi:false,tip:'',ch:[{n:'鹹水雞胸',p:0},{n:'煙燻雞胸',p:10}]}]}
+      ch=true;
+    }
+    if(it.id==='s5'){      // 肉多餐有兩份雞胸：選項改成「兩份鹹水／兩份煙燻／各一份」（只改還是舊的兩選一）
+      (it.opts||[]).forEach(g=>{
+        const nm=(g.ch||[]).map(x=>String(x.n).trim());
+        if(nm.length===2&&nm.includes('鹹水雞胸')&&nm.includes('煙燻雞胸')){g.ch=C5();it.c='雞肉：雞胸 × 2（可選 鹹水 / 煙燻）';ch=true}
+      });
     }
   }));
   return ch;
@@ -774,13 +782,15 @@ function loadMenuCache(){try{const v=JSON.parse(localStorage.getItem('menu_cfg')
 /* --- 客人／店員點餐：通用選項視窗 --- */
 let GO=null;
 function showGenericOpts(item,cat){const opts=effOpts(item,cat);GO={item,opts,sel:opts.map(()=>[]),miss:false};renderGenericOpts()}
-/* 選項和「售完品項」同步：選項名稱和菜單上某個品項同名（例如選項「鹹水雞胸」＝品項「鹹水雞胸」），
+/* 選項和「售完品項」同步：選項名稱「包含」菜單上某個品項的完整名稱（例如選項「兩份鹹水雞胸」包含品項「鹹水雞胸」），
    那個品項標示售完（當日／無期限）、群組售完、或今日庫存用完時，這個選項就反黑不能選 */
 function choiceSold(name){
-  const nm=String(name).trim();
+  const nm=String(name).trim();if(!nm)return false;
   for(let ci=0;ci<MENU.length;ci++){
-    const it=MENU[ci].items.find(x=>String(x.name).trim()===nm);
-    if(it)return !!(soldOutItems[it.id]||soldOutCats[catKey(ci)]||stockLeft(it.id)<=0);
+    for(const it of MENU[ci].items){
+      const n=String(it.name).trim();
+      if(n.length>=2&&nm.includes(n)&&(soldOutItems[it.id]||soldOutCats[catKey(ci)]||stockLeft(it.id)<=0))return true;   // 選項名稱「包含」某個品項的完整名稱，那個品項售完，這個選項就不能選
+    }
   }
   return false;
 }
