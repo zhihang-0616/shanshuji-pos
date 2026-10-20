@@ -418,6 +418,7 @@ function fbReady(){
     localStorage.setItem('sold_out_items',JSON.stringify(soldOutItems));
     localStorage.setItem('sold_out_cats',JSON.stringify(soldOutCats));
     renderNav();renderGrid();
+    if(!isAdmin&&cart.length){const g=cart.filter(x=>soldLine(x.id));if(g.length){cart=cart.filter(x=>!soldLine(x.id));renderCart();renderGrid();toast('⚠ 「'+[...new Set(g.map(x=>x.name))].join('、')+'」剛剛售完，已從購物車移除')}}
   });
   loadMy();MY.forEach(m=>watchMy(m.id));setTimeout(lpReturn,800);setInterval(lpPoll,15000);
   subStock();setInterval(()=>{if(today8()!==stockDay)subStock()},60000);
@@ -1014,14 +1015,32 @@ function noodleViolation(){
 }
 function addComboWithFlavor(id,name,price,flavor){add(`${name} (${flavor})`,price,`${id}_${flavor}`);closeModal()}
 
+/* 購物車裡這一行是不是已經售完：品項、群組、庫存、或選到已售完的選項（客人端會擋；店家端補單可強制） */
+function soldLine(id){
+  const base=baseId(id);let ci=-1;
+  for(let i=0;i<MENU.length;i++)if(MENU[i].items.some(x=>x.id===base)){ci=i;break}
+  if(ci<0)return false;
+  if(soldOutItems[base]||soldOutCats[catKey(ci)]||stockLeft(base)<=0)return true;
+  return String(id).split('_').slice(1).some(t=>choiceSold(t));
+}
+function dropSoldFromCart(msgPrefix){
+  if(isAdmin||!cart.length)return false;
+  const gone=cart.filter(x=>soldLine(x.id));
+  if(!gone.length)return false;
+  cart=cart.filter(x=>!soldLine(x.id));
+  renderCart();renderGrid();
+  alert((msgPrefix||'以下品項剛剛售完，已從購物車移除：')+'\n'+[...new Set(gone.map(x=>x.name))].join('\n'));
+  return true;
+}
 function add(name,price,id){
   if(EDADD){edPush(name,price,id);return}
+  if(!isAdmin&&!OVR[baseId(id)]&&soldLine(id)){toast('「'+name+'」已售完');return}
   if(!canAdd(id)){toast(`「${itemName(id)}」今日數量不足，無法再增加`);return}
   const e=cart.find(x=>x.id===id&&x.p===curP);
   if(e)e.qty++;else{const id0=baseId(id),inc=incText(find(id0),catOf(id0));cart.push(inc?{id,name,price,qty:1,p:curP,inc}:{id,name,price,qty:1,p:curP})}
   renderCart();renderGrid();
 }
-function qty(j,d){const e=cart[j];if(!e)return;if(d<0&&isMultiNoodle(e)&&prodQty(baseId(e.id),e.p||0)+d<2){toast(`「${itemName(e.id)}」選了「多數麵食獨立分開裝」，同商品需要 2 份以上；要減少請先刪除這一項，再重新選擇包裝方式`);return}if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
+function qty(j,d){const e=cart[j];if(!e)return;if(d<0&&isMultiNoodle(e)&&prodQty(baseId(e.id),e.p||0)+d<2){toast(`「${itemName(e.id)}」選了「多數麵食獨立分開裝」，同商品需要 2 份以上；要減少請先刪除這一項，再重新選擇包裝方式`);return}if(d>0&&!isAdmin&&soldLine(e.id)){toast(`「${e.name}」已售完`);return}if(d>0&&!canAdd(e.id)){toast(`「${itemName(e.id)}」今日數量不足，無法再增加`);return}e.qty+=d;if(e.qty<=0)cart.splice(j,1);renderCart();renderGrid()}
 function removeItem(j){cart.splice(j,1);renderCart();renderGrid()}
 function clearCart(){OVR={};cart=[];CK.people=[newP()];curP=0;renderCart();renderGrid()}
 function selPerson(i){curP=i;renderCart();renderGrid()}
@@ -1129,6 +1148,7 @@ function fillCustBadges(){
 function openCheckout(){
   if(!cart.length||isClosed())return;
   if(!isAdmin&&!WALKIN_PAGE){try{const ci=JSON.parse(localStorage.getItem('cust_info')||'null');if(ci){if(!CK.name)CK.name=ci.name||'';if(!CK.phone)CK.phone=ci.phone||''}}catch(e){}}   // 客人這支手機記住上次的姓名電話
+  if(dropSoldFromCart('下列品項已經售完，已從購物車移除：')){if(!cart.length)return}
   const bad=noodleViolation();
   if(bad){alert(`「${bad}」選了「多數麵食獨立分開裝」，但同商品只有 1 份。\n請把它刪除後重新選擇包裝方式，或再多點 1 份。`);return}
   prunePeople();
@@ -1297,6 +1317,7 @@ function renderCheckout(){
 }
 function submitCheckout(){
   if(isClosed()){alert('店家目前休息中，暫停接單');return}
+  if(dropSoldFromCart('下列品項已經售完，已從購物車移除，請確認後再送出：')){closeModal();return}
   CK.err=true;
   if(isAdmin&&CK.late&&!(lateMs()>0)){alert('請輸入補單的下單日期與時間（時間為 24 小時制，例如 12:35）');return}
   if(normTime(CK.time))CK.time=normTime(CK.time);
