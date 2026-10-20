@@ -774,13 +774,23 @@ function loadMenuCache(){try{const v=JSON.parse(localStorage.getItem('menu_cfg')
 /* --- 客人／店員點餐：通用選項視窗 --- */
 let GO=null;
 function showGenericOpts(item,cat){const opts=effOpts(item,cat);GO={item,opts,sel:opts.map(()=>[]),miss:false};renderGenericOpts()}
+/* 選項和「售完品項」同步：選項名稱和菜單上某個品項同名（例如選項「鹹水雞胸」＝品項「鹹水雞胸」），
+   那個品項標示售完（當日／無期限）、群組售完、或今日庫存用完時，這個選項就反黑不能選 */
+function choiceSold(name){
+  const nm=String(name).trim();
+  for(let ci=0;ci<MENU.length;ci++){
+    const it=MENU[ci].items.find(x=>String(x.name).trim()===nm);
+    if(it)return !!(soldOutItems[it.id]||soldOutCats[catKey(ci)]||stockLeft(it.id)<=0);
+  }
+  return false;
+}
 function goPrice(){return GO.opts.reduce((a,g,gi)=>a+GO.sel[gi].reduce((b,ci)=>b+(+g.ch[ci].p||0),0),+GO.item.price||0)}
 function renderGenericOpts(){
   const {item,opts,sel,miss}=GO;
   const groups=opts.map((g,gi)=>{
     const bad=miss&&g.req&&!sel[gi].length;
     return `<div class="opt-section-title"${bad?' style="color:var(--bad)"':''}>${esc(g.n)}<span style="font-size:12px;color:${g.req?'var(--bad)':'var(--mu)'}">　${g.req?'必選':'選填'}${g.multi?'・可複選':''}</span></div>
-     <div class="opt-grid">${g.ch.map((c,ci)=>`<button class="opt-btn ${sel[gi].includes(ci)?'selected':''}" onclick="goPick(${gi},${ci})">${esc(c.n)}${(+c.p)?`<small> ${c.p>0?'+':''}${c.p}</small>`:''}</button>`).join('')}</div>
+     <div class="opt-grid">${g.ch.map((c,ci)=>`${choiceSold(c.n)?`<button class="opt-btn disabled-opt ${sel[gi].includes(ci)?'selected':''}" onclick="goPick(${gi},${ci})">${esc(c.n)}<small> 已售完</small></button>`:`<button class="opt-btn ${sel[gi].includes(ci)?'selected':''}" onclick="goPick(${gi},${ci})">${esc(c.n)}${(+c.p)?`<small> ${c.p>0?'+':''}${c.p}</small>`:''}</button>`}`).join('')}</div>
      ${g.tip?`<div class="modal-tip">${esc(g.tip)}</div>`:''}`;
   }).join('');
   $('mBox').innerHTML=`<h3>${esc(item.name)}</h3>${groups}
@@ -790,6 +800,10 @@ function renderGenericOpts(){
 }
 function goPick(gi,ci){
   const g=GO.opts[gi],a=GO.sel[gi];
+  if(choiceSold(g.ch[ci].n)&&!a.includes(ci)){
+    if(!isAdmin){toast('「'+g.ch[ci].n+'」已售完');return}
+    if(!confirm('「'+g.ch[ci].n+'」已標示售完。\n\n要強制選這個嗎？（補登過去的單、或特殊情況才需要）'))return;
+  }
   if(g.multi){const i=a.indexOf(ci);i>=0?a.splice(i,1):a.push(ci)}
   else GO.sel[gi]=a[0]===ci?[]:[ci];
   renderGenericOpts();
@@ -797,6 +811,8 @@ function goPick(gi,ci){
 function goConfirm(){
   const {item,opts,sel}=GO;
   if(opts.some((g,gi)=>g.req&&!sel[gi].length)){GO.miss=true;renderGenericOpts();return}
+  if(!isAdmin){const bad=[];opts.forEach((g,gi)=>sel[gi].forEach(ci=>{if(choiceSold(g.ch[ci].n))bad.push(g.ch[ci].n)}));
+    if(bad.length){toast('「'+bad.join('、')+'」剛剛售完了，請重新選擇');opts.forEach((g,gi)=>{sel[gi]=sel[gi].filter(ci=>!choiceSold(g.ch[ci].n))});renderGenericOpts();return}}
   const tags=[];opts.forEach((g,gi)=>sel[gi].forEach(ci=>tags.push(String(g.ch[ci].n).replace(/_/g,'-'))));
   add(tags.length?`${item.name} (${tags.join(', ')})`:item.name,goPrice(),tags.length?item.id+'_'+tags.join('_'):item.id);
   closeModal();
