@@ -1762,6 +1762,7 @@ function openAdminPanel(){
    <div class="opt-list">
     <button class="opt-btn" onclick="openStats()">📊 營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
+    <button class="opt-btn" onclick="mbOpen()">🖨️ 菜單看板（A4 可列印、可編輯）</button>
     <button class="opt-btn" onclick="ctOpen()">🧮 成本計算表（最新買價、每份成本）</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
@@ -3175,6 +3176,26 @@ async function gramSetCr(){
    每個食材都用「最新一次採購進貨的買價」自動算每份成本；買價、售價、每份用量全部可以自己輸入修改（輸入的買價會一直用，
    直到採購進貨出現更新的買價才換成新的）。算法有 5 種：依重量（克）／整包拆小單位（蒟蒻絲）／幾包分幾份（娃娃菜）／由整隻拆分（雞腿、雞胸）／只記買價。
    資料存在 shopMeta/gram/<品項>（和「每份克數計算」同一份，兩邊同步）。 */
+/* ===== 菜單看板（A4 橫式、可編輯、可列印）=====
+   畫面在 menu-board.html（放在同一個 GitHub 資料夾），這裡用 iframe 開在後台；資料存在 Firebase menu/board（只有店長能改）。 */
+function mbOpen(){
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xxl';$('modal').classList.add('open');
+  $('mBox').innerHTML=`<div class="oh"><h3>🖨️ 菜單看板</h3><button onclick="mbClose()">返回</button></div><iframe id="mbFrame" src="menu-board.html?v=${Date.now()}" style="width:100%;height:calc(100vh - 150px);min-height:480px;border:0;border-radius:10px;background:#120904"></iframe>`;
+}
+function mbClose(){openAdminPanel()}
+if(!window._mbBound){window._mbBound=1;addEventListener('message',async ev=>{
+  const d=ev.data,fr=$('mbFrame');if(!d||!fr||ev.source!==fr.contentWindow)return;
+  const reply=o=>{try{fr.contentWindow.postMessage(o,'*')}catch(e){}};
+  if(d.t==='mb-ready'){
+    try{const sn=await FB.get(FB.ref(FB.db,'menu/board'));const v=sn.val();reply({t:'mb-data',data:v&&v.json||null})}
+    catch(e){reply({t:'mb-err',msg:e.code||e.message})}
+  }else if(d.t==='mb-save'){
+    if(!isManager()){reply({t:'mb-err',msg:'只有店長可以修改'});return}
+    try{await FB.set(FB.ref(FB.db,'menu/board'),{json:String(d.data),at:Date.now()});reply({t:'mb-saved'})}
+    catch(e){reply({t:'mb-err',msg:e.code||e.message})}
+  }
+})}
 let CT={tab:'cost',q:'',grp:'',open:'',day:''};
 const ptN=(n,d)=>{if(n==null||isNaN(n))return'—';const k=Math.pow(10,d==null?1:d);return String(Math.round(n*k)/k)};
 const ptDash=d=>d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
