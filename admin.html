@@ -3271,7 +3271,7 @@ async function ctSave(iid,k,v,num){
   const val=num?(parseFloat(v)>0?parseFloat(v):null):(String(v).trim()||null);
   await gramPatch(iid,{[k]:val});ctKeep();
 }
-async function ctSaveMode(iid,v){await gramPatch(iid,{mode:v==='w'?null:v});ctKeep()}
+async function ctSaveMode(iid,v){await gramPatch(iid,{mode:v});ctKeep()}
 async function ctSavePriceW(iid){
   const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),qq=parseFloat(q('cq'))||1,u=String(q('cu')||'').trim()||'斤',a=GR.auto[($('ct_'+iid)||{dataset:{}}).dataset.n];
   if(p>0)await gramPatch(iid,{p,q:qq,u,ad:(a&&a.day)||''});else await gramPatch(iid,{p:null,q:null,u:null,ad:null});
@@ -3279,7 +3279,8 @@ async function ctSavePriceW(iid){
 }
 async function ctSavePriceU(iid){
   const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),u=String(q('cu')||'').trim(),a=ctUnitAuto(ctIdxCache[iid]);
-  if(p>0)await gramPatch(iid,{pp:p,ppd:(a&&a.day)||'',pu:u||null});else await gramPatch(iid,{pp:null,ppd:null,pu:u||null});
+  if(p>0&&GU[u]&&ctMode(iid)==='u')await gramPatch(iid,{mode:'w',p,q:1,u,ad:(a&&a.day)||'',pp:p,ppd:(a&&a.day)||'',pu:u});   // 改成 斤/公斤/克/兩 → 自動換成「依重量」算
+  else if(p>0)await gramPatch(iid,{pp:p,ppd:(a&&a.day)||'',pu:u||null});else await gramPatch(iid,{pp:null,ppd:null,pu:u||null});
   ctKeep();
 }
 let ctIdxCache={};
