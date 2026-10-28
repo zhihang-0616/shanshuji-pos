@@ -271,14 +271,14 @@ const I=(name,price,extra)=>Object.assign({name,price:String(price),tag:'',spicy
 const DEFAULT={
   shop:{
     name:'去中心鹹水雞', sub:'厝邊溫食',
-    hours:'平日17:00-00:00　週五 / 六 17:00-02:00',
+    hours:'平日 17:30–00:00　週五 / 六 17:30–02:00',
     address:'新竹市南大路550巷82號',
-    notice:'固定禮拜一公休 / 不定時休假',
+    notice:'固定週日公休 / 不定時休假',
     line:'怕撲空請加line官方:@281mmggn'
   },
   sections:[
     {type:'items',col:0,title:'鹹本位｜鹹水',showTotal:true,items:[I('鹹水雞胸',65),I('鹹水雞腿',65),I('鹹水半雞',130)]},
-    {type:'items',col:0,title:'鏈上資產-蔬菜',showTotal:true,items:[
+    {type:'items',col:0,title:'鏈上資產｜蔬菜',showTotal:true,items:[
       I('娃娃菜',40),I('玉米筍',30),I('筍片',25),I('水蓮',25),I('四季豆',25),I('龍鬚菜',25),I('花椰菜',25),I('鴻喜菇',25),
       I('杏鮑菇',20),I('金針菇',20),I('小黃瓜',20),I('高麗菜',20),I('白蘿蔔',20),I('黑木耳',20),I('洋蔥',20),I('海帶',20)]},
     {type:'items',col:1,title:'燻本位｜煙燻',showTotal:true,items:[I('煙燻雞胸',75),I('煙燻雞腿',75),I('煙燻半雞',150)]},
@@ -296,11 +296,11 @@ const DEFAULT={
       I('松阪豬',75),I('牛五花',70),I('雞軟骨',40),I('雞心',30),I('雞胗',30),I('雞冠',25),I('雞腸',25),I('雞皮',25),I('珍珠蛋',25),I('鑫鑫腸',25)]},
     {type:'items',col:2,title:'共識滷味',showTotal:true,items:[I('無骨鳳爪',45),I('豬耳朵',45),I('滷脆腸',45)]},
     {type:'sets',col:3,title:'',items:[
+      {name:'輕食減醣餐',price:'139',desc:'鹹水雞胸 冬粉 花椰菜 玉米筍 生豆皮 高麗菜'},
+      {name:'輕食減醣肉多餐',price:'239',desc:'鹹水雞胸兩份 冬粉 珍珠蛋 白蘿蔔 高麗菜 玉米筍 龍鬚菜'},
       {name:'散戶輕倉個人餐',price:'260',desc:'鹹水 / 煙燻 半雞 豬耳朵 雞冠 鴨肉丸 珍珠蛋'},
       {name:'巨鯨重倉肉多多餐',price:'390',desc:'鹹水 / 煙燻 半雞 牛五花 松阪豬 鑫鑫腸 鴨肉丸 雞軟骨 雞冠 雞腸'},
-      {name:'DAO節點下酒派對餐',price:'630',desc:'鹹水 / 煙燻 全雞 牛五花 松阪豬 雞冠 雞心 雞腸 雞皮 鴨肉丸 貢丸 水晶餃 百頁豆腐'},
-      {name:'輕食減醣肉多餐',price:'239',desc:'鹹水雞胸兩份 冬粉 珍珠蛋 白蘿蔔 高麗菜 玉米筍 龍鬚菜'},
-      {name:'輕食減醣餐',price:'139',desc:'鹹水雞胸 冬粉 花椰菜 玉米筍 生豆皮 高麗菜'}
+      {name:'DAO節點下酒派對餐',price:'630',desc:'鹹水 / 煙燻 全雞 牛五花 松阪豬 雞冠 雞心 雞腸 雞皮 鴨肉丸 貢丸 水晶餃 百頁豆腐'}
     ]},
     {type:'items',col:3,title:'厝邊溫食',showTotal:true,items:[
       I('沙茶羊肉炒麵',120,{spicy:true}),I('沙茶牛肉炒麵',120,{spicy:true}),I('沙茶羊肉燴飯',120,{spicy:true}),I('沙茶牛肉燴飯',120,{spicy:true}),
