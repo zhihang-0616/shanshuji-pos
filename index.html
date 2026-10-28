@@ -666,8 +666,6 @@ function itemsMenu(){
     <button class="opt-btn" onclick="closeModal();toggleSoldOutMode()">🔴 餐點管理（點品項標示售完）</button>
     <button class="opt-btn" onclick="openSoldOutListModal()">📋 售完品項（恢復販售）</button>
     <button class="opt-btn" onclick="openStock()">📦 今日庫存（限量品項）</button>
-    <button class="opt-btn" onclick="openGram()">📏 每份克數計算（依菜價算每份幾克）</button>
-    ${isManager()?'<button class="opt-btn" onclick="openMenuEditor()">✏️ 菜單編輯（群組、品項、套餐、選項）</button>':''}
    </div>
    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
@@ -880,7 +878,7 @@ function meHead(title,back){return `<div class="oh"><h3>${title}</h3><button onc
 function meList(){
   ME.ci=-1;ME.ii=-1;
   const rows=ME.m.map((c,i)=>{const [t,s]=meSplit(c.k);return `<div class="mrow"><span class="mic">${esc(c.ic)}</span><div style="flex:1;min-width:0"><b>${esc(t)}</b> <small style="color:var(--mu)">${esc(s)}　${c.items.length} 項${c.opts.length?'　有群組選項':''}</small></div><button class="chip sm" onclick="meMove(${i},-1)">↑</button><button class="chip sm" onclick="meMove(${i},1)">↓</button><button class="chip sm" onclick="meCat(${i})">編輯</button><button class="chip sm" style="color:var(--bad)" onclick="meDelCat(${i})">刪除</button></div>`}).join('');
-  $('mBox').innerHTML=meHead('✏️ 菜單編輯','itemsMenu()')+`<div class="fm-sec"><div class="fm-title">群組（點「編輯」進去改名稱、新增或修改品項）</div>${rows||'<div style="color:var(--mu);padding:8px">還沒有群組</div>'}</div>
+  $('mBox').innerHTML=meHead('✏️ 菜單編輯','openMenuFolder()')+`<div class="fm-sec"><div class="fm-title">群組（點「編輯」進去改名稱、新增或修改品項）</div>${rows||'<div style="color:var(--mu);padding:8px">還沒有群組</div>'}</div>
    <div class="fm-sec"><div class="fm-title">新增群組</div><div class="fm-row"><input id="neName" lang="zh-TW" placeholder="群組名稱，例如：飲料" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();meAddCat()}"><input id="neIc" lang="zh-TW" style="max-width:90px" placeholder="圖示 🍹"><button class="chip" onclick="meAddCat()">＋ 新增群組</button></div></div>
    <div class="modal-tip" style="text-align:left">存檔後，客人和所有店家裝置的菜單會<b>立刻更新</b>。已經下過的訂單不受影響。</div>`;
 }
@@ -1777,6 +1775,19 @@ function checkBackupReminder(){
     if(days>=7)toast(`⚠ ${last?days+' 天':'還'}沒有備份資料，請到 後台管理 → 資料備份（建議設定每日自動備份）`);
   }).catch(()=>{});
 }
+function openMenuFolder(){
+  if(!isAdmin||!isManager())return;
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box';
+  $('mBox').innerHTML=`<h3>📂 菜單與成本</h3>
+   <div class="opt-list">
+    <button class="opt-btn" onclick="openMenuEditor()">✏️ 菜單編輯</button>
+    <button class="opt-btn" onclick="mbOpen()">🖨️ 菜單看板</button>
+    <button class="opt-btn" onclick="ctOpen()">🧮 成本計算表</button>
+   </div>
+   <div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button></div>`;
+  $('modal').classList.add('open');
+}
 function openAdminPanel(){
   if(!isAdmin||!isManager())return;
   viewingOrders=viewingStats=viewingTrack=false;
@@ -1785,8 +1796,7 @@ function openAdminPanel(){
    <div class="opt-list">
     <button class="opt-btn" onclick="openStats()">📊 營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
-    <button class="opt-btn" onclick="mbOpen()">🖨️ 菜單看板（A4 可列印、可編輯）</button>
-    <button class="opt-btn" onclick="ctOpen()">🧮 成本計算表（最新買價、每份成本）</button>
+    <button class="opt-btn" onclick="openMenuFolder()">📂 菜單與成本</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
     <button class="opt-btn" onclick="openPrnSettings()">🖨 出單設定（出單機、錢櫃）</button>
@@ -3206,7 +3216,7 @@ function mbOpen(){
   $('mBox').className='m-box xxl';$('modal').classList.add('open');
   $('mBox').innerHTML=`<div class="oh"><h3>🖨️ 菜單看板</h3><button onclick="mbClose()">返回</button></div><iframe id="mbFrame" src="menu-board.html?v=${Date.now()}" style="width:100%;height:calc(100vh - 150px);min-height:480px;border:0;border-radius:10px;background:#120904"></iframe>`;
 }
-function mbClose(){openAdminPanel()}
+function mbClose(){openMenuFolder()}
 if(!window._mbBound){window._mbBound=1;addEventListener('message',async ev=>{
   const d=ev.data,fr=$('mbFrame');if(!d||!fr||ev.source!==fr.contentWindow)return;
   const reply=o=>{try{fr.contentWindow.postMessage(o,'*')}catch(e){}};
@@ -3433,7 +3443,7 @@ function ctCsv(rows,idx){
 function ctShift(d){const t=new Date(ptDash(CT.day)+'T12:00:00');t.setDate(t.getDate()+d);CT.day=t.getFullYear()+p2(t.getMonth()+1)+p2(t.getDate());renderCost()}
 function ctPickDay(v){const d=String(v||'').replace(/-/g,'');if(/^\d{8}$/.test(d)){CT.day=d;renderCost()}}
 function renderCost(){
-  const head=`<div class="oh"><h3>🧮 成本計算表</h3><button onclick="openAdminPanel()">返回</button></div>`;
+  const head=`<div class="oh"><h3>🧮 成本計算表</h3><button onclick="openMenuFolder()">返回</button></div>`;
   if(!GR.ok){
     $('mBox').innerHTML=head+'<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
     if(!GR.loading)gramLoad().then(()=>renderCost());
@@ -3474,7 +3484,7 @@ function renderCost(){
     <div class="fm-row"><b style="width:auto">預設目標成本率</b><input class="pi gx" style="max-width:70px" inputmode="decimal" value="${GR.cr}" onchange="ctSetCr(this.value)"><span>%</span>
      <span class="mu">品項和買價從「採購支出」自動同步（那邊新增、改單位單價，這裡重新讀取就更新）</span>${nHide?`<button class="chip sm" onclick="ctShowAll()">↩ 恢復已刪除的 ${nHide} 項</button>`:''}</div>
     <div class="fm-line"><span><button class="chip sm" onclick="GR.ok=false;renderCost()">🔄 重新讀取</button> <button class="chip sm" onclick="ctCsv(F_CSV(),ctIdxCache)">📥 匯出 CSV</button></span><span class="mu">依採購進貨的最新買價計算</span></div>
-  </div>${body}<div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button></div>`;
+  </div>${body}<div class="m-btns"><button class="btn-cancel" onclick="openMenuFolder()">返回</button></div>`;
   window.F_CSV=()=>F;
 }
 
