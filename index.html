@@ -35,6 +35,18 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .ibtn:hover{border-color:var(--ac);background:rgba(212,175,55,.15)}
 .main{flex:1;display:grid;grid-template-columns:150px 1fr 350px;min-height:0}
 .nav{background:linear-gradient(180deg,#1f130a,#120a04);border-right:2px solid #8a5f1c;box-shadow:inset -10px 0 16px rgba(0,0,0,.5);padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+
+.navw{display:contents}.navarr{display:none}
+@media(max-width:900px){
+ .navw{display:block;position:relative}
+ .navarr{display:flex;align-items:center;justify-content:center;gap:4px;position:absolute;top:0;bottom:2px;z-index:6;border:0;color:var(--ac2);font-size:26px;font-weight:900;line-height:1;opacity:0;pointer-events:none;transition:opacity .2s}
+ .navarr.l{left:0;width:30px;background:linear-gradient(90deg,#120a04 35%,rgba(18,10,4,0))}
+ .navarr.r{right:0;padding:0 10px 0 28px;background:linear-gradient(270deg,#120a04 55%,rgba(18,10,4,0));animation:navnudge 1.4s ease-in-out infinite}
+ .navarr.r span{font-size:12px;font-weight:700;letter-spacing:.04em}
+ .navw.hl .navarr.l,.navw.hr .navarr.r{opacity:1;pointer-events:auto}
+}
+@keyframes navnudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-4px)}}
+@media(prefers-reduced-motion:reduce){.navarr.r{animation:none}}
 .nv{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px;border-radius:8px;text-align:center;color:var(--mu);border:1px solid transparent;transition:.15s}
 .nv i{font-style:normal;font-size:24px}.nv b{font-size:14px}.nv small{font-size:11px;opacity:.8;min-height:14px}
 .nv:hover{background:var(--s2);color:var(--tx)}
@@ -321,7 +333,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
 <div id="banner"></div>
 <div id="netbar"></div>
 <div class="main">
- <nav class="nav" id="nav"></nav>
+ <div class="navw" id="navw"><button type="button" class="navarr l" aria-label="往左看更多分類" onclick="navGo(-1)">‹</button><nav class="nav" id="nav" onscroll="navHint()"></nav><button type="button" class="navarr r" aria-label="往右看更多分類" onclick="navGo(1)"><span>更多分類</span>›</button></div>
  <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
  <aside class="cart">
   <div class="ch"><h3>📦 訂單明細</h3><button onclick="clearCart()">清空</button></div>
@@ -700,7 +712,18 @@ function toggleItemSoldOut(id){
   askSoldType(nm,val=>{S[id]=val;logAct('售完標示',null,'',`「${nm}」標示售完${soldTag(val)}`);link(val);saveSold();renderGrid()});
 }
 
+function navHint(){
+  const n=$('nav'),w=$('navw');if(!n||!w)return;
+  w.classList.toggle('hl',n.scrollLeft>8);
+  w.classList.toggle('hr',n.scrollLeft+n.clientWidth<n.scrollWidth-8);
+}
+function navGo(d){const n=$('nav');n.scrollBy({left:d*Math.max(160,n.clientWidth*0.6),behavior:'smooth'})}
+addEventListener('resize',()=>navHint());
 function renderNav(){
+  const _sl=$('nav').scrollLeft;
+  setTimeout(()=>{const n=$('nav');n.scrollLeft=_sl;navHint();
+    if(innerWidth<=900&&!window._navNudged&&n.scrollWidth>n.clientWidth+8){window._navNudged=1;try{if(!sessionStorage.getItem('navNudge')){sessionStorage.setItem('navNudge','1');n.scrollTo({left:70,behavior:'smooth'});setTimeout(()=>n.scrollTo({left:_sl,behavior:'smooth'}),700)}}catch(e){}}
+  },30);
   $('nav').innerHTML=MENU.map((c,i)=>{
     const [t,s]=split(c.k);
     return `<button class="nv${i===cur?' on':''}${soldOutCats[catKey(i)]?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()">
