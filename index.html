@@ -3517,7 +3517,7 @@ function renderPlan(){
 function planBody(){
   const d=PLAN.day,S=planSums();
   return `<div class="fm-sec" style="padding:10px 14px">
-    <div class="fm-row"><b>採購日期</b><input type="date" id="planDate" value="${dashDay(d)}" onchange="planDay(this.value)" style="max-width:200px"><button class="chip sm" onclick="planDay('${today8()}')">今天</button><button class="chip sm" onclick="planDay('${shiftDay(today8(),1)}')">明天</button></div>
+    <div class="fm-row"><b>採購日期</b><button class="chip sm" onclick="planDay('${shiftDay(d,-1)}')">◀ 前一天</button><button class="chip sm${d===today8()?' on':''}" onclick="planDay('${today8()}')">今日</button><button class="chip sm${d===shiftDay(today8(),1)?' on':''}" onclick="planDay('${shiftDay(today8(),1)}')">明日</button><button class="chip sm" onclick="planDay('${shiftDay(d,1)}')">後一天 ▶</button><input type="date" id="planDate" value="${dashDay(d)}" onchange="planDay(this.value)" style="max-width:170px"></div>
     <div class="modal-tip" style="text-align:left;margin:6px 0">選好採購日期（目前是 <b>${dayLabel(d)}</b>）。買到的品項<b>前面打勾</b>，勾選品項的金額就會<b>直接算入 ${planMD(d)} 的支出</b>（進貨/材料）；沒買到的不要勾，就不會算。</div>
     <div class="fm-row"><b>新增群組</b><input id="pgName" lang="zh-TW" list="pgList" placeholder="例如：大市場（打新的會自動記起來）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddGroup()}"><button class="chip sm" onclick="planAddGroup()">＋ 加入</button></div>
     <datalist id="pgList">${Object.values(PLAN.catalog).map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
