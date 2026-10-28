@@ -3050,7 +3050,7 @@ function renderGram(){
   }
   const sc=$('mBox').scrollTop;
   const cids=Object.keys(GR.sel).filter(id=>GR.cat[id]).sort((a,b)=>byO(GR.cat[a],GR.cat[b]));
-  $('mBox').innerHTML=head+`<div class="fm-sec" style="padding:10px 14px">
+  $('mBox').innerHTML=head+`<datalist id="ctUnits"><option value="斤"><option value="公斤"><option value="克"><option value="兩"></datalist><div class="fm-sec" style="padding:10px 14px">
     <div class="modal-tip" style="text-align:left;margin:0 0 6px">先加入要算的群組和品項（跟採購清單的常用群組、常用品項同步）。每個品項填 <b>買價</b>（每幾斤／公斤／克多少錢）、<b>售價</b>、<b>成本率</b>，就會算出<b>一份要放幾克</b>。買價會自動帶入採購清單的備註（例如「1斤30」）。</div>
     <div class="fm-row"><b>預設成本率</b><input id="gCr" class="pi" inputmode="decimal" value="${GR.cr}" style="max-width:80px" onchange="gramSetCr()"><span>%（單項沒另外設定時用這個）</span></div>
     <div class="chips pcc" id="ggChips">${gramGroupChips()}</div>
@@ -3197,6 +3197,20 @@ function ptRows(){
   });
   return R;
 }
+function ctCatItem(iid){for(const c of Object.values(GR.cat||{})){const i=(c.items||{})[iid];if(i)return i}return null}
+/* 重量品項的買價：手動輸入／最新採購進貨的備註；都沒有就用採購支出常用品項裡的單價＋單位（單位是 斤/公斤/克/兩 才算） */
+function ctEffW(iid,name){
+  const e=gramEff(iid,name);if(e)return e;
+  const ci=ctCatItem(iid);
+  if(ci&&+ci.price>0&&GU[ci.unit])return{p:+ci.price,q:1,u:ci.unit,src:'採購支出的單價'};
+  return null;
+}
+function ctMode(iid){
+  const g=GR.meta[iid]||{};if(g.mode)return g.mode;
+  const ci=ctCatItem(iid);
+  if(!GR.auto[(ci||{}).name||'']&&ci&&ci.unit&&!GU[ci.unit])return'u';
+  return'w';
+}
 function ctIdx(){const m={};ptRows().forEach(r=>{(m[r.iid]=m[r.iid]||[]).push(r)});Object.values(m).forEach(L=>L.sort((a,b)=>a.day.localeCompare(b.day)));return m}
 /* 最新一次採購進貨的「每個單位多少錢」（盒、包、隻…；有單價用單價，沒有就用 金額÷數量） */
 function ctUnitAuto(L){
@@ -3207,6 +3221,8 @@ function ctUnit(iid,idx){
   const g=GR.meta[iid]||{},a=ctUnitAuto(idx[iid]);
   if(+g.pp>0&&(!a||a.day<=(g.ppd||'')))return{p:+g.pp,u:g.pu||(a&&a.u)||'',src:'手動輸入',auto:a};
   if(a)return{p:a.p,u:g.pu||a.u,src:ptMD(a.day)+' 採購進貨',auto:a};
+  const ci=ctCatItem(iid);
+  if(ci&&+ci.price>0)return{p:+ci.price,u:g.pu||ci.unit||'',src:'採購支出的單價',auto:null};
   return null;
 }
 function ctSiblings(par){return Object.entries(GR.meta).filter(([k,m])=>m&&m.mode==='c'&&m.par===par&&+m.cnt>0)}
@@ -3216,11 +3232,12 @@ function ctShare(iid){
   return{v:tot>0&&+g.cnt>0?Math.round(+g.cnt/tot*1000)/10:0,auto:true};
 }
 function ctCalc(iid,name,idx){
-  const g=GR.meta[iid]||{},mode=g.mode||'w',s=gramSell(iid,name),sell=s?s.v:0,cr=+g.cr>0?+g.cr:GR.cr;
+  const g=GR.meta[iid]||{},mode=ctMode(iid),s=gramSell(iid,name),sell=s?s.v:0,cr=+g.cr>0?+g.cr:GR.cr;
   const o={mode,sell,cr,sellSrc:s?s.src:'',cps:0,rate:0,sug:0,grams:0,unitTxt:'',need:''};
   if(mode==='w'){
-    const e=gramEff(iid,name);
+    const e=ctEffW(iid,name);
     if(!e){o.need='缺買價';return o}
+    if(!GU[e.u]){o.need='單位請填 斤／公斤／克／兩（目前「'+(e.u||'空白')+'」）';return o}
     const cpg=e.p/(e.q*GU[e.u]);o.cpg=cpg;o.eff=e;
     if(sell>0)o.sug=Math.round(sell*cr/100/cpg);
     o.grams=+g.sg>0?+g.sg:o.sug;o.cps=o.grams?o.grams*cpg:0;
@@ -3256,7 +3273,7 @@ async function ctSave(iid,k,v,num){
 }
 async function ctSaveMode(iid,v){await gramPatch(iid,{mode:v==='w'?null:v});ctKeep()}
 async function ctSavePriceW(iid){
-  const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),qq=parseFloat(q('cq'))||1,u=q('cu')||'斤',a=GR.auto[($('ct_'+iid)||{dataset:{}}).dataset.n];
+  const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),qq=parseFloat(q('cq'))||1,u=String(q('cu')||'').trim()||'斤',a=GR.auto[($('ct_'+iid)||{dataset:{}}).dataset.n];
   if(p>0)await gramPatch(iid,{p,q:qq,u,ad:(a&&a.day)||''});else await gramPatch(iid,{p:null,q:null,u:null,ad:null});
   ctKeep();
 }
@@ -3317,8 +3334,8 @@ function ctPriceCell(iid,name,c){
     return pu?`<span class="mu">來源最新買價</span><br><b>$${ptN(pu.p,1)}</b>／${esc(pu.u||'單位')}<br><span class="mu">${esc(pu.src)}</span>`:'<span class="mu">看來源買價</span>';
   }
   if(mode==='w'){
-    const e=c.eff||gramEff(iid,name)||{},unitSel=GU_OPT.map(u=>`<option${(e.u||'斤')===u?' selected':''}>${u}</option>`).join('');
-    return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.p||''}" onchange="ctSavePriceW('${iid}')"> ／ <input id="cq_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.q||1}" onchange="ctSavePriceW('${iid}')"> <select id="cu_${iid}" class="pi gu" onchange="ctSavePriceW('${iid}')">${unitSel}</select></div><span class="mu">${e.src?esc(e.src):'請輸入，或在採購進貨備註寫「1斤38」'}</span>`;
+    const e=c.eff||ctEffW(iid,name)||{};
+    return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.p||''}" onchange="ctSavePriceW('${iid}')"> ／ <input id="cq_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.q||1}" onchange="ctSavePriceW('${iid}')"> <input id="cu_${iid}" list="ctUnits" class="pi gx" style="width:62px" value="${esc(e.u||'')}" placeholder="斤" onchange="ctSavePriceW('${iid}')"></div><span class="mu">${e.src?esc(e.src):'請輸入買價和單位'}</span>`;
   }
   const U=c.U;
   return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:70px" inputmode="decimal" value="${U?ptN(U.p,2):''}" onchange="ctSavePriceU('${iid}')"> ／ <input id="cu_${iid}" class="pi gx" style="width:56px" value="${esc(U?U.u:(g.pu||''))}" placeholder="盒/包/隻" onchange="ctSavePriceU('${iid}')"></div><span class="mu">${U?esc(U.src):'請輸入，或在採購進貨填單價／金額'}</span>`;
@@ -3390,10 +3407,10 @@ function renderCost(){
   let body='';
   if(CT.tab==='cost'){
     let lastG='';
-    const emptyG=Object.entries(GR.cat).filter(([cid,c])=>!Object.keys(c.items||{}).length&&!CT.q&&!CT.grp).map(([cid,c])=>`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(c.name)}（還沒有品項） <button class="chip sm" style="margin-left:10px" onclick="ctAddItemPrompt('${cid}')">＋ 新增品項</button></td></tr>`).join('');
-    const trs=F.map(r=>{const gh=r.grp!==lastG?`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)} <button class="chip sm" style="margin-left:10px" onclick="ctAddItemPrompt('${r.cid}')">＋ 新增品項</button> <button class="chip sm" style="color:var(--bad)" onclick="ctHideGroup('${r.cid}')">✕ 整個群組不要</button></td></tr>`:'';lastG=r.grp;return gh+ctRowHtml(r,idx)}).join('')+emptyG;
-    body=`<div class="tbw ct"><table style="min-width:980px"><thead><tr><th>品項</th><th>最新買價（可修改）</th><th>算法</th><th>每份用量</th><th>每份成本</th><th>售價／成本率</th><th></th></tr></thead><tbody>${trs||`<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${items.length?'沒有符合的品項':'還沒有品項。請按上面的「＋ 新增群組」，或到「採購支出」建立常用群組、品項。'}</td></tr>`}</tbody></table></div>
-    <div class="modal-tip" style="text-align:left"><b>怎麼用：</b>群組、品項預設全部帶入（和採購支出同一份清單），不要的按 ✕ 刪掉，要新增就按「＋ 新增群組」「＋ 新增品項」。每個品項用「最新一次採購進貨」的買價自動算成本；買價浮動時，採購進貨登錄新價格，這裡就跟著更新。買價、售價、每份用量都可以直接改（買價改了會一直用，直到採購進貨有更新的買價）。<br>
+    const emptyG=Object.entries(GR.cat).filter(([cid,c])=>!Object.keys(c.items||{}).length&&!CT.q&&!CT.grp).map(([cid,c])=>`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(c.name)}（還沒有品項，請到採購支出新增）</td></tr>`).join('');
+    const trs=F.map(r=>{const gh=r.grp!==lastG?`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)} <button class="chip sm" style="margin-left:10px;color:var(--bad)" onclick="ctHideGroup('${r.cid}')">✕ 整個群組不要</button></td></tr>`:'';lastG=r.grp;return gh+ctRowHtml(r,idx)}).join('')+emptyG;
+    body=`<div class="tbw ct"><table style="min-width:980px"><thead><tr><th>品項</th><th>最新買價（可修改）</th><th>算法</th><th>每份用量</th><th>每份成本</th><th>售價／成本率</th><th></th></tr></thead><tbody>${trs||`<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${items.length?'沒有符合的品項':'還沒有品項。請先到「採購支出」建立常用群組、品項，這裡會自動同步。'}</td></tr>`}</tbody></table></div>
+    <div class="modal-tip" style="text-align:left"><b>怎麼用：</b>群組、品項預設全部帶入（和採購支出同一份清單），不要的按 ✕ 刪掉，新增群組、品項請到「採購支出」，這裡會自動同步（單位、單價也一起帶入）。重量品項的單位請自己輸入 斤／公斤／克／兩。每個品項用「最新一次採購進貨」的買價自動算成本；買價浮動時，採購進貨登錄新價格，這裡就跟著更新。買價、售價、每份用量都可以直接改（買價改了會一直用，直到採購進貨有更新的買價）。<br>
     <b>算法：</b>① 依重量：填每份幾克（空白＝依售價×成本率建議）。② 整包拆小單位：例如蒟蒻絲「每包 50 卷、每份用 5 卷」。③ 幾包分幾份：例如娃娃菜「用 3 盒分成 10 份」。④ 由整隻拆分：例如「大型鹹水雞」每隻可分 2 個雞腿、2 個雞胸，成本占比空白＝依個數平均，也可以自己填（腿 60、胸 40）。⑤ 只記買價：給整隻雞這種來源品項用。</div>`;
   }else{
     const day=CT.day,list=ptRows().filter(r=>r.day===day&&(!CT.grp||r.grp===CT.grp)&&(!q||r.name.includes(q))).sort((a,b)=>a.go-b.go||a.io-b.io);
@@ -3410,7 +3427,7 @@ function renderCost(){
     <div class="chips" style="margin-bottom:8px">${gchips}</div>
     <div class="fm-row"><input id="ctQ" placeholder="🔍 搜尋品項，例如：高麗菜" value="${esc(CT.q)}" oninput="CT.q=this.value;clearTimeout(window._ctT);window._ctT=setTimeout(()=>{const p=this.selectionStart;renderCost();const e=$('ctQ');if(e){e.focus();e.setSelectionRange(p,p)}},350)"></div>
     <div class="fm-row"><b style="width:auto">預設目標成本率</b><input class="pi gx" style="max-width:70px" inputmode="decimal" value="${GR.cr}" onchange="ctSetCr(this.value)"><span>%</span>
-     <button class="chip sm" onclick="ctAddGroupPrompt()">＋ 新增群組</button>${nHide?`<button class="chip sm" onclick="ctShowAll()">↩ 恢復已刪除的 ${nHide} 項</button>`:''}</div>
+     <span class="mu">品項和買價從「採購支出」自動同步（那邊新增、改單位單價，這裡重新讀取就更新）</span>${nHide?`<button class="chip sm" onclick="ctShowAll()">↩ 恢復已刪除的 ${nHide} 項</button>`:''}</div>
     <div class="fm-line"><span><button class="chip sm" onclick="GR.ok=false;renderCost()">🔄 重新讀取</button> <button class="chip sm" onclick="ctCsv(F_CSV(),ctIdxCache)">📥 匯出 CSV</button></span><span class="mu">依採購進貨的最新買價計算</span></div>
   </div>${body}<div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button></div>`;
   window.F_CSV=()=>F;
