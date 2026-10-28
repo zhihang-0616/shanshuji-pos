@@ -174,7 +174,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .rc-done{text-align:center;padding:10px 0}.rc-done .ok{font-size:48px}
 .rc-no{font-size:30px;font-weight:800;color:var(--ac);letter-spacing:2px;margin:6px 0}
 /* 訂單列表 / 提示 */
-.m-box.xl{max-width:820px}.m-box.xxl{max-width:1180px;width:96vw}
+.m-box.xl{max-width:820px}.m-box.xxl{max-width:1440px;width:98vw}
 .oh{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .oh button{padding:8px 14px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:14px}
 /* 視窗上方的「返回／關閉」跟著畫面：往下滑時固定在最上面（下方的按鈕列本來就固定在底部） */
@@ -208,6 +208,12 @@ input[type=date]{color-scheme:dark}
 .tbw th{background:var(--s2);color:var(--ac2);text-align:left;padding:8px 10px;white-space:nowrap}
 .tbw td{padding:8px 10px;border-top:1px solid var(--ln);vertical-align:top}
 .tbw .mu{color:var(--mu);font-size:12px}
+.ct td,.ct th{white-space:nowrap;vertical-align:middle;padding:5px 8px}
+.ct td:nth-child(2) .mu{display:none}.ct br{display:none}.ct td>div{display:inline-block}.ct .mu{margin:0 4px;font-size:12px}
+.ct input.pi,.ct select.pi{padding:2px 5px!important;font-size:13px!important;border-radius:6px!important;height:28px!important;min-height:0;box-sizing:border-box;min-width:0;line-height:1.2;width:auto}
+.ct select.gu{padding:2px 1px!important;width:58px}
+.ct .pdel{font-size:16px;padding:0 4px}
+
 .trk{display:flex;gap:6px}
 .trk span{flex:1;text-align:center;padding:8px 4px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:13px;color:var(--mu)}
 .trk .ok{background:rgba(76,175,125,.2);border-color:var(--ok);color:var(--tx)}
@@ -3173,7 +3179,7 @@ let CT={tab:'cost',q:'',grp:'',open:'',day:''};
 const ptN=(n,d)=>{if(n==null||isNaN(n))return'—';const k=Math.pow(10,d==null?1:d);return String(Math.round(n*k)/k)};
 const ptDash=d=>d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
 const ptMD=d=>d.slice(4,6)+'/'+d.slice(6,8);
-const CT_MODES=[['w','依重量算（每份幾克）'],['n','整包拆小單位（每包幾個，每份幾個）'],['s','幾包分成幾份'],['c','由整隻拆分（例：雞→腿、胸）'],['u','只記買價（給別的品項拆分用）']];
+const CT_MODES=[['w','依重量（克）'],['n','整包拆小單位'],['s','幾包分幾份'],['c','由整隻拆分'],['u','只記買價']];
 function ptRows(){
   const R=[],plan=GR.plan||{};
   Object.keys(plan).sort().forEach(day=>{
@@ -3298,11 +3304,11 @@ function ctPriceCell(iid,name,c){
   const g=GR.meta[iid]||{},mode=c.mode;
   if(mode==='c'){
     const pu=c.pu;
-    return pu?`<span class="mu">來源最新買價</span><br><b>$${ptN(pu.p,1)}</b>／${esc(pu.u||'單位')}<br><span class="mu">${esc(pu.src)}</span>`:'<span class="mu">看來源品項的買價</span>';
+    return pu?`<span class="mu">來源最新買價</span><br><b>$${ptN(pu.p,1)}</b>／${esc(pu.u||'單位')}<br><span class="mu">${esc(pu.src)}</span>`:'<span class="mu">看來源買價</span>';
   }
   if(mode==='w'){
     const e=c.eff||gramEff(iid,name)||{},unitSel=GU_OPT.map(u=>`<option${(e.u||'斤')===u?' selected':''}>${u}</option>`).join('');
-    return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:62px" inputmode="decimal" value="${e.p||''}" onchange="ctSavePriceW('${iid}')"> ／ <input id="cq_${iid}" class="pi gx" style="width:48px" inputmode="decimal" value="${e.q||1}" onchange="ctSavePriceW('${iid}')"> <select id="cu_${iid}" class="pi gu" onchange="ctSavePriceW('${iid}')">${unitSel}</select></div><span class="mu">${e.src?esc(e.src):'請輸入，或在採購進貨備註寫「1斤38」'}</span>`;
+    return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.p||''}" onchange="ctSavePriceW('${iid}')"> ／ <input id="cq_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.q||1}" onchange="ctSavePriceW('${iid}')"> <select id="cu_${iid}" class="pi gu" onchange="ctSavePriceW('${iid}')">${unitSel}</select></div><span class="mu">${e.src?esc(e.src):'請輸入，或在採購進貨備註寫「1斤38」'}</span>`;
   }
   const U=c.U;
   return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:70px" inputmode="decimal" value="${U?ptN(U.p,2):''}" onchange="ctSavePriceU('${iid}')"> ／ <input id="cu_${iid}" class="pi gx" style="width:56px" value="${esc(U?U.u:(g.pu||''))}" placeholder="盒/包/隻" onchange="ctSavePriceU('${iid}')"></div><span class="mu">${U?esc(U.src):'請輸入，或在採購進貨填單價／金額'}</span>`;
@@ -3314,19 +3320,19 @@ function ctUseCell(iid,name,c){
   if(mode==='s')return`用 ${ctNum(iid,'sx','3',48)} ${esc(c.U&&c.U.u||'包')}　分成 ${ctNum(iid,'sy','10',48)} 份`;
   if(mode==='c'){
     const sh=c.share;
-    return`來源 <select class="pi" style="max-width:150px" onchange="ctSave('${iid}','par',this.value,0)">${ctParentOpts(iid,g.par)}</select><br>
-     每${esc(c.pu&&c.pu.u||'隻')}可分 ${ctNum(iid,'cnt','2',46)} 個　成本占比 ${ctNum(iid,'shr',sh?String(sh.v):'',46,'空白＝依個數平均分攤；例如腿 60、胸 40')}%${sh&&sh.auto&&sh.v?`<span class="mu">（自動 ${sh.v}%）</span>`:''}<br>每份用 ${ctNum(iid,'pm','1',46)} 個`;
+    return`來源 <select class="pi" style="width:100px" onchange="ctSave('${iid}','par',this.value,0)">${ctParentOpts(iid,g.par)}</select><br>
+     每${esc(c.pu&&c.pu.u||'隻')}分 ${ctNum(iid,'cnt','2',40)} 個　占比 ${ctNum(iid,'shr',sh?String(sh.v):'',46,'空白＝依個數平均分攤；例如腿 60、胸 40')}%<br>每份 ${ctNum(iid,'pm','1',40)} 個`;
   }
   return'<span class="mu">只記買價</span>';
 }
 function ctRowHtml(r,idx){
   const iid=r.iid,name=r.name,c=ctCalc(iid,name,idx),g=GR.meta[iid]||{},open=CT.open===iid;
   const last=(idx[iid]||[]).slice(-1)[0];
-  const modeSel=`<select class="pi" style="max-width:158px" onchange="ctSaveMode('${iid}',this.value)">${CT_MODES.map(([k,t])=>`<option value="${k}"${c.mode===k?' selected':''}>${t}</option>`).join('')}</select>`;
+  const modeSel=`<select class="pi" style="width:118px" onchange="ctSaveMode('${iid}',this.value)">${CT_MODES.map(([k,t])=>`<option value="${k}"${c.mode===k?' selected':''}>${t}</option>`).join('')}</select>`;
   const rateCol=c.rate>c.cr+0.05?'color:var(--bad);font-weight:700':'color:var(--ok);font-weight:700';
   const costCell=c.cps>0?`<b style="font-size:15px">$${ptN(c.cps,1)}</b>${c.unitTxt?`<br><span class="mu">${esc(c.unitTxt)}</span>`:''}`:(c.mode==='u'?`<span class="mu">${esc(c.unitTxt||'—')}</span>`:`<span style="color:var(--bad);font-size:12px">⚠ ${esc(c.need||'—')}</span>${c.unitTxt?`<br><span class="mu">${esc(c.unitTxt)}</span>`:''}`);
-  const sellCell=c.mode==='u'?'<span class="mu">—</span>':`$<input class="pi gx" style="width:56px" inputmode="decimal" value="${c.sell||''}" placeholder="售價" title="空白＝自動對應菜單品項" onchange="ctSave('${iid}','sell',this.value,1)"><br>${c.rate?`<span style="${rateCol}">${ptN(c.rate,1)}%</span>`:'<span class="mu">—</span>'}<br><span class="mu">目標</span><input class="pi gx" style="width:42px" inputmode="decimal" value="${+g.cr>0?g.cr:''}" placeholder="${GR.cr}" onchange="ctSave('${iid}','cr',this.value,1)"><span class="mu">%</span>`;
-  const tr=`<tr id="ct_${iid}" data-n="${esc(name)}"><td><a href="javascript:void 0" style="color:var(--ac2);font-weight:700" onclick="ctSet('open','${open?'':iid}')">${open?'▼':'▶'} ${esc(name)}</a>${last?`<br><span class="mu">最近買 ${ptMD(last.day)}</span>`:'<br><span class="mu">還沒有採購紀錄</span>'}</td>
+  const sellCell=c.mode==='u'?'<span class="mu">—</span>':`$<input class="pi gx" style="width:56px" inputmode="decimal" value="${c.sell||''}" placeholder="售價" title="售價（空白＝自動對應菜單品項）" onchange="ctSave('${iid}','sell',this.value,1)"><br>${c.rate?`<span style="${rateCol}">${ptN(c.rate,1)}%</span>`:'<span class="mu">—</span>'}<br><span class="mu">目標</span><input class="pi gx" style="width:44px" inputmode="decimal" value="${+g.cr>0?g.cr:''}" placeholder="${GR.cr}" onchange="ctSave('${iid}','cr',this.value,1)"><span class="mu">%</span>`;
+  const tr=`<tr id="ct_${iid}" data-n="${esc(name)}"><td><a href="javascript:void 0" style="color:var(--ac2);font-weight:700" onclick="ctSet('open','${open?'':iid}')">${open?'▼':'▶'} ${esc(name)}</a>${last?`<br><span class="mu">${ptMD(last.day)}買</span>`:'<br><span class="mu">無採購紀錄</span>'}</td>
    <td>${ctPriceCell(iid,name,c)}</td><td>${modeSel}</td><td>${ctUseCell(iid,name,c)}</td><td>${costCell}</td><td>${sellCell}</td>
    <td><button class="pdel" title="從成本計算表移除" onclick="ctDel('${r.cid}','${iid}',this.dataset.n)" data-n="${esc(name)}">✕</button></td></tr>`;
   return tr+(open?ctHist(idx,iid):'');
@@ -3374,7 +3380,7 @@ function renderCost(){
   if(CT.tab==='cost'){
     let lastG='';
     const trs=F.map(r=>{const gh=r.grp!==lastG?`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)}</td></tr>`:'';lastG=r.grp;return gh+ctRowHtml(r,idx)}).join('');
-    body=`<div class="tbw"><table style="min-width:1040px"><thead><tr><th>品項</th><th>最新買價（可修改）</th><th>算法</th><th>每份用量</th><th>每份成本</th><th>售價／成本率</th><th></th></tr></thead><tbody>${trs||`<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${items.length?'沒有符合的品項':'還沒有加入任何品項。請按上面的「＋ 全部加入」，或用「＋ 加入品項」一個一個加。'}</td></tr>`}</tbody></table></div>
+    body=`<div class="tbw ct"><table style="min-width:980px"><thead><tr><th>品項</th><th>最新買價（可修改）</th><th>算法</th><th>每份用量</th><th>每份成本</th><th>售價／成本率</th><th></th></tr></thead><tbody>${trs||`<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${items.length?'沒有符合的品項':'還沒有加入任何品項。請按上面的「＋ 全部加入」，或用「＋ 加入品項」一個一個加。'}</td></tr>`}</tbody></table></div>
     <div class="modal-tip" style="text-align:left"><b>怎麼用：</b>每個品項用「最新一次採購進貨」的買價自動算成本；買價浮動時，採購進貨登錄新價格，這裡就跟著更新。買價、售價、每份用量都可以直接改（買價改了會一直用，直到採購進貨有更新的買價）。<br>
     <b>算法：</b>① 依重量：填每份幾克（空白＝依售價×成本率建議）。② 整包拆小單位：例如蒟蒻絲「每包 50 卷、每份用 5 卷」。③ 幾包分幾份：例如娃娃菜「用 3 盒分成 10 份」。④ 由整隻拆分：例如「大型鹹水雞」每隻可分 2 個雞腿、2 個雞胸，成本占比空白＝依個數平均，也可以自己填（腿 60、胸 40）。⑤ 只記買價：給整隻雞這種來源品項用。</div>`;
   }else{
