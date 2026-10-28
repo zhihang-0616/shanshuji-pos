@@ -2999,7 +2999,7 @@ async function gramLoad(){
   GR.loading=true;
   try{
     const [c,m,p]=await Promise.all([FB.get(FB.ref(FB.db,'shopCatalog')),FB.get(FB.ref(FB.db,'shopMeta')),FB.get(FB.ref(FB.db,'shopPlan'))]);
-    GR.cat=c.val()||{};const mv=m.val()||{};GR.meta=mv.gram||{};GR.sel=mv.gramSel||{};GR.cr=+mv.gramCr>0?+mv.gramCr:30;
+    GR.cat=c.val()||{};const mv=m.val()||{};GR.meta=mv.gram||{};GR.sel=mv.gramSel||{};GR.hide=mv.ctHide||{};GR.cr=+mv.gramCr>0?+mv.gramCr:30;
     GR.plan=p.val()||{};GR.auto=gramBuildAuto(p.val());
   }catch(e){alert('讀取失敗：'+(e.code||e.message))}
   GR.menu=gramMenuList();GR.ok=true;GR.loading=false;
@@ -3275,19 +3275,29 @@ function ctOpen(){
   $('modal').classList.add('open');renderCost();
 }
 async function ctSelSave(cid){try{await FB.set(FB.ref(FB.db,'shopMeta/gramSel/'+cid),GR.sel[cid]||null)}catch(e){alert('儲存失敗：'+(e.code||e.message))}}
-async function ctAddItem(v){
-  if(!v)return;const [cid,iid]=v.split('|');
-  GR.sel[cid]=GR.sel[cid]||{_:1};GR.sel[cid][iid]=1;ctKeep();await ctSelSave(cid);
-}
-async function ctAddAll(){
-  const all={};Object.entries(GR.cat).forEach(([cid,c])=>{all[cid]={_:1};Object.keys(c.items||{}).forEach(i=>{all[cid][i]=1})});
-  GR.sel=all;ctKeep();
-  try{await FB.set(FB.ref(FB.db,'shopMeta/gramSel'),all)}catch(e){alert('儲存失敗：'+(e.code||e.message))}
-}
+async function ctHideSave(){try{await FB.set(FB.ref(FB.db,'shopMeta/ctHide'),Object.keys(GR.hide).length?GR.hide:null)}catch(e){alert('儲存失敗：'+(e.code||e.message))}}
 async function ctDel(cid,iid,name){
-  if(!confirm('把「'+name+'」從成本計算表移除？（採購進貨和已輸入的設定不受影響，之後可以再加回來）'))return;
-  if(GR.sel[cid]){delete GR.sel[cid][iid]}ctKeep();
-  try{await FB.set(FB.ref(FB.db,'shopMeta/gramSel/'+cid+'/'+iid),null)}catch(e){alert('儲存失敗：'+(e.code||e.message))}
+  if(!confirm('把「'+name+'」從成本計算表刪除？（不影響採購支出，之後可按「恢復已刪除」找回）'))return;
+  GR.hide=GR.hide||{};GR.hide[iid]=1;ctKeep();await ctHideSave();
+}
+async function ctHideGroup(cid){
+  const c=GR.cat[cid];if(!c||!confirm('把整個群組「'+c.name+'」從成本計算表刪除？（不影響採購支出，可按「恢復已刪除」找回）'))return;
+  GR.hide=GR.hide||{};Object.keys(c.items||{}).forEach(k=>{GR.hide[k]=1});ctKeep();await ctHideSave();
+}
+async function ctShowAll(){GR.hide={};ctKeep();await ctHideSave()}
+async function ctAddGroupPrompt(){
+  const name=(prompt('新群組名稱（例如：大市場）')||'').trim();if(!name)return;
+  const ex=Object.entries(GR.cat).find(([,c])=>c.name===name);if(ex){alert('已經有這個群組了');return}
+  try{const r=FB.push(FB.ref(FB.db,'shopCatalog'));const o=Date.now();await FB.set(r,{name,o});GR.cat[r.key]={name,o,items:{}};}catch(e){alert('新增失敗：'+(e.code||e.message));return}
+  alert('群組「'+name+'」已建立，請按群組旁的「＋ 新增品項」加入品項。');ctKeep();
+}
+async function ctAddItemPrompt(cid){
+  const c=GR.cat[cid];if(!c)return;
+  const name=(prompt('在「'+c.name+'」新增品項名稱')||'').trim();if(!name)return;
+  const ex=Object.entries(c.items||{}).find(([,i])=>i.name===name);
+  if(ex){if(GR.hide&&GR.hide[ex[0]]){delete GR.hide[ex[0]];ctKeep();await ctHideSave()}else alert('這個品項已經存在');return}
+  try{const r=FB.push(FB.ref(FB.db,'shopCatalog/'+cid+'/items'));const it={name,unit:'',price:0,note:'',o:Date.now()};await FB.set(r,it);c.items=c.items||{};c.items[r.key]=it}catch(e){alert('新增失敗：'+(e.code||e.message));return}
+  ctKeep();
 }
 async function ctSetCr(v){let x=parseFloat(v);if(!(x>0))x=30;x=Math.min(100,x);GR.cr=x;ctKeep();try{await FB.set(FB.ref(FB.db,'shopMeta/gramCr'),x)}catch(e){alert('儲存失敗：'+(e.code||e.message))}}
 const ctNum=(iid,k,ph,w,title)=>`<input class="pi gx" style="width:${w||58}px" inputmode="decimal" value="${(GR.meta[iid]||{})[k]||''}" placeholder="${ph||''}" ${title?`title="${title}"`:''} onchange="ctSave('${iid}','${k}',this.value,1)">`;
@@ -3370,18 +3380,20 @@ function renderCost(){
   const idx=ctIdx();ctIdxCache=idx;
   const tabs=[['cost','成本計算'],['day','每日買價']].map(([k,t])=>`<button class="chip${CT.tab===k?' on':''}" onclick="ctSet('tab','${k}')">${t}</button>`).join('');
   let items=[];
-  Object.keys(GR.sel).forEach(cid=>{const c=GR.cat[cid];if(!c)return;Object.keys(GR.sel[cid]).filter(k=>k!=='_'&&(c.items||{})[k]).forEach(iid=>items.push({iid,cid,name:c.items[iid].name,grp:c.name,go:+c.o||0,io:+c.items[iid].o||0}))});
+  const HD=GR.hide||{};let nHide=0;
+  Object.entries(GR.cat).forEach(([cid,c])=>{if(!c)return;Object.keys(c.items||{}).forEach(iid=>{if(HD[iid]){nHide++;return}items.push({iid,cid,name:c.items[iid].name,grp:c.name,go:+c.o||0,io:+c.items[iid].o||0})})});
+  const grpId={};Object.entries(GR.cat).forEach(([cid,c])=>{grpId[c.name]=cid});
   const grps=[...new Map(items.sort((a,b)=>a.go-b.go).map(r=>[r.grp,1])).keys()];
   const q=CT.q.trim();
   const F=items.filter(r=>(!CT.grp||r.grp===CT.grp)&&(!q||r.name.includes(q)||r.grp.includes(q))).sort((a,b)=>a.go-b.go||a.io-b.io);
   const gchips=`<button class="chip sm${CT.grp?'':' on'}" onclick="ctSet('grp','')">全部群組</button>`+grps.map(g=>`<button class="chip sm${CT.grp===g?' on':''}" data-g="${esc(g)}" onclick="ctSet('grp',this.dataset.g)">${esc(g)}</button>`).join('');
-  const addable=Object.entries(GR.cat).sort(([,a],[,b])=>byO(a,b)).map(([cid,c])=>{const its=Object.entries(c.items||{}).filter(([k])=>!(GR.sel[cid]||{})[k]).sort(([,a],[,b])=>byO(a,b));return its.length?`<optgroup label="${esc(c.name)}">${its.map(([k,i])=>`<option value="${cid}|${k}">${esc(i.name)}</option>`).join('')}</optgroup>`:''}).join('');
   let body='';
   if(CT.tab==='cost'){
     let lastG='';
-    const trs=F.map(r=>{const gh=r.grp!==lastG?`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)}</td></tr>`:'';lastG=r.grp;return gh+ctRowHtml(r,idx)}).join('');
-    body=`<div class="tbw ct"><table style="min-width:980px"><thead><tr><th>品項</th><th>最新買價（可修改）</th><th>算法</th><th>每份用量</th><th>每份成本</th><th>售價／成本率</th><th></th></tr></thead><tbody>${trs||`<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${items.length?'沒有符合的品項':'還沒有加入任何品項。請按上面的「＋ 全部加入」，或用「＋ 加入品項」一個一個加。'}</td></tr>`}</tbody></table></div>
-    <div class="modal-tip" style="text-align:left"><b>怎麼用：</b>每個品項用「最新一次採購進貨」的買價自動算成本；買價浮動時，採購進貨登錄新價格，這裡就跟著更新。買價、售價、每份用量都可以直接改（買價改了會一直用，直到採購進貨有更新的買價）。<br>
+    const emptyG=Object.entries(GR.cat).filter(([cid,c])=>!Object.keys(c.items||{}).length&&!CT.q&&!CT.grp).map(([cid,c])=>`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(c.name)}（還沒有品項） <button class="chip sm" style="margin-left:10px" onclick="ctAddItemPrompt('${cid}')">＋ 新增品項</button></td></tr>`).join('');
+    const trs=F.map(r=>{const gh=r.grp!==lastG?`<tr><td colspan="7" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)} <button class="chip sm" style="margin-left:10px" onclick="ctAddItemPrompt('${r.cid}')">＋ 新增品項</button> <button class="chip sm" style="color:var(--bad)" onclick="ctHideGroup('${r.cid}')">✕ 整個群組不要</button></td></tr>`:'';lastG=r.grp;return gh+ctRowHtml(r,idx)}).join('')+emptyG;
+    body=`<div class="tbw ct"><table style="min-width:980px"><thead><tr><th>品項</th><th>最新買價（可修改）</th><th>算法</th><th>每份用量</th><th>每份成本</th><th>售價／成本率</th><th></th></tr></thead><tbody>${trs||`<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:24px">${items.length?'沒有符合的品項':'還沒有品項。請按上面的「＋ 新增群組」，或到「採購支出」建立常用群組、品項。'}</td></tr>`}</tbody></table></div>
+    <div class="modal-tip" style="text-align:left"><b>怎麼用：</b>群組、品項預設全部帶入（和採購支出同一份清單），不要的按 ✕ 刪掉，要新增就按「＋ 新增群組」「＋ 新增品項」。每個品項用「最新一次採購進貨」的買價自動算成本；買價浮動時，採購進貨登錄新價格，這裡就跟著更新。買價、售價、每份用量都可以直接改（買價改了會一直用，直到採購進貨有更新的買價）。<br>
     <b>算法：</b>① 依重量：填每份幾克（空白＝依售價×成本率建議）。② 整包拆小單位：例如蒟蒻絲「每包 50 卷、每份用 5 卷」。③ 幾包分幾份：例如娃娃菜「用 3 盒分成 10 份」。④ 由整隻拆分：例如「大型鹹水雞」每隻可分 2 個雞腿、2 個雞胸，成本占比空白＝依個數平均，也可以自己填（腿 60、胸 40）。⑤ 只記買價：給整隻雞這種來源品項用。</div>`;
   }else{
     const day=CT.day,list=ptRows().filter(r=>r.day===day&&(!CT.grp||r.grp===CT.grp)&&(!q||r.name.includes(q))).sort((a,b)=>a.go-b.go||a.io-b.io);
@@ -3398,7 +3410,7 @@ function renderCost(){
     <div class="chips" style="margin-bottom:8px">${gchips}</div>
     <div class="fm-row"><input id="ctQ" placeholder="🔍 搜尋品項，例如：高麗菜" value="${esc(CT.q)}" oninput="CT.q=this.value;clearTimeout(window._ctT);window._ctT=setTimeout(()=>{const p=this.selectionStart;renderCost();const e=$('ctQ');if(e){e.focus();e.setSelectionRange(p,p)}},350)"></div>
     <div class="fm-row"><b style="width:auto">預設目標成本率</b><input class="pi gx" style="max-width:70px" inputmode="decimal" value="${GR.cr}" onchange="ctSetCr(this.value)"><span>%</span>
-     <select class="pi" style="max-width:170px" onchange="ctAddItem(this.value);this.value=''"><option value="">＋ 加入品項…</option>${addable}</select><button class="chip sm" onclick="ctAddAll()">＋ 全部加入</button></div>
+     <button class="chip sm" onclick="ctAddGroupPrompt()">＋ 新增群組</button>${nHide?`<button class="chip sm" onclick="ctShowAll()">↩ 恢復已刪除的 ${nHide} 項</button>`:''}</div>
     <div class="fm-line"><span><button class="chip sm" onclick="GR.ok=false;renderCost()">🔄 重新讀取</button> <button class="chip sm" onclick="ctCsv(F_CSV(),ctIdxCache)">📥 匯出 CSV</button></span><span class="mu">依採購進貨的最新買價計算</span></div>
   </div>${body}<div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button></div>`;
   window.F_CSV=()=>F;
