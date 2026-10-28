@@ -2772,7 +2772,7 @@ function renderCash(){
   }else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
    <div class="modal-tip">營業日：<b>${dayLabel(day)}</b>（每日 02:00 換日）</div>
-   ${isManager()?`<div class="fm-row"><b>切換日期</b><input type="date" value="${dashDay(day)}" onchange="cashDay(this.value)" style="max-width:200px"><button class="chip sm" onclick="cashDay('${today8()}')">今天</button><button class="chip sm" onclick="cashDay('${shiftDay(today8(),-1)}')">昨天</button><span style="font-size:12px;color:var(--mu)">店長可編輯任何一天的盤點與支出</span></div>`:''}
+   ${isManager()?`<div class="fm-row"><b>切換日期</b><button class="chip sm" onclick="cashDay('${shiftDay(day,-1)}')">◀ 前一天</button><button class="chip sm${day===today8()?' on':''}" onclick="cashDay('${today8()}')">今日</button><button class="chip sm${day===shiftDay(today8(),1)?' on':''}" onclick="cashDay('${shiftDay(today8(),1)}')">明日</button><button class="chip sm" onclick="cashDay('${shiftDay(day,1)}')">後一天 ▶</button><input type="date" value="${dashDay(day)}" onchange="cashDay(this.value)" style="max-width:170px"><span style="font-size:12px;color:var(--mu)">店長可編輯任何一天的盤點與支出</span></div>`:''}
    <div class="chips">${tabs.map(([k,n,ok])=>`<button class="chip${t===k?' on':''}" onclick="cashTab('${k}')">${ok?'✔ ':''}${n}</button>`).join('')}</div>${body}`;
 }
 /* 開店盤點：直接帶入「前一次」收店盤點的張數（遇到公休日會往前找，最多 14 天） */
