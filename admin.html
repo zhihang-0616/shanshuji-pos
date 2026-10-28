@@ -174,7 +174,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .rc-done{text-align:center;padding:10px 0}.rc-done .ok{font-size:48px}
 .rc-no{font-size:30px;font-weight:800;color:var(--ac);letter-spacing:2px;margin:6px 0}
 /* 訂單列表 / 提示 */
-.m-box.xl{max-width:820px}
+.m-box.xl{max-width:820px}.m-box.xxl{max-width:1180px;width:96vw}
 .oh{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .oh button{padding:8px 14px;border-radius:8px;background:var(--s2);border:1px solid var(--ln);font-size:14px}
 /* 視窗上方的「返回／關閉」跟著畫面：往下滑時固定在最上面（下方的按鈕列本來就固定在底部） */
@@ -277,7 +277,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  .go{padding:12px;font-size:16px}.hint{font-size:11px}
  .m-box{padding:16px;max-height:92vh;max-height:calc(100dvh - 40px)}
  .m-box>.oh{top:-16px;margin:-16px -16px 0;padding:16px 16px 10px}
- .m-box>.m-btns{bottom:-16px;padding:10px 16px 16px;margin:4px -16px -16px}.m-box.wide,.m-box.xl{max-width:100%}
+ .m-box>.m-btns{bottom:-16px;padding:10px 16px 16px;margin:4px -16px -16px}.m-box.wide,.m-box.xl,.m-box.xxl{max-width:100%;width:auto}
  .tbw table{min-width:560px}
 }
 
@@ -1756,6 +1756,7 @@ function openAdminPanel(){
    <div class="opt-list">
     <button class="opt-btn" onclick="openStats()">📊 營業統計</button>
     <button class="opt-btn" onclick="openHistory()">🗂 歷史訂單與匯出</button>
+    <button class="opt-btn" onclick="ptOpen()">📈 採買價格表（每日買價、每份克數、成本）</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
     <button class="opt-btn" onclick="openPrnSettings()">🖨 出單設定（出單機、錢櫃）</button>
@@ -2993,7 +2994,7 @@ async function gramLoad(){
   try{
     const [c,m,p]=await Promise.all([FB.get(FB.ref(FB.db,'shopCatalog')),FB.get(FB.ref(FB.db,'shopMeta')),FB.get(FB.ref(FB.db,'shopPlan'))]);
     GR.cat=c.val()||{};const mv=m.val()||{};GR.meta=mv.gram||{};GR.sel=mv.gramSel||{};GR.cr=+mv.gramCr>0?+mv.gramCr:30;
-    GR.auto=gramBuildAuto(p.val());
+    GR.plan=p.val()||{};GR.auto=gramBuildAuto(p.val());
   }catch(e){alert('讀取失敗：'+(e.code||e.message))}
   GR.menu=gramMenuList();GR.ok=true;GR.loading=false;
 }
@@ -3162,6 +3163,154 @@ async function gramSetCr(){
   let v=parseFloat($('gCr').value);if(!(v>0))v=30;v=Math.min(100,v);$('gCr').value=v;GR.cr=v;
   try{await FB.set(FB.ref(FB.db,'shopMeta/gramCr'),v)}catch(e){alert('儲存失敗：'+(e.code||e.message))}
   document.querySelectorAll('#mBox .gr').forEach(r=>{const iid=r.id.slice(3);const c=$('gc_'+iid);if(c)c.placeholder=v;gramLive(iid)});
+}
+
+/* ===== 採買價格表（後台管理）：每天買了什麼、買價、買多少、金額，加上每份克數與成本 =====
+   資料來源：採購清單（每日買價、數量、金額）＋ 每份克數計算（售價、成本率）。「每份克數」可以自己改，改完會記住。 */
+let PT={view:'latest',day:'',grp:'',q:'',open:'',onlyDone:false};
+const ptN=(n,d)=>{if(n==null||isNaN(n))return'—';const k=Math.pow(10,d==null?1:d);return String(Math.round(n*k)/k)};
+const ptDash=d=>d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
+const ptMD=d=>d.slice(4,6)+'/'+d.slice(6,8);
+function ptRows(){
+  const R=[],plan=GR.plan||{};
+  Object.keys(plan).sort().forEach(day=>{
+    Object.entries(plan[day]||{}).forEach(([gid,g])=>{
+      if(!g||!g.items)return;
+      const cid=g.cid,cg=GR.cat[cid]||{},gn=cg.name||g.name||'其他';
+      Object.entries(g.items).forEach(([iid,it])=>{
+        if(!it||!it.name)return;
+        const qty=parseFloat(it.qty)||0,pr=+it.price||0,amount=+it.amount||(qty&&pr?r2(qty*pr):0);
+        const d=gramDerive(it);
+        if(!amount&&!d&&!it.done)return;
+        const cpg=d&&GU[d.u]?d.p/(d.q*GU[d.u]):null;      // 每克買價
+        R.push({day,gid,cid,iid,grp:gn,go:+cg.o||0,io:+((cg.items||{})[iid]||{}).o||0,name:it.name,qty:it.qty||'',unit:it.unit||'',amount,note:it.note||'',d,cpg,done:!!it.done});
+      });
+    });
+  });
+  return R;
+}
+function ptCalc(r){
+  const g=GR.meta[r.iid]||{},s=gramSell(r.iid,r.name),sell=s?s.v:0,cr=+g.cr>0?+g.cr:GR.cr;
+  const o={sell,cr,sg:+g.sg>0?+g.sg:0,sug:0,grams:0,cost:0,rate:0};
+  if(!r.cpg)return o;
+  if(sell>0)o.sug=Math.round(sell*cr/100/r.cpg);
+  o.grams=o.sg||o.sug;
+  o.cost=o.grams?Math.round(o.grams*r.cpg*10)/10:0;
+  o.rate=sell>0&&o.cost?Math.round(o.cost/sell*1000)/10:0;
+  return o;
+}
+const ptJin=r=>r.cpg?r.cpg*600:null;                         // 一律換成「元／斤」好比較
+function ptPriceCell(r){
+  if(!r.cpg)return'<span class="mu">—</span>';
+  const orig=r.d&&r.d.u!=='斤'?`<br><span class="mu">原 $${ptN(r.d.p,2)}／${r.d.q===1?'':ptN(r.d.q,2)}${r.d.u}</span>`:'';
+  return`<b>${ptN(ptJin(r),1)}</b>${orig}`;
+}
+function ptBuyCell(r){return(r.qty!==''?esc(r.qty)+esc(r.unit):'<span class="mu">—</span>')}
+function ptDiff(cur,prev){
+  if(!cur||!prev||!cur.cpg||!prev.cpg)return'<span class="mu">—</span>';
+  const p=(cur.cpg-prev.cpg)/prev.cpg*100;
+  if(Math.abs(p)<0.05)return'<span class="mu">持平</span>';
+  return`<span style="color:${p>0?'var(--bad)':'var(--ok)'};font-weight:700">${p>0?'▲':'▼'} ${ptN(Math.abs(p),1)}%</span><br><span class="mu">上次 ${ptMD(prev.day)}　${ptN(ptJin(prev),1)}</span>`;
+}
+function ptOpen(){
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box xxl';GR.ok=false;
+  if(!PT.day)PT.day=bizDay(Date.now());
+  $('modal').classList.add('open');renderPT();
+}
+function ptSet(k,v){PT[k]=v;renderPT()}
+function ptShift(d){
+  const t=new Date(ptDash(PT.day)+'T12:00:00');t.setDate(t.getDate()+d);
+  PT.day=t.getFullYear()+p2(t.getMonth()+1)+p2(t.getDate());renderPT();
+}
+function ptPickDay(v){const d=String(v||'').replace(/-/g,'');if(/^\d{8}$/.test(d)){PT.day=d;renderPT()}}
+async function ptSaveSg(iid,val){
+  const v=parseFloat(val);
+  await gramPatch(iid,{sg:v>0?v:null});
+  const y=$('mBox').scrollTop;renderPT();$('mBox').scrollTop=y;
+}
+function ptHist(rows,iid){
+  const L=rows.filter(r=>r.iid===iid).sort((a,b)=>b.day.localeCompare(a.day));
+  const js=L.map(ptJin).filter(x=>x>0);
+  const st=js.length?`最低 <b>${ptN(Math.min(...js),1)}</b>　最高 <b>${ptN(Math.max(...js),1)}</b>　平均 <b>${ptN(js.reduce((a,b)=>a+b,0)/js.length,1)}</b>（元／斤，共 ${js.length} 次）`:'這個品項還沒有可比較的買價';
+  return`<tr class="pt-h"><td colspan="10" style="background:var(--s2)"><div style="margin-bottom:6px">${st}</div>
+   <div class="tbw" style="margin:0"><table style="min-width:520px"><thead><tr><th>日期</th><th>買價（元／斤）</th><th>買了多少</th><th>金額</th><th>備註</th></tr></thead><tbody>
+   ${L.map(r=>`<tr><td>${ptMD(r.day)}</td><td>${ptPriceCell(r)}</td><td>${ptBuyCell(r)}</td><td>${r.amount?'$'+ptN(r.amount,1):'—'}</td><td class="mu">${esc(r.note)}</td></tr>`).join('')}
+   </tbody></table></div></td></tr>`;
+}
+function ptSgCell(r,c){
+  return`<input class="pi gx" style="width:64px" inputmode="decimal" value="${c.sg||''}" placeholder="${c.sug||''}" title="空白＝用建議克數（${c.sug||'—'} 克）；填數字＝你實際每份給的克數" onchange="ptSaveSg('${r.iid}',this.value)">`;
+}
+function ptCostCells(r,c){
+  if(!r.cpg)return'<td class="mu" colspan="3">不是用重量算的（例如顆、包），沒有每份克數</td>';
+  const rateCol=c.rate>(c.cr||30)+0.05?'color:var(--bad);font-weight:700':'';
+  return`<td>${ptSgCell(r,c)}${c.sg?'':'<br><span class="mu">建議</span>'}</td><td>${c.cost?'$'+ptN(c.cost,1):'<span class="mu">—</span>'}</td><td>${c.sell?'$'+c.sell:'<span class="mu">缺售價</span>'}${c.rate?`<br><span style="${rateCol}">${ptN(c.rate,1)}%</span>`:''}</td>`;
+}
+function ptFiltered(rows){
+  const q=PT.q.trim();
+  return rows.filter(r=>(!PT.grp||r.grp===PT.grp)&&(!q||r.name.includes(q)||r.grp.includes(q))&&(!PT.onlyDone||r.done));
+}
+function ptCsv(){
+  const rows=ptRows(),qq=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const head=['日期','群組','品項','買價(元/斤)','原買價','買了多少','金額','備註','每份克數','每份成本','售價','成本率%'];
+  const out=ptFiltered(rows).sort((a,b)=>b.day.localeCompare(a.day)||a.go-b.go||a.io-b.io).map(r=>{const c=ptCalc(r);
+    return[ptDash(r.day),r.grp,r.name,r.cpg?ptN(ptJin(r),1):'',r.d?`${ptN(r.d.p,2)}元/${r.d.q===1?'':ptN(r.d.q,2)}${r.d.u}`:'',r.qty+r.unit,r.amount||'',r.note,c.grams||'',c.cost||'',c.sell||'',c.rate||'']});
+  const csv='﻿'+[head,...out].map(r=>r.map(qq).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='採買價格表_'+bizDay(Date.now())+'.csv';document.body.appendChild(a);a.click();a.remove();
+}
+function renderPT(){
+  const head=`<div class="oh"><h3>📈 採買價格表</h3><button onclick="openAdminPanel()">返回</button></div>`;
+  if(!GR.ok){
+    $('mBox').innerHTML=head+'<div style="text-align:center;color:var(--mu);padding:30px">讀取中…</div>';
+    if(!GR.loading)gramLoad().then(()=>renderPT());
+    return;
+  }
+  const sc=$('mBox').scrollTop,all=ptRows();
+  const grps=[...new Map(all.sort((a,b)=>a.go-b.go).map(r=>[r.grp,r.go])).keys()];
+  const tabs=[['latest','最新價格'],['day','每日明細']].map(([k,t])=>`<button class="chip${PT.view===k?' on':''}" onclick="ptSet('view','${k}')">${t}</button>`).join('');
+  const gchips=`<button class="chip sm${PT.grp?'':' on'}" onclick="ptSet('grp','')">全部群組</button>`+grps.map(g=>`<button class="chip sm${PT.grp===g?' on':''}" onclick="ptSet('grp',this.dataset.g)" data-g="${esc(g)}">${esc(g)}</button>`).join('');
+  let body='';
+  if(PT.view==='latest'){
+    const by={};all.forEach(r=>{(by[r.iid]=by[r.iid]||[]).push(r)});
+    const items=[];
+    Object.values(by).forEach(L=>{
+      L.sort((a,b)=>a.day.localeCompare(b.day));
+      const last=L[L.length-1];let prev=null;
+      for(let i=L.length-2;i>=0;i--){if(L[i].cpg&&L[i].day!==last.day){prev=L[i];break}}
+      items.push({r:last,prev});
+    });
+    const F=ptFiltered(items.map(x=>x.r)).map(r=>items.find(x=>x.r===r));
+    F.sort((a,b)=>a.r.go-b.r.go||a.r.io-b.r.io||a.r.name.localeCompare(b.r.name,'zh-Hant'));
+    let lastG='';
+    const trs=F.map(({r,prev})=>{
+      const c=ptCalc(r),open=PT.open===r.iid;
+      const gh=r.grp!==lastG?`<tr><td colspan="10" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)}</td></tr>`:'';lastG=r.grp;
+      return gh+`<tr><td><a href="javascript:void 0" style="color:var(--ac2);font-weight:700" onclick="ptSet('open','${open?'':r.iid}')">${open?'▼':'▶'} ${esc(r.name)}</a></td><td>${ptMD(r.day)}</td><td>${ptPriceCell(r)}</td><td>${ptDiff(r,prev)}</td><td>${ptBuyCell(r)}</td><td>${r.amount?'$'+ptN(r.amount,1):'—'}</td>${ptCostCells(r,c)}</tr>`+(open?ptHist(all,r.iid):'');
+    }).join('');
+    body=`<div class="tbw"><table style="min-width:960px"><thead><tr><th>品項</th><th>最新買進</th><th>買價（元／斤）</th><th>較上次</th><th>買了多少</th><th>金額</th><th>每份克數</th><th>每份成本</th><th>售價／成本率</th></tr></thead><tbody>${trs||'<tr><td colspan="9" style="text-align:center;color:var(--mu);padding:20px">沒有資料。請先在「採購清單」登錄買價（單價、數量或金額）。</td></tr>'}</tbody></table></div>
+     <div class="modal-tip" style="text-align:left">點品項名稱可以看這個品項<b>每天的買價紀錄</b>（最低、最高、平均）。「每份克數」空白＝用建議克數（依售價 × 成本率算）；填數字＝你實際每份給的克數，成本會依這個重算。成本率超過目標（預設 ${GR.cr}%）會變紅色。</div>`;
+  }else{
+    const day=PT.day,list=ptFiltered(all.filter(r=>r.day===day)).sort((a,b)=>a.go-b.go||a.io-b.io);
+    const prevOf=r=>{let p=null;all.filter(x=>x.iid===r.iid&&x.cpg&&x.day<r.day).forEach(x=>{if(!p||x.day>p.day)p=x});return p};
+    let lastG='',tot=0;
+    const trs=list.map(r=>{
+      const c=ptCalc(r);tot+=r.amount;
+      const gh=r.grp!==lastG?`<tr><td colspan="10" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)}</td></tr>`:'';lastG=r.grp;
+      return gh+`<tr><td>${esc(r.name)}${r.done?' <span style="color:var(--ok)">✓</span>':''}</td><td>${ptPriceCell(r)}</td><td>${ptDiff(r,prevOf(r))}</td><td>${ptBuyCell(r)}</td><td>${r.amount?'$'+ptN(r.amount,1):'—'}</td>${ptCostCells(r,c)}</tr>`;
+    }).join('');
+    body=`<div class="fm-row" style="gap:6px;flex-wrap:wrap"><button class="chip" onclick="ptShift(-1)">◀ 前一天</button><input type="date" value="${ptDash(day)}" onchange="ptPickDay(this.value)" style="max-width:160px"><button class="chip" onclick="ptShift(1)">後一天 ▶</button><button class="chip" onclick="PT.day=bizDay(Date.now());renderPT()">今天</button></div>
+     <div class="fm-line"><span>${ptDash(day)}　共 ${list.length} 項</span><span>採買合計 <b>$${ptN(tot,1)}</b></span></div>
+     <div class="tbw"><table style="min-width:960px"><thead><tr><th>品項</th><th>買價（元／斤）</th><th>較上次</th><th>買了多少</th><th>金額</th><th>每份克數</th><th>每份成本</th><th>售價／成本率</th></tr></thead><tbody>${trs||'<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:20px">這一天沒有採買資料</td></tr>'}</tbody></table></div>`;
+  }
+  $('mBox').innerHTML=head+`<div class="fm-sec" style="padding:10px 14px">
+    <div class="chips" style="margin-bottom:8px">${tabs}</div>
+    <div class="chips" style="margin-bottom:8px">${gchips}</div>
+    <div class="fm-row"><input id="ptQ" placeholder="🔍 搜尋品項，例如：高麗菜" value="${esc(PT.q)}" oninput="PT.q=this.value;clearTimeout(window._ptT);window._ptT=setTimeout(()=>{const p=this.selectionStart;renderPT();const e=$('ptQ');if(e){e.focus();e.setSelectionRange(p,p)}},350)">
+     <label style="display:flex;gap:6px;align-items:center;white-space:nowrap;font-size:13px"><input type="checkbox" ${PT.onlyDone?'checked':''} onchange="ptSet('onlyDone',this.checked)">只看已勾選買好的</label></div>
+    <div class="fm-line"><span><button class="chip sm" onclick="GR.ok=false;renderPT()">🔄 重新讀取</button> <button class="chip sm" onclick="ptCsv()">📥 匯出 CSV</button></span><span class="mu">買價一律換成「元／斤」好比較</span></div>
+  </div>${body}<div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button></div>`;
+  $('mBox').scrollTop=sc;
 }
 
 let PLAN={day:'',groups:{},catalog:{},ok:false,loading:false};
