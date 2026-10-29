@@ -1943,6 +1943,7 @@ function openHistory(keep){
     <div class="fm-row" style="gap:6px"><button class="chip" id="hPrev" onclick="histShift(-1)">◀ 前一天</button><button class="chip" onclick="histToday()">今天</button><button class="chip" id="hNext" onclick="histShift(1)">後一天 ▶</button></div>
     <div class="m-btns"><button class="btn-confirm" id="hBtn" onclick="loadHistory()">查詢</button><button class="btn-cancel" onclick="exportCSV()">⬇ 匯出 Excel (CSV)</button></div>
    </div>
+   <div class="fm-sec"><div class="fm-title">🔍 搜尋所有日期</div><div class="fm-row"><input type="search" id="hQ" placeholder="單號、姓名、電話、餐點、備註，例如：王小明" autocomplete="off" onkeydown="if(event.key==='Enter'&&!event.isComposing)histSearch()"><button class="chip" onclick="histSearch()">搜尋</button></div></div>
    <div class="modal-tip">日期以營業日計算：每日 02:00 至隔日 02:00。</div>
    <div id="hRes"><div style="text-align:center;color:var(--mu);padding:20px">請選擇日期後按「查詢」</div></div>`;
   $('modal').classList.add('open');
@@ -1968,6 +1969,20 @@ function histShift(dir){
   histLbl();loadHistory();
 }
 function histToday(){$('hS').value=$('hE').value=dashDay(today8());histLbl();loadHistory()}
+async function histSearch(){
+  const terms=sqNorm(($('hQ')||{}).value).split(' ').filter(Boolean);
+  if(!terms.length){alert('請先輸入要搜尋的關鍵字');return}
+  const box=$('hRes');box.innerHTML='<div style="text-align:center;color:var(--mu);padding:20px">搜尋中…</div>';
+  try{
+    const sn=await FB.get(FB.ref(FB.db,'orders'));
+    HIST=Object.entries(sn.val()||{}).map(([id,o])=>({...o,id})).filter(o=>{
+      const t=sqNorm([o.no,o.name,o.phone,o.note,o.time,o.pay,o.src,(o.items||[]).map(x=>x.name).join(' '),(o.gear||[]).join(' '),o.flavor,o.spice,o.salt,fmtDT(o.createdAt)].join(' '));
+      return terms.every(w=>t.includes(w));
+    }).sort((x,y)=>x.createdAt-y.createdAt);
+    renderHist();
+    box.insertAdjacentHTML('afterbegin',`<div class="modal-tip" style="text-align:left">🔍 「${esc(terms.join(' '))}」所有日期共找到 <b>${HIST.length}</b> 筆（匯出 CSV 也會是這些）。</div>`);
+  }catch(e){box.innerHTML='<div style="color:var(--bad);padding:16px">搜尋失敗：'+esc(e.code||e.message)+'</div>'}
+}
 async function loadHistory(){
   const s=$('hS').value,e=$('hE').value;
   if(!s||!e||s>e){alert('請選擇正確的日期區間');return}
@@ -2935,6 +2950,26 @@ function expListHtml(){
     <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div>
     <div class="fm-line"><span>補鈔合計（增加收銀機現金）</span><span>$${sum(e=>e.type==='補入')}</span></div>`;
 }
+let CB_ALL=null,CB_ALL_AT=0;
+function exQ(v){CASH.q=v;clearTimeout(window._exqT);window._exqT=setTimeout(exQRender,250)}
+async function exQRender(){
+  const box=$('exqr');if(!box)return;
+  const terms=sqNorm(CASH.q).split(' ').filter(Boolean);
+  if(!terms.length){box.innerHTML='';return}
+  if(!CB_ALL||Date.now()-CB_ALL_AT>30000){
+    box.innerHTML='<div style="text-align:center;color:var(--mu);padding:14px">搜尋中…</div>';
+    try{CB_ALL=(await FB.get(FB.ref(FB.db,'cashbook'))).val()||{};CB_ALL_AT=Date.now()}catch(e){box.innerHTML='<div style="color:var(--bad);padding:12px">讀取失敗：'+esc(e.code||e.message)+'</div>';return}
+    if(sqNorm(CASH.q)!==terms.join(' '))return;
+  }
+  const R=[];
+  Object.keys(CB_ALL).sort().reverse().forEach(day=>Object.entries((CB_ALL[day]||{}).expenses||{}).forEach(([id,e])=>{
+    if(!e)return;
+    const t=sqNorm([expLabel(e.type),e.type,e.note,e.by,e.amount,day,dayLabel(day)].join(' '));
+    if(terms.every(w=>t.includes(w)))R.push({day,id,e});
+  }));
+  const tot=R.reduce((a,r)=>a+(r.e.type==='存鈔'||r.e.type==='補入'?0:(+r.e.amount||0)),0);
+  box.innerHTML=R.length?`<div class="fm-line"><span>找到 <b>${R.length}</b> 筆（所有日期）</span><span>支出合計 <b>$${tot}</b>（不含存鈔、補鈔）</span></div><div class="tbw"><table style="min-width:560px"><thead><tr><th>日期</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th><th></th></tr></thead><tbody>${R.map(r=>`<tr><td>${esc(dayLabel(r.day))}</td><td>${esc(expLabel(r.e.type))}</td><td>$${r.e.amount}</td><td>${esc(r.e.note||'')}</td><td>${esc(r.e.by||'')}</td><td><button class="chip sm" onclick="CASH.q='';cashDay('${r.day}')">前往這天</button></td></tr>`).join('')}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:16px">所有日期都找不到符合的紀錄</div>';
+}
 function expHtml(){
   /* 輸入表單只畫一次：新增一筆後不重畫（輸入框不會被換掉，游標與輸入法狀態才不會被重置） */
   return `<div class="fm-sec"><div class="fm-title">新增一筆收銀機進出（${CASH.day===today8()?'今天':dayLabel(CASH.day)}）</div>
@@ -2944,6 +2979,7 @@ function expHtml(){
     <div class="fm-row"><b>說明</b><input id="exNote" lang="zh-TW" list="exNoteList" value="${esc(CASH.ex.note)}" placeholder="例如：買雞腿、存千鈔 ×2（打過的會記住）" oninput="CASH.ex.note=this.value;exNoteIn(this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();addExpense()}"></div>
     <datalist id="exNoteList">${Object.keys(expMemo()).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
     <div class="m-btns"><button class="btn-confirm" onclick="addExpense()">＋ 新增</button></div></div>
+   <div class="fm-sec"><div class="fm-title">🔍 搜尋所有日期的紀錄</div><div class="fm-row"><input type="search" id="exq" value="${esc(CASH.q||'')}" placeholder="類別、說明、登錄人，例如：雞腿" autocomplete="off" oninput="exQ(this.value)"></div><div id="exqr"></div></div>
    <div class="fm-sec" id="expList">${expListHtml()}</div>`;
 }
 /* 說明欄打過的字會記住（連同上次的金額），下次打幾個字就跳出來，選了還會自動帶入金額。記在這台裝置上 */
@@ -3566,10 +3602,15 @@ function renderCost(){
     <div class="modal-tip" style="text-align:left"><b>怎麼用：</b>群組、品項預設全部帶入（和採購支出同一份清單），不要的按 ✕ 刪掉，新增群組、品項請到「採購支出」，這裡會自動同步（單位、單價也一起帶入）。重量品項的單位請自己輸入 斤／公斤／克／兩。每個品項用「最新一次採購進貨」的買價自動算成本；買價浮動時，採購進貨登錄新價格，這裡就跟著更新。買價、售價、每份用量都可以直接改（買價改了會一直用，直到採購進貨有更新的買價）。<br>
     <b>算法：</b>① 依重量：填每份幾克（空白＝依售價×成本率建議）。② 整包拆小單位：例如蒟蒻絲「每包 50 卷、每份用 5 卷」。③ 幾包分幾份：例如娃娃菜「用 3 盒分成 10 份」。④ 由整隻拆分：例如「大型鹹水雞」每隻可分 2 個雞腿、2 個雞胸，成本占比空白＝依個數平均，也可以自己填（腿 60、胸 40）。⑤ 只記買價：給整隻雞這種來源品項用。</div>`;
   }else{
-    const day=CT.day,list=ptRows().filter(r=>r.day===day&&(!CT.grp||r.grp===CT.grp)&&(!q||r.name.includes(q))).sort((a,b)=>a.go-b.go||a.io-b.io);
+    const day=CT.day,list=ptRows().filter(r=>(q?true:r.day===day)&&(!CT.grp||r.grp===CT.grp)&&(!q||sqNorm(r.name+' '+r.grp+' '+r.note).includes(sqNorm(q)))).sort((a,b)=>q?b.day.localeCompare(a.day)||a.go-b.go:a.go-b.go||a.io-b.io);
     let lastG='',tot=0;
     const trs=list.map(r=>{tot+=r.amount;const gh=r.grp!==lastG?`<tr><td colspan="6" style="background:var(--s2);color:var(--ac2);font-weight:800">📁 ${esc(r.grp)}</td></tr>`:'';lastG=r.grp;const cur=ctPer(r);
       return gh+`<tr><td>${esc(r.name)}${r.done?' <span style="color:var(--ok)">✓</span>':''}</td><td>${cur>0?'<b>'+ptN(cur,1)+'</b>':'—'}</td><td>${r.qty!==''?esc(r.qty)+esc(r.unit):'—'}</td><td>${r.amount?'$'+ptN(r.amount,1):'—'}</td><td class="mu">${esc(r.note)}</td><td></td></tr>`}).join('');
+    if(q){
+      const tot2=list.reduce((a,r)=>a+r.amount,0);
+      body=`<div class="fm-line"><span>🔍 「${esc(q)}」所有日期共 <b>${list.length}</b> 筆</span><span>採買合計 <b>$${ptN(tot2,1)}</b></span></div>
+      <div class="tbw"><table style="min-width:700px"><thead><tr><th>日期</th><th>品項</th><th>買價（重量＝元／斤，其他＝每單位）</th><th>買了多少</th><th>金額</th><th>備註</th><th></th></tr></thead><tbody>${list.map(r=>{const cur=ctPer(r);return`<tr><td>${esc(dayLabel(r.day))}</td><td>${esc(r.name)}${r.done?' <span style="color:var(--ok)">✓</span>':''}</td><td>${cur>0?'<b>'+ptN(cur,1)+'</b>':'—'}</td><td>${r.qty!==''?esc(r.qty)+esc(r.unit):'—'}</td><td>${r.amount?'$'+ptN(r.amount,1):'—'}</td><td class="mu">${esc(r.note)}</td><td><button class="chip sm" onclick="openPlan('${r.day}')">前往這天</button></td></tr>`}).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--mu);padding:20px">所有日期都找不到</td></tr>'}</tbody></table></div>`;
+    }else
     body=`<div class="fm-row" style="gap:6px;flex-wrap:wrap"><button class="chip" onclick="ctShift(-1)">◀ 前一天</button><input type="date" value="${ptDash(day)}" onchange="ctPickDay(this.value)" style="max-width:160px"><button class="chip" onclick="ctShift(1)">後一天 ▶</button><button class="chip" onclick="CT.day=bizDay(Date.now());renderCost()">今天</button><button class="chip" onclick="openPlan('${day}')">✏️ 編輯這天的採購進貨</button></div>
      <div class="fm-line"><span>${ptDash(day)}　共 ${list.length} 項</span><span>採買合計 <b>$${ptN(tot,1)}</b></span></div>
      <div class="tbw"><table style="min-width:700px"><thead><tr><th>品項</th><th>買價（重量＝元／斤，其他＝每單位）</th><th>買了多少</th><th>金額</th><th>備註</th><th></th></tr></thead><tbody>${trs||'<tr><td colspan="6" style="text-align:center;color:var(--mu);padding:20px">這一天沒有採買資料</td></tr>'}</tbody></table></div>
@@ -3658,6 +3699,33 @@ function openPlan(day){
   $('modal').classList.add('open');
   renderPlan();
 }
+let PLAN_ALL=null,PLAN_ALL_AT=0;
+function planQ(v){PLAN.q=v;clearTimeout(window._plqT);window._plqT=setTimeout(planQRender,250)}
+async function planQRender(){
+  const box=$('plqr'),g=$('planGroups');if(!box)return;
+  const terms=sqNorm(PLAN.q).split(' ').filter(Boolean);
+  if(!terms.length){box.innerHTML='';if(g)g.style.display='';return}
+  if(g)g.style.display='none';
+  if(!PLAN_ALL||Date.now()-PLAN_ALL_AT>30000){
+    box.innerHTML='<div style="text-align:center;color:var(--mu);padding:14px">搜尋中…</div>';
+    try{PLAN_ALL=(await FB.get(FB.ref(FB.db,'shopPlan'))).val()||{};PLAN_ALL_AT=Date.now()}catch(e){box.innerHTML='<div style="color:var(--bad);padding:12px">讀取失敗：'+esc(e.code||e.message)+'</div>';return}
+    if(sqNorm(PLAN.q)!==terms.join(' '))return;   // 搜尋途中又改了字，交給最新那次
+  }
+  const R=[];
+  Object.keys(PLAN_ALL).sort().reverse().forEach(day=>Object.values(PLAN_ALL[day]||{}).forEach(gr=>{
+    if(!gr||!gr.items)return;
+    Object.values(gr.items).forEach(it=>{
+      if(!it||!it.name)return;
+      const qn=parseFloat(it.qty)||0,pr=+it.price||0,amt=+it.amount||(qn&&pr?Math.round(qn*pr*100)/100:0);
+      if(!(it.qty!==''&&it.qty!=null)&&!amt&&!it.done)return;
+      const t=sqNorm(it.name+' '+(gr.name||'')+' '+(it.note||'')+' '+(it.unit||'')+' '+day+' '+dayLabel(day));
+      if(terms.every(w=>t.includes(w)))R.push({day,grp:gr.name||'',it,amt,done:!!(it.done)});
+    });
+  }));
+  const tot=R.reduce((a,r)=>a+r.amt,0);
+  const rows=R.map(r=>`<tr><td>${esc(dayLabel(r.day))}</td><td>${esc(r.grp)}</td><td><b>${esc(r.it.name)}</b>${r.done?' <span style="color:var(--ok)">✓</span>':''}</td><td>${r.it.qty!==''&&r.it.qty!=null?esc(r.it.qty)+esc(r.it.unit||''):'—'}</td><td>${+r.it.price?'$'+r.it.price:'—'}</td><td>${r.amt?'$'+r.amt:'—'}</td><td class="mu">${esc(r.it.note||'')}</td><td><button class="chip sm" onclick="PLAN.q='';planDay('${r.day}')">前往這天</button></td></tr>`).join('');
+  box.innerHTML=R.length?`<div class="fm-line"><span>找到 <b>${R.length}</b> 筆（所有日期）</span><span>合計 <b>$${Math.round(tot*10)/10}</b></span></div><div class="tbw"><table style="min-width:640px"><thead><tr><th>日期</th><th>群組</th><th>品項</th><th>數量</th><th>單價</th><th>金額</th><th>備註</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:16px">所有日期都找不到符合的採購紀錄</div>';
+}
 function renderPlan(){
   const head=`<div class="oh"><h3>🛒 採購支出</h3><button onclick="openCash(CASH&&CASH.day?CASH.day:undefined,'exp')">返回收銀盤點</button></div>`;
   if(!PLAN.ok){
@@ -3666,6 +3734,7 @@ function renderPlan(){
     return;
   }
   $('mBox').innerHTML=head+planBody();
+  if(PLAN.q)planQRender();
 }
 function planBody(){
   const d=PLAN.day,S=planSums();
@@ -3675,7 +3744,7 @@ function planBody(){
     <div class="fm-row"><b>新增群組</b><input id="pgName" lang="zh-TW" list="pgList" placeholder="例如：大市場（打新的會自動記起來）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddGroup()}"><button class="chip sm" onclick="planAddGroup()">＋ 加入</button></div>
     <datalist id="pgList">${Object.values(PLAN.catalog).map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
     <div class="chips pcc" id="pgChips">${planGroupChips()}</div>
-    ${sqBox('plan','搜尋採購品項、群組、備註，例如：高麗菜',{item:'.pit2:not(.phd)',group:'.pgc',gtitle:'.pgn',expand:'.pgb',collapsed:g=>!!planColl()[g.id.replace('pg_','')]})}
+    <div class="sqb"><input type="search" id="plq" value="${esc(PLAN.q||'')}" placeholder="🔍 搜尋所有日期的採購紀錄，例如：鴨肉丸" autocomplete="off" oninput="planQ(this.value)"></div><div id="plqr"></div>
     <div class="fm-line"><span>預計 <b id="planPlanned">${money(S.p)}</b>　已採購（算入支出）<b id="planBought" style="color:var(--ok)">${money(S.b)}</b></span><span><button class="chip sm" onclick="planCollapseAll(false)">全部展開</button> <button class="chip sm" onclick="planCollapseAll(true)">全部收合</button></span></div>
   </div>
   <div id="planGroups">${Object.entries(PLAN.groups).map(([gid,g])=>planCard(gid,g)).join('')}</div>`;
