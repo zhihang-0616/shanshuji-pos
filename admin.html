@@ -36,6 +36,10 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .main{flex:1;display:grid;grid-template-columns:150px 1fr 350px;min-height:0}
 .nav{background:linear-gradient(180deg,#1f130a,#120a04);border-right:2px solid #8a5f1c;box-shadow:inset -10px 0 16px rgba(0,0,0,.5);padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
 
+.sqb{margin:8px 0}.sqb input{width:100%;box-sizing:border-box;padding:9px 12px;border-radius:10px;border:1px solid var(--ln);background:var(--s2);color:var(--tx);font-size:14px}
+.sqe{display:none;text-align:center;color:var(--mu);padding:16px;font-size:14px}
+.msq{margin:6px 22px 0}.msq input{width:100%;box-sizing:border-box;padding:9px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--s2);color:var(--tx);font-size:14px}
+@media(max-width:900px){.msq{margin:6px 10px 0}}
 .navw{display:contents}.navarr{display:none}
 @media(max-width:900px){
  .navw{display:block;position:relative}
@@ -334,7 +338,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
 <div id="netbar"></div>
 <div class="main">
  <div class="navw" id="navw"><button type="button" class="navarr l" aria-label="往左看更多分類" onclick="navGo(-1)">‹</button><nav class="nav" id="nav" onscroll="navHint()"></nav><button type="button" class="navarr r" aria-label="往右看更多分類" onclick="navGo(1)"><span>更多分類</span>›</button></div>
- <section class="pane"><div class="ph" id="ph"></div><div class="grid" id="grid"></div></section>
+ <section class="pane"><div class="ph" id="ph"></div><div class="msq"><input type="search" id="mq" placeholder="🔍 搜尋餐點，例如：王子麵、雞胸" autocomplete="off" oninput="mqSet(this.value)"></div><div class="grid" id="grid"></div></section>
  <aside class="cart">
   <div class="ch"><h3>📦 訂單明細</h3><button onclick="clearCart()">清空</button></div>
   <div class="pbar" id="pbar"></div>
@@ -680,7 +684,7 @@ function openSoldOutListModal(){
     });
   });
   if(!h)h='<div style="text-align:center;color:var(--mu);padding:20px">目前沒有任何售完或關閉的品項！</div>';
-  $('mBox').innerHTML=`<h3>📋 售完品項快速管理</h3><div class="sold-list-container">${h}</div><div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
+  $('mBox').innerHTML=`<h3>📋 售完品項快速管理</h3>${h.split('sold-item-row').length>6?sqBox('sold','搜尋售完品項',{item:'.sold-item-row'}):''}<div class="sold-list-container">${h}</div><div class="m-btns"><button class="btn-cancel" onclick="closeModal()">關閉</button></div>`;
   $('modal').classList.add('open');
 }
 function restoreCat(i){soldOutCats[i]=false;{const c=MENU.find(x=>String(x.cid)===String(i));logAct('售完標示',null,'',`群組「${c?split(c.k)[0]:i}」恢復販售`)}saveSold();renderNav();renderGrid();openSoldOutListModal()}
@@ -724,12 +728,70 @@ function renderNav(){
   },30);
   $('nav').innerHTML=MENU.map((c,i)=>{
     const [t,s]=split(c.k);
-    return `<button class="nv${i===cur?' on':''}${soldOutCats[catKey(i)]?' sold-out':''}" onclick="cur=${i};renderNav();renderGrid()">
+    return `<button class="nv${i===cur?' on':''}${soldOutCats[catKey(i)]?' sold-out':''}" onclick="cur=${i};MQ='';{const _q=$('mq');if(_q)_q.value=''}renderNav();renderGrid()">
       <div class="cat-badge" onclick="toggleCatSoldOut(${i},event)">✕</div>
       <i>${c.ic}</i><b>${esc(t)}</b><small>${esc(s)}</small></button>`;
   }).join('');
 }
+/* ===== 搜尋欄（各個清單共用）：打關鍵字（可空格分開打好幾個字）→ 只顯示符合的項目 ===== */
+const SQ={},SQCFG={};let SQF=null;
+const sqNorm=t=>String(t==null?'':t).toLowerCase().replace(/\s+/g,' ').trim();
+function sqBox(key,ph,cfg){
+  SQCFG[key]=cfg;
+  return `<div class="sqb"><input type="search" id="sq_${key}" placeholder="🔍 ${ph}" value="${esc(SQ[key]||'')}" autocomplete="off" oninput="sqSet('${key}',this.value)"></div><div class="sqe" id="sqe_${key}">找不到符合的資料</div>`;
+}
+function sqSet(key,v){const _was=sqNorm(SQ[key])!=='';SQ[key]=v;const a=document.activeElement;SQF={key,pos:(a&&a.selectionStart!=null)?a.selectionStart:String(v).length};
+  const c=SQCFG[key];if(c&&c.re&&_was!==(sqNorm(v)!=='')){c.re();return}   // 有／沒有關鍵字會改變清單範圍時，重畫一次
+  sqApply(key)}
+function sqApply(key){
+  const cfg=SQCFG[key],root=$('mBox');if(!cfg||!root||!$('sq_'+key))return;
+  const terms=sqNorm(SQ[key]).split(' ').filter(Boolean);
+  const txt=el=>sqNorm(el.textContent+' '+[...el.querySelectorAll('input:not([type=checkbox]):not([type=search]),select')].map(i=>i.value).join(' '));
+  let shown=0;
+  const items=[...root.querySelectorAll(cfg.item)];
+  const gm=new Map();
+  if(cfg.group)root.querySelectorAll(cfg.group).forEach(g=>{const t=g.querySelector(cfg.gtitle);gm.set(g,!!terms.length&&terms.every(w=>sqNorm(t?t.textContent:'').includes(w)))});
+  items.forEach(el=>{
+    const g=cfg.group?el.closest(cfg.group):null;
+    const ok=!terms.length||(g&&gm.get(g))||terms.every(w=>txt(el).includes(w));
+    el.style.display=ok?'':'none';if(ok)shown++;
+  });
+  if(cfg.group)root.querySelectorAll(cfg.group).forEach(g=>{
+    const vis=[...g.querySelectorAll(cfg.item)].some(e=>e.style.display!=='none');
+    g.style.display=(!terms.length||vis||gm.get(g))?'':'none';
+    if(cfg.expand){const b=g.querySelector(cfg.expand);if(b)b.style.display=terms.length?'block':(cfg.collapsed&&cfg.collapsed(g)?'none':'block')}
+  });
+  const e=$('sqe_'+key);if(e)e.style.display=terms.length&&!shown?'block':'none';
+}
+function sqRefresh(){
+  Object.keys(SQCFG).forEach(k=>{if($('sq_'+k))sqApply(k)});
+  if(SQF){const el=$('sq_'+SQF.key);if(el&&document.activeElement!==el){el.focus();try{el.setSelectionRange(SQF.pos,SQF.pos)}catch(e){}}}
+}
+(function(){
+  let t=0;const mb=$('mBox');if(!mb||!window.MutationObserver)return;
+  new MutationObserver(()=>{if(t)return;t=requestAnimationFrame(()=>{t=0;sqRefresh()})}).observe(mb,{childList:true,subtree:true});
+  document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('.sqb')))SQF=null},true);
+})();
+/* 客人點餐頁：搜尋全部餐點 */
+let MQ='';
+function mqSet(v){MQ=v;renderGrid()}
 function renderGrid(){
+  const _mq=sqNorm(MQ).split(' ').filter(Boolean);
+  if(_mq.length){
+    $('ph').innerHTML=`<h2>🔍 搜尋結果</h2><p>「${esc(MQ.trim())}」</p>`;
+    $('grid').className='grid';let hh='';
+    MENU.forEach((c,ci)=>{
+      const its=c.items.filter(i=>{const t=sqNorm(i.name+' '+(i.c||'')+' '+(i.d||[]).join(' '));return _mq.every(w=>t.includes(w))});
+      if(!its.length)return;
+      const cs=soldOutCats[catKey(ci)];
+      hh+=`<div class="sec">${esc(split(c.k)[0])}</div>`+its.map(it=>{
+        const q=cart.filter(x=>x.id.split('_')[0]===it.id&&x.p===curP).reduce((a,x)=>a+x.qty,0);
+        const left=stockLeft(it.id),sold=cs||soldOutItems[it.id]||left<=0;
+        return `<div class="card${sold?' sold-out':''}" onclick="handleCardClick('${it.id}')">${q?`<i class="qb">${q}</i>`:''}<div class="m"><div class="n">${esc(it.name)}</div></div><div class="f"><span class="price">${it.price}</span>${left!==Infinity&&left>0?`<span class="stk${left<=3?' low':''}">剩 ${left}</span>`:''}<span class="add">+</span></div></div>`}).join('');
+    });
+    $('grid').innerHTML=hh||'<div style="grid-column:1/-1;text-align:center;color:var(--mu);padding:30px">找不到符合的餐點</div>';
+    return;
+  }
   const c=MENU[cur],[t,s]=split(c.k),catSold=soldOutCats[catKey(cur)];
   $('ph').innerHTML=`<h2>${esc(t)}</h2><p>${esc(c.note||s||'').replace(/\n/g,'<br>')}</p>`;
   $('grid').className='grid'+(c.combo?' wide':'');
@@ -754,9 +816,10 @@ function handleCardClick(id){
   if(isSoldOutMode){toggleItemSoldOut(id);return}
   if(isClosed()){toast('目前休息中，暫停接單');return}
   const item=find(id);
-  if((soldOutItems[id]||soldOutCats[catKey(cur)]||stockLeft(id)<=0)&&!OVR[baseId(id)]){
+  const _ci=MENU.indexOf(catOf(id));
+  if((soldOutItems[id]||soldOutCats[catKey(_ci>=0?_ci:cur)]||stockLeft(id)<=0)&&!OVR[baseId(id)]){
     if(!isAdmin)return;
-    const why=(soldOutItems[id]||soldOutCats[catKey(cur)])?'已標示售完':'今日庫存已賣完';
+    const why=(soldOutItems[id]||soldOutCats[catKey(_ci>=0?_ci:cur)])?'已標示售完':'今日庫存已賣完';
     if(!confirm(`「${item.name}」${why}。\n\n要強制加入這張單嗎？（補登過去的單、或特殊情況才需要）`))return;
     OVR[baseId(id)]=true;
   }
@@ -875,12 +938,24 @@ async function meSave(msg){
   return true;
 }
 function meHead(title,back){return `<div class="oh"><h3>${title}</h3><button onclick="${back}">返回</button></div>`}
+function meQ(v){
+  ME.q=v;const t=sqNorm(v).split(' ').filter(Boolean),box=$('meQr');if(!box)return;
+  if(!t.length){box.innerHTML='';return}
+  let h='';
+  ME.m.forEach((c,ci)=>{const gn=meSplit(c.k)[0];
+    if(t.every(w=>sqNorm(gn).includes(w)))h+=`<div class="mrow"><span class="mic">${esc(c.ic)}</span><div style="flex:1"><b>群組：${esc(gn)}</b> <small style="color:var(--mu)">${c.items.length} 項</small></div><button class="chip sm" onclick="meCat(${ci})">編輯</button></div>`;
+    c.items.forEach((it,ii)=>{if(t.every(w=>sqNorm(it.name+' '+gn+' '+(it.c||'')+' '+(it.d||[]).join(' ')).includes(w)))h+=`<div class="mrow"><div style="flex:1;min-width:0"><b>${esc(it.name)}</b> <small style="color:var(--mu)">${esc(gn)}</small></div><span style="width:70px;text-align:right">$${it.price}</span><button class="chip sm" onclick="meCat(${ci});meItem(${ii})">編輯</button></div>`});
+  });
+  box.innerHTML=h||'<div style="color:var(--mu);padding:8px">找不到符合的群組或品項</div>';
+}
 function meList(){
   ME.ci=-1;ME.ii=-1;
   const rows=ME.m.map((c,i)=>{const [t,s]=meSplit(c.k);return `<div class="mrow"><span class="mic">${esc(c.ic)}</span><div style="flex:1;min-width:0"><b>${esc(t)}</b> <small style="color:var(--mu)">${esc(s)}　${c.items.length} 項${c.opts.length?'　有群組選項':''}</small></div><button class="chip sm" onclick="meMove(${i},-1)">↑</button><button class="chip sm" onclick="meMove(${i},1)">↓</button><button class="chip sm" onclick="meCat(${i})">編輯</button><button class="chip sm" style="color:var(--bad)" onclick="meDelCat(${i})">刪除</button></div>`}).join('');
-  $('mBox').innerHTML=meHead('✏️ 菜單編輯','openMenuFolder()')+`<div class="fm-sec"><div class="fm-title">群組（點「編輯」進去改名稱、新增或修改品項）</div>${rows||'<div style="color:var(--mu);padding:8px">還沒有群組</div>'}</div>
+  $('mBox').innerHTML=meHead('✏️ 菜單編輯','openMenuFolder()')+`<div class="fm-sec"><div class="fm-title">搜尋品項</div><div class="sqb"><input type="search" id="meQ" placeholder="🔍 搜尋群組或品項，例如：雞胸" value="${esc(ME.q||'')}" autocomplete="off" oninput="meQ(this.value)"></div><div id="meQr"></div></div>
+   <div class="fm-sec"><div class="fm-title">群組（點「編輯」進去改名稱、新增或修改品項）</div>${rows||'<div style="color:var(--mu);padding:8px">還沒有群組</div>'}</div>
    <div class="fm-sec"><div class="fm-title">新增群組</div><div class="fm-row"><input id="neName" lang="zh-TW" placeholder="群組名稱，例如：飲料" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();meAddCat()}"><input id="neIc" lang="zh-TW" style="max-width:90px" placeholder="圖示 🍹"><button class="chip" onclick="meAddCat()">＋ 新增群組</button></div></div>
    <div class="modal-tip" style="text-align:left">存檔後，客人和所有店家裝置的菜單會<b>立刻更新</b>。已經下過的訂單不受影響。</div>`;
+  if(ME.q)meQ(ME.q);
 }
 async function meMove(i,d){const j=i+d;if(j<0||j>=ME.m.length)return;[ME.m[i],ME.m[j]]=[ME.m[j],ME.m[i]];if(await meSave())logAct('菜單編輯',null,'',`群組順序：「${meSplit(ME.m[j].k)[0]}」往${d<0?'上':'下'}移`);meList()}
 async function meAddCat(){
@@ -903,7 +978,7 @@ function meCat(ci){
     <label style="display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px"><input type="checkbox" id="ceCombo" ${c.combo?'checked':''}> 套餐樣式（品項顯示「說明」和「內容物」）</label>
     <div class="m-btns"><button class="btn-confirm" onclick="meCatSave()">儲存群組設定</button></div></div>
    <div class="fm-sec"><div class="fm-title">群組選項（套用到這個群組的<b>所有品項</b>，例如全部都要選辣度）</div><div id="oe_cat">${optEditorHtml('cat')}</div></div>
-   <div class="fm-sec"><div class="fm-title">品項</div>${rows||'<div style="color:var(--mu);padding:6px">還沒有品項</div>'}
+   <div class="fm-sec"><div class="fm-title">品項</div>${c.items.length>6?sqBox('mec','搜尋這個群組的品項',{item:'.mrow'}):''}${rows||'<div style="color:var(--mu);padding:6px">還沒有品項</div>'}
     <div class="fm-row" style="margin-top:8px"><input id="niName" lang="zh-TW" placeholder="新品項名稱" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();document.getElementById('niPrice').focus()}"><input id="niPrice" type="number" inputmode="numeric" style="max-width:110px" placeholder="價格" onkeydown="if(event.key==='Enter'){event.preventDefault();meAddItem()}"><button class="chip" onclick="meAddItem()">＋ 新增品項</button></div></div>`;
 }
 async function meCatSave(){
@@ -1618,7 +1693,7 @@ function renderOrders(){
   const cnt=k=>all.filter(o=>o.status===k).length;
   const F=[['active','進行中',cnt('new')+cnt('making')+cnt('done')],['new','待接單',cnt('new')],['making','製作中',cnt('making')],['done','待取餐',cnt('done')],['picked','已取餐',cnt('picked')],['cancelled','已拒單',cnt('cancelled')],['all','全部',all.length]];
   const warnN=all.filter(o=>anomalies(o).length).length;if(warnN)F.push(['warn','⚠ 異常',warnN]);
-  const list=all.filter(o=>ordFilter==='all'||(ordFilter==='warn'?anomalies(o).length>0:ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
+  const list=all.filter(o=>sqNorm(SQ.ord)!==''||ordFilter==='all'||(ordFilter==='warn'?anomalies(o).length>0:ordFilter==='unpaid'?(o.status!=='cancelled'&&!o.paid):ordFilter==='active'?(o.status==='new'||o.status==='making'||o.status==='done'):o.status===ordFilter))
     .sort((a,b)=>{const na=a.status==='new'?0:1,nb=b.status==='new'?0:1;if(na!==nb)return na-nb;const x=parseInt(a.no),y=parseInt(b.no);return(isNaN(x)||isNaN(y))?(b.createdAt||0)-(a.createdAt||0):(y-x||(b.createdAt||0)-(a.createdAt||0))});
   const cards=list.map(o=>{
     const items=itemsBlock(o,true);
@@ -1656,8 +1731,9 @@ function renderOrders(){
   $('mBox').innerHTML=`
    <div class="oh"><h3>📦 訂單管理</h3><button onclick="closeModal()">關閉</button></div>
    <div class="ofl">${F.map(([k,t,n])=>`<button class="chip${ordFilter===k?' on':''}" onclick="setOrdFilter('${k}')">${t} ${n}</button>`).join('')}</div>
+   ${sqBox('ord','搜尋訂單：單號、姓名、電話、餐點、備註（搜尋時會找全部狀態）',{item:'.oc',re:()=>renderOrders()})}
    ${cards||'<div style="text-align:center;color:var(--mu);padding:30px">目前沒有訂單</div>'}`;
-  $('mBox').scrollTop=y;fillCustBadges();
+  $('mBox').scrollTop=y;fillCustBadges();sqApply('ord');
 }
 function setOrderStatus(id,st){
   const data={status:st,updatedAt:Date.now()},k={making:'acceptedAt',done:'doneAt',picked:'pickedAt'}[st];if(k)data[k]=Date.now();
@@ -1909,7 +1985,7 @@ function renderHist(){
   const box=$('hRes');if(!box)return;
   const S=summarize(HIST);
   const body=HIST.map(o=>`<tr><td>${fmtDT(o.createdAt)}</td><td>#${esc(o.no)}</td><td>${esc(o.name)}<br><span class="mu">${esc(o.phone||'')}</span></td><td>${itemsBlock(o,false)}</td><td>$${o.total}</td><td>${esc(o.pay||'')}</td><td>${o.paid?'已收':'未收'}</td><td>${esc(o.src||'線上')}${o.late?'<br><span class="mu">補單</span>':''}</td><td>${ST[o.status]||esc(o.status)}</td><td><button class="rb" onclick="prnManual('${o.id}','k')">🖨廚房單</button><button class="rb" onclick="prnManual('${o.id}','r')">🧾收據</button><button class="rb" onclick="openEdit('${o.id}','history')">編輯</button><button class="rb del" onclick="delOrder('${o.id}','${esc(o.no)}','histlist')">刪除</button></td></tr>`).join('');
-  box.innerHTML=`<div class="fm-sec">
+  box.innerHTML=(HIST.length?sqBox('hist','在查詢結果裡搜尋：單號、姓名、電話、餐點',{item:'.tbw tbody tr'}):'')+`<div class="fm-sec">
     <div class="fm-line"><span>訂單數（不含已取消）</span><span>${S.ok.length} 單</span></div>
     <div class="fm-line"><span>已拒單</span><span>${S.cancelled} 單</span></div>
     <div class="fm-total"><span>營收</span><b>${money(S.rev)}</b></div></div>
@@ -2465,6 +2541,7 @@ async function openLogs(){
     const arr=Object.values(sn.val()||{}).sort((a,b)=>b.at-a.at);
     const rows=arr.map(l=>`<tr><td>${fmtDT(l.at)}</td><td>${esc(l.by||'')}</td><td><b>${esc(l.action)}</b></td><td>${l.no?'#'+esc(l.no):''}</td><td>${esc(l.detail||'')}${l.snap?`<br><span class="mu">原資料：${esc(l.snap.name||'')} $${esc(l.snap.total==null?'':l.snap.total)} ${esc(l.snap.items||'')}</span>`:''}</td></tr>`).join('');
     $('mBox').innerHTML=`<div class="oh"><h3>🧾 操作紀錄（最近 200 筆）</h3><button onclick="openAdminPanel()">返回</button></div>
+     ${arr.length?sqBox('logs','搜尋操作紀錄：動作、單號、人員、說明',{item:'.tbw tbody tr'}):''}
      ${arr.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>操作人</th><th>動作</th><th>單號</th><th>說明</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:20px">目前沒有紀錄</div>'}`;
   }catch(e){$('mBox').innerHTML=`<div class="oh"><h3>🧾 操作紀錄</h3><button onclick="openAdminPanel()">返回</button></div><div style="color:var(--bad);padding:20px">讀取失敗：${esc(e.code||e.message)}</div>`}
 }
@@ -2852,6 +2929,7 @@ function expListHtml(){
   const mg=isManager();
   const rows=list.map(e=>`<tr><td>${fmtT(e.at)}</td><td>${esc(expLabel(e.type))}</td><td>$${e.amount}</td><td>${esc(e.note||'')}</td><td>${esc(e.by||'')}</td>${mg?`<td><button class="rb" onclick="editExpense('${e.id}')">${(e.plan||String(e.id).startsWith('plan_')||isLegacyBuy(e))?'編輯品項':'修改'}</button><button class="rb del" onclick="delExpense('${e.id}')">刪除</button></td>`:''}</tr>`).join('');
   return `<div class="fm-title">${CASH.day===today8()?'當日':dayLabel(CASH.day)} 紀錄</div>
+    ${list.length>4?sqBox('exp','搜尋收銀機紀錄：類別、說明、登錄人',{item:'.tbw tbody tr'}):''}
     ${list.length?`<div class="tbw"><table><thead><tr><th>時間</th><th>類別</th><th>金額</th><th>說明</th><th>登錄人</th>${mg?'<th>操作</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="text-align:center;color:var(--mu);padding:12px">'+(CASH.day===today8()?'今天':'這天')+'還沒有支出或存鈔紀錄</div>'}
     <div class="fm-line"><span>支出合計</span><span>$${sum(e=>e.type!=='存鈔'&&e.type!=='補入')}</span></div>
     <div class="fm-line"><span>存鈔合計（非支出，錢只是從收銀機移走）</span><span>$${sum(e=>e.type==='存鈔')}</span></div>
@@ -3084,7 +3162,7 @@ function renderGram(){
   }
   const sc=$('mBox').scrollTop;
   const cids=Object.keys(GR.sel).filter(id=>GR.cat[id]).sort((a,b)=>byO(GR.cat[a],GR.cat[b]));
-  $('mBox').innerHTML=head+`<datalist id="ctUnits"><option value="斤"><option value="公斤"><option value="克"><option value="兩"></datalist><div class="fm-sec" style="padding:10px 14px">
+  $('mBox').innerHTML=head+`<datalist id="ctUnits"><option value="斤"><option value="公斤"><option value="克"><option value="兩"><option value="盒"><option value="包"><option value="隻"><option value="把"></datalist><div class="fm-sec" style="padding:10px 14px">
     <div class="modal-tip" style="text-align:left;margin:0 0 6px">先加入要算的群組和品項（跟採購清單的常用群組、常用品項同步）。每個品項填 <b>買價</b>（每幾斤／公斤／克多少錢）、<b>售價</b>、<b>成本率</b>，就會算出<b>一份要放幾克</b>。買價會自動帶入採購清單的備註（例如「1斤30」）。</div>
     <div class="fm-row"><b>預設成本率</b><input id="gCr" class="pi" inputmode="decimal" value="${GR.cr}" style="max-width:80px" onchange="gramSetCr()"><span>%（單項沒另外設定時用這個）</span></div>
     <div class="chips pcc" id="ggChips">${gramGroupChips()}</div>
@@ -3251,12 +3329,32 @@ function ptRows(){
   });
   return R;
 }
+/* 單位別名：kg／公斤／千克 → 公斤；g／公克 → 克；台斤／市斤 → 斤；其餘原樣 */
+function ctUnitNorm(u){
+  u=String(u||'').trim();const l=u.toLowerCase();
+  if(['kg','kgs','公斤','千克','公kg'].includes(l))return'公斤';
+  if(['g','公克','克'].includes(l))return'克';
+  if(['台斤','市斤','斤'].includes(l))return'斤';
+  if(['兩','两','台兩'].includes(l))return'兩';
+  return u;
+}
+/* 每份用量：可以打「150」（克）、「0.15公斤」、「0.25斤」、「100g」，一律換成克存起來 */
+async function ctSaveSg(iid,v){
+  v=String(v||'').trim();
+  if(!v){await gramPatch(iid,{sg:null});ctKeep();return}
+  const m=v.match(/^([0-9]*\.?[0-9]+)\s*(.*)$/);
+  if(!m){alert('請輸入數字，例如 150、0.15公斤');ctKeep();return}
+  const u=ctUnitNorm(m[2]||'克');let g=parseFloat(m[1]);
+  if(!GU[u]){alert('單位請用 克／公斤／斤／兩（例如 0.15公斤）');ctKeep();return}
+  g=Math.round(g*GU[u]*100)/100;
+  await gramPatch(iid,{sg:g>0?g:null});ctKeep();
+}
 function ctCatItem(iid){for(const c of Object.values(GR.cat||{})){const i=(c.items||{})[iid];if(i)return i}return null}
 /* 重量品項的買價：手動輸入／最新採購進貨的備註；都沒有就用採購支出常用品項裡的單價＋單位（單位是 斤/公斤/克/兩 才算） */
 function ctEffW(iid,name){
   const e=gramEff(iid,name);if(e)return e;
   const ci=ctCatItem(iid);
-  if(ci&&+ci.price>0&&GU[ci.unit])return{p:+ci.price,q:1,u:ci.unit,src:'採購支出的單價'};
+  if(ci&&+ci.price>0&&GU[ctUnitNorm(ci.unit)])return{p:+ci.price,q:1,u:ctUnitNorm(ci.unit),src:'採購支出的單價'};
   return null;
 }
 function ctMode(iid){
@@ -3327,12 +3425,12 @@ async function ctSave(iid,k,v,num){
 }
 async function ctSaveMode(iid,v){await gramPatch(iid,{mode:v});ctKeep()}
 async function ctSavePriceW(iid){
-  const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),qq=parseFloat(q('cq'))||1,u=String(q('cu')||'').trim()||'斤',a=GR.auto[($('ct_'+iid)||{dataset:{}}).dataset.n];
+  const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),qq=parseFloat(q('cq'))||1,u=ctUnitNorm(q('cu'))||'斤',a=GR.auto[($('ct_'+iid)||{dataset:{}}).dataset.n];
   if(p>0)await gramPatch(iid,{p,q:qq,u,ad:(a&&a.day)||''});else await gramPatch(iid,{p:null,q:null,u:null,ad:null});
   ctKeep();
 }
 async function ctSavePriceU(iid){
-  const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),u=String(q('cu')||'').trim(),a=ctUnitAuto(ctIdxCache[iid]);
+  const q=id=>($(id+'_'+iid)||{}).value,p=parseFloat(q('cp')),u=ctUnitNorm(q('cu')),a=ctUnitAuto(ctIdxCache[iid]);
   if(p>0&&GU[u]&&ctMode(iid)==='u')await gramPatch(iid,{mode:'w',p,q:1,u,ad:(a&&a.day)||'',pp:p,ppd:(a&&a.day)||'',pu:u});   // 改成 斤/公斤/克/兩 → 自動換成「依重量」算
   else if(p>0)await gramPatch(iid,{pp:p,ppd:(a&&a.day)||'',pu:u||null});else await gramPatch(iid,{pp:null,ppd:null,pu:u||null});
   ctKeep();
@@ -3390,14 +3488,14 @@ function ctPriceCell(iid,name,c){
   }
   if(mode==='w'){
     const e=c.eff||ctEffW(iid,name)||{};
-    return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.p||''}" onchange="ctSavePriceW('${iid}')"> ／ <input id="cq_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.q||1}" onchange="ctSavePriceW('${iid}')"> <input id="cu_${iid}" list="ctUnits" class="pi gx" style="width:62px" value="${esc(e.u||'')}" placeholder="斤" onchange="ctSavePriceW('${iid}')"></div><span class="mu">${e.src?esc(e.src):'請輸入買價和單位'}</span>`;
+    return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.p||''}" onchange="ctSavePriceW('${iid}')"> ／ <input id="cq_${iid}" class="pi gx" style="width:64px" inputmode="decimal" value="${e.q||1}" onchange="ctSavePriceW('${iid}')"> <input id="cu_${iid}" onfocus="this.dataset.o=this.value;this.value=''" onblur="if(!this.value)this.value=this.dataset.o||''" list="ctUnits" class="pi gx" style="width:62px" value="${esc(e.u||'')}" placeholder="斤" onchange="ctSavePriceW('${iid}')"></div><span class="mu">${e.src?esc(e.src):'請輸入買價和單位'}</span>`;
   }
   const U=c.U;
-  return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:70px" inputmode="decimal" value="${U?ptN(U.p,2):''}" onchange="ctSavePriceU('${iid}')"> ／ <input id="cu_${iid}" class="pi gx" style="width:56px" value="${esc(U?U.u:(g.pu||''))}" placeholder="盒/包/隻" onchange="ctSavePriceU('${iid}')"></div><span class="mu">${U?esc(U.src):'請輸入，或在採購進貨填單價／金額'}</span>`;
+  return`<div style="white-space:nowrap">$<input id="cp_${iid}" class="pi gx" style="width:70px" inputmode="decimal" value="${U?ptN(U.p,2):''}" onchange="ctSavePriceU('${iid}')"> ／ <input id="cu_${iid}" onfocus="this.dataset.o=this.value;this.value=''" onblur="if(!this.value)this.value=this.dataset.o||''" class="pi gx" style="width:56px" value="${esc(U?U.u:(g.pu||''))}" placeholder="盒/包/隻" onchange="ctSavePriceU('${iid}')"></div><span class="mu">${U?esc(U.src):'請輸入，或在採購進貨填單價／金額'}</span>`;
 }
 function ctUseCell(iid,name,c){
   const g=GR.meta[iid]||{},mode=c.mode;
-  if(mode==='w')return`每份 <input class="pi gx" style="width:62px" inputmode="decimal" value="${+g.sg>0?g.sg:''}" placeholder="${c.sug||''}" title="空白＝建議克數（依售價×成本率）；填數字＝你實際每份給的克數" onchange="ctSave('${iid}','sg',this.value,1)"> 克${+g.sg>0?'':(c.sug?`<br><span class="mu">建議 ${c.sug} 克</span>`:'')}`;
+  if(mode==='w')return`每份 <input class="pi gx" style="width:62px" inputmode="decimal" value="${+g.sg>0?g.sg:''}" placeholder="${c.sug||''}" title="空白＝建議克數（依售價×成本率）。可以直接打 150，或 0.15公斤、100g，會自動換成克" onchange="ctSaveSg('${iid}',this.value)"> 克${+g.sg>0?'':(c.sug?`<br><span class="mu">建議 ${c.sug} 克</span>`:'')}`;
   if(mode==='n')return`每${esc(c.U&&c.U.u||'包')}有 ${ctNum(iid,'pn','50',52)} ${ctTxt(iid,'nu','卷/根',46)}<br>每份用 ${ctNum(iid,'pm','5',52)} ${esc(g.nu||'個')}`;
   if(mode==='s')return`用 ${ctNum(iid,'sx','3',48)} ${esc(c.U&&c.U.u||'包')}　分成 ${ctNum(iid,'sy','10',48)} 份`;
   if(mode==='c'){
@@ -3577,6 +3675,7 @@ function planBody(){
     <div class="fm-row"><b>新增群組</b><input id="pgName" lang="zh-TW" list="pgList" placeholder="例如：大市場（打新的會自動記起來）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();planAddGroup()}"><button class="chip sm" onclick="planAddGroup()">＋ 加入</button></div>
     <datalist id="pgList">${Object.values(PLAN.catalog).map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>
     <div class="chips pcc" id="pgChips">${planGroupChips()}</div>
+    ${sqBox('plan','搜尋採購品項、群組、備註，例如：高麗菜',{item:'.pit2:not(.phd)',group:'.pgc',gtitle:'.pgn',expand:'.pgb',collapsed:g=>!!planColl()[g.id.replace('pg_','')]})}
     <div class="fm-line"><span>預計 <b id="planPlanned">${money(S.p)}</b>　已採購（算入支出）<b id="planBought" style="color:var(--ok)">${money(S.b)}</b></span><span><button class="chip sm" onclick="planCollapseAll(false)">全部展開</button> <button class="chip sm" onclick="planCollapseAll(true)">全部收合</button></span></div>
   </div>
   <div id="planGroups">${Object.entries(PLAN.groups).map(([gid,g])=>planCard(gid,g)).join('')}</div>`;
@@ -4007,6 +4106,7 @@ function renderStock(){
   $('mBox').innerHTML=`<div class="oh"><h3>📦 今日庫存（限量品項）</h3><button onclick="closeModal()">關閉</button></div>
    <div class="modal-tip">沒有設定限量的品項＝不限量。限量品項賣完會<b>自動反黑、不能點選</b>，客人頁面也會顯示「剩 N」。營業日（每日 02:00 換日）換日後庫存會自動重新開始。</div>
    <div class="fm-sec"><div class="fm-title">${dayLabel(today8())}</div>
+    ${ids.length>4?sqBox('stk','搜尋限量品項',{item:'.er'}):''}
     ${rows||'<div style="text-align:center;color:var(--mu);padding:14px">今天還沒有設定任何限量品項</div>'}
     <div class="fm-row"><select onchange="stkAdd(this.value)"><option value="">＋ 加入限量品項…</option>${opts}</select></div></div>
    <div class="m-btns"><button class="btn-confirm" onclick="stkSave()">儲存庫存設定</button></div>
