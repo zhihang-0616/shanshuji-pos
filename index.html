@@ -390,7 +390,7 @@ const WALKIN_PAGE=(()=>{
   }catch(e){return false}
 })();
 if(WALKIN_PAGE){try{const sb=document.querySelector('.brand-row .sub');if(sb)sb.textContent='現場點餐';document.title='去中心鹹水雞 現場點餐'}catch(e){}}
-const LINE_HOOK='https://script.google.com/macros/s/AKfycbwzKZCv2hvCCMvrczkmpbXkIqgl2grN-miQThQGXoHV3rUvHyAGsu4IiY5UdzWr6gnIHg/exec';/* 貼上 Google Apps Script 網頁應用程式網址，用來把新訂單通知到 LINE 群組；留空則不啟用 */
+const LINE_HOOK='https://script.google.com/macros/s/AKfycbzuHsCZCeZTgMhya7LXAruduye3Oq5d402VLuGnRx1i7gfbmQrpCyYKMn49FBFEtNfEsQ/exec';/* 貼上 Google Apps Script 網頁應用程式網址，用來發送新訂單通知（Discord）與 LINE Pay 線上支付；留空則不啟用 */
 const BASE_TITLE=document.title;
 {const mf=document.getElementById('mf');if(mf&&ADMIN_PARAM)mf.href='manifest-admin.json'}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
@@ -2747,7 +2747,7 @@ function lpReturn(){
   }
 }
 
-/* ===== LINE 群組通知（透過 Google Apps Script）===== */
+/* ===== 新訂單通知（透過 Google Apps Script 送到 Discord）===== */
 function notifyLine(id){
   if(!LINE_HOOK)return;
   try{fetch(LINE_HOOK,{method:'POST',mode:'no-cors',keepalive:true,headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({type:'order',id})}).catch(()=>{})}catch(e){}
