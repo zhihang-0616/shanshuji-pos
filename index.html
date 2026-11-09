@@ -1192,14 +1192,29 @@ const plabel=i=>(CK.people[i].name||'').trim()||'第'+(i+1)+'位';
 
 /* 客人最早可選的取餐時間：17:30 開店，最快 17:40 才做得出來，所以 06:00～17:40 之間預約都只能選 17:40 以後 */
 const FIRST_PICK='17:40';
-function minPickHM(){const hm=new Date().toTimeString().slice(0,5);return(hm>='06:00'&&hm<FIRST_PICK)?FIRST_PICK:hm}
+/* 備料中：客人最早只能選「備料完成時間 ＋ PREP_PICK_GAP 分鐘」（和 17:30 開店→17:40 可取餐同一個原則；想改成備料完成就能取，改成 0） */
+const PREP_PICK_GAP=10;
+function prepPickInfo(){
+  const st=curStatus();
+  if(st.s!=='備料中'||!st.until)return null;
+  const done=+st.until,pick=Math.ceil((done+PREP_PICK_GAP*60000+TZ)/600000)*600000-TZ;   // 湊到整 10 分鐘
+  const nextDay=Math.floor((pick+TZ)/DAYMS)>Math.floor((svNow()+TZ)/DAYMS);
+  return{done,pick,doneHM:twHM(done),pickHM:nextDay?'23:50':twHM(pick),left:Math.max(1,Math.ceil((done-svNow())/60000))};
+}
+function minPickHM(){
+  const hm=new Date().toTimeString().slice(0,5);
+  let mp=(hm>='06:00'&&hm<FIRST_PICK)?FIRST_PICK:hm;
+  const pp=isAdmin?null:prepPickInfo();
+  if(pp&&pp.pickHM>mp)mp=pp.pickHM;                     // 備料中：取餐時間一定要在備料完成之後
+  return mp;
+}
 function timeSlots(full){
   /* 客人：從現在之後的每 10 分鐘到 23:50；店家（full）：整天 00:00～23:50 */
   const now=new Date();now.setSeconds(0,0);
   const t=full?new Date(now.getFullYear(),now.getMonth(),now.getDate(),0,0,0,0):new Date(now);
   if(!full){
     t.setMinutes(Math.ceil(t.getMinutes()/10)*10);
-    const mp=minPickHM();if(mp===FIRST_PICK&&t.toTimeString().slice(0,5)<mp)t.setHours(17,40,0,0);
+    const mp=minPickHM();if(t.toTimeString().slice(0,5)<mp){const[h,m]=mp.split(':').map(Number);t.setHours(h,m,0,0)}
   }
   const day=now.getDate(),out=[];
   while(t.getDate()===day){
@@ -1255,10 +1270,22 @@ function openCheckout(){
   if(bad){alert(`「${bad}」選了「多數麵食獨立分開裝」，但同商品只有 1 份。\n請把它刪除後重新選擇包裝方式，或再多點 1 份。`);return}
   prunePeople();
   CK.err=false;
+  if(!isAdmin&&CK.time&&normTime(CK.time)&&normTime(CK.time)<minPickHM())CK.time='';   // 之前選的時間已經太早，清掉重選
+  const pp=isAdmin?null:prepPickInfo();
+  if(pp){                                                // 備料中：先跳視窗提醒備料完成時間與最快取餐時間
+    $('mBox').className='m-box';
+    $('mBox').innerHTML=`<h3>🟡 店家備料中</h3>
+    <div class="modal-tip" style="text-align:left">店家目前正在備料，預計 <b>${pp.doneHM}</b> 備料完成（約還需 ${pp.left} 分鐘）。<br>現在可以先預訂，備料完成後會依序製作。</div>
+    <div class="modal-tip" style="text-align:center;border-left-color:var(--ac)">最快可取餐時間<br><b style="font-size:26px;color:var(--ac)">${pp.pickHM}</b><br><span class="mu">取餐時間請選 ${pp.pickHM} 或之後</span></div>
+    <div class="m-btns"><button class="btn-cancel" onclick="closeModal()">返回</button><button class="btn-confirm" onclick="prepAckCheckout()">我知道了，繼續填寫</button></div>`;
+    $('modal').classList.add('open');
+    return;
+  }
   $('mBox').className='m-box wide';
   renderCheckout();
   $('modal').classList.add('open');
 }
+function prepAckCheckout(){$('mBox').className='m-box wide';renderCheckout();$('modal').classList.add('open')}
 const LP_ONLINE='LINE Pay 線上支付';
 /* 線上支付說明：店家版與顧客版共用同一段文字，改這裡兩邊一起變 */
 const LP_TIP_ONLINE='✅ 送出訂單後店家就會開始製作，不用等付款。<br>接著會前往 LINE Pay 付款；若付款沒成功或中斷，訂單仍然有效，可到「📋 我的訂單」重新付款，或取餐時現場掃碼支付。';
@@ -1392,7 +1419,8 @@ function renderCheckout(){
     ${isAdmin?'<div id="custBox"></div>':''}
     <div class="fm-row${e&&!timeOK()?' err':''}"><b>取餐時間*</b>
      ${timeField('ck','ckTime24',slots)}</div>
-    <div class="fm-err">${isAdmin?'請輸入正確的取餐時間（24 小時制，例如 17:30）':`請輸入正確的取餐時間（24 小時制，例如 17:40），不能早於 ${minPickHM()}`}</div>
+    <div class="fm-err">${isAdmin?'請輸入正確的取餐時間（24 小時制，例如 17:30）':`請輸入正確的取餐時間（24 小時制，例如 17:40），不能早於 ${minPickHM()}${prepPickInfo()?`（店家備料中，${prepPickInfo().doneHM} 備料完成）`:''}`}</div>
+     ${!isAdmin&&prepPickInfo()?`<div class="mu" style="font-size:12.5px;margin:-4px 0 8px;color:var(--ac2)">🟡 店家備料中，${prepPickInfo().doneHM} 備料完成，最快 ${prepPickInfo().pickHM} 可取餐</div>`:''}
     ${!isAdmin&&waitMin()?`<div class="mu" style="font-size:12.5px;margin:-4px 0 8px;color:var(--ac2)">⏱ 目前約等候 ${waitMin()} 分鐘，最快約 ${twHM(svNow()+waitMin()*60000)} 可取餐，取餐時間建議選這個時間之後</div>`:''}
     ${isAdmin?`<div class="fm-row"><b>訂單來源</b><div class="chips">${['現場','線上','電話'].map(v=>chip('src',v)).join('')}</div></div>
     <div class="fm-row"><b>補單</b><div class="chips"><button class="chip${CK.late?' on':''}" onclick="toggleLate()">📝 這是補單（事後補登）</button></div></div>${CK.late?lateBlock():''}`:''}
