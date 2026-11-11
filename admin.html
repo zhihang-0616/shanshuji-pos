@@ -1857,8 +1857,8 @@ function renderTrack(){
 
 /* ===== 公告：店名下方跑馬燈 ＋ 客人開啟點餐頁時的彈出公告（後台管理 → 公告與跑馬燈 修改，存在 shop/notice） ===== */
 const NOTICE_DEFAULT={   // 還沒在後台存過設定時，用這組（喬遷公告）
-  bar:{on:true,text:'📢 喬遷公告｜11/15～11/17 遷店休息，11/18（三）振興路新店開張！新址：新竹市東區振興路5號（南大路口、下坡旁），可內用、可外帶 🎉　點這裡看怎麼走 👉'},
-  pop:{on:true,title:'🏠 我們搬家了！',text:'11/15～11/17 遷店休息\n11/18（三）振興路新店開張，可內用、可外帶\n新址：新竹市東區振興路5號',link:'move.html'}
+  bar:{on:true,text:'📢 即將喬遷｜11/15～11/17 遷店休息，11/18（三）起搬到振興路新店！新址：新竹市東區振興路5號（南大路口、下坡旁），可內用、可外帶 🎉　點這裡看怎麼走 👉'},
+  pop:{on:true,title:'🏠 我們準備搬家囉！',text:'11/15～11/17 遷店休息（這幾天暫停營業）\n11/18（三）起搬到振興路新店，可內用、可外帶\n新址：新竹市東區振興路5號',link:'move.html'}
 };
 let ANN_READY=false;
 const annCfg=()=>SHOP.notice||NOTICE_DEFAULT;
@@ -1900,7 +1900,7 @@ function openNoticeSettings(){
    <div class="fm-row" style="gap:8px"><input type="checkbox" id="anBarOn" ${b.on?'checked':''}><b style="font-size:15px">顯示跑馬燈</b>（店名下方，客人和店家頁面都看得到）</div>
    <textarea id="anBarTx" style="${ta}" maxlength="300" placeholder="跑馬燈文字">${esc(b.text||'')}</textarea>
    <div class="fm-row" style="gap:8px;margin-top:14px"><input type="checkbox" id="anPopOn" ${p.on?'checked':''}><b style="font-size:15px">客人打開點餐頁時，先跳出公告</b></div>
-   <div class="fm-row"><b>標題</b><input id="anPopTi" maxlength="40" value="${esc(p.title||'')}" placeholder="例如：🏠 我們搬家了！"></div>
+   <div class="fm-row"><b>標題</b><input id="anPopTi" maxlength="40" value="${esc(p.title||'')}" placeholder="例如：🏠 我們準備搬家囉！"></div>
    <textarea id="anPopTx" style="${ta}" maxlength="300" placeholder="公告內容（可以換行，簡短就好）">${esc(p.text||'')}</textarea>
    <div class="fm-row" style="margin-top:8px"><b>詳情連結</b><input id="anPopLk" maxlength="300" value="${esc(p.link||'')}" placeholder="選填，例如 move.html 或 https://…"></div>
    <div class="mu" style="font-size:12.5px">有填詳情連結時，公告會多一個「📍 看詳情・導航」按鈕，點跑馬燈也會打開公告。喬遷頁的檔名是 move.html。</div>
