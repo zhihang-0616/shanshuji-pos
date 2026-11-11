@@ -214,6 +214,13 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .ibtn.pulse{background:var(--bad);color:#fff;border-color:var(--bad);animation:pulse 1s infinite}
 /* 營業狀態橫幅 / 表格 / 進度 */
+/* 公告跑馬燈（後台管理 → 公告與跑馬燈 可修改） */
+#annBar{display:none;overflow:hidden;white-space:nowrap;background:linear-gradient(90deg,rgba(224,176,64,.16),rgba(224,176,64,.28),rgba(224,176,64,.16));border-bottom:1px solid var(--ln);color:var(--ac2);font-weight:700;font-size:14px;padding:6px 0;cursor:pointer}
+#annBar.on{display:block}
+#annBar span{display:inline-block;padding-left:100%;animation:annRun var(--ann-dur,20s) linear infinite}
+#annBar:hover span{animation-play-state:paused}
+@keyframes annRun{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){#annBar span{animation:none;padding-left:12px}}
 #banner{display:none;text-align:center;padding:8px 12px;font-weight:700;font-size:14px}
 #banner.bn-rest{display:block;background:var(--bad);color:#fff}
 #banner.bn-prep{display:block;background:var(--ac);color:#1a1204}
@@ -334,6 +341,7 @@ input[type=time],input[type=datetime-local]{color-scheme:dark}
  <div class="sp"></div>
  <div class="top-right"><button class="ibtn" id="trackBtn" style="display:block" onclick="openTrack()">📋 我的訂單</button><div class="clock" id="clock"></div></div>
 </header>
+<div id="annBar" onclick="annOpen(true)"></div>
 <div id="banner"></div>
 <div id="netbar"></div>
 <div class="main">
@@ -433,6 +441,7 @@ function fbReady(){
   FB.onValue(FB.ref(FB.db,'shop/ovr'),sn=>{SHOP.ovr=sn.val();updateStatusDisplay()});
   FB.onValue(FB.ref(FB.db,'shop/vac'),sn=>{SHOP.vac=sn.val();updateStatusDisplay()});
   FB.onValue(FB.ref(FB.db,'shop/wait'),sn=>{SHOP.wait=sn.val();updateStatusDisplay()});
+  FB.onValue(FB.ref(FB.db,'shop/notice'),sn=>{SHOP.notice=sn.val();annRender()});
   FB.onValue(FB.ref(FB.db,'soldOut'),sn=>{
     const v=sn.val()||{};
     soldOutItems=norm(v.items);soldOutCats=norm(v.cats);
@@ -1846,6 +1855,72 @@ function renderTrack(){
    <div class="modal-tip">狀態會即時更新，餐點完成時會跳出提醒。只顯示最近 12 小時內、在這個裝置送出的訂單。</div>`;
 }
 
+/* ===== 公告：店名下方跑馬燈 ＋ 客人開啟點餐頁時的彈出公告（後台管理 → 公告與跑馬燈 修改，存在 shop/notice） ===== */
+const NOTICE_DEFAULT={   // 還沒在後台存過設定時，用這組（喬遷公告）
+  bar:{on:true,text:'📢 喬遷公告｜11/15～11/17 遷店休息，11/18（三）振興路新店開張！新址：新竹市東區振興路5號（南大路口、下坡旁），可內用、可外帶 🎉　點這裡看怎麼走 👉'},
+  pop:{on:true,title:'🏠 我們搬家了！',text:'11/15～11/17 遷店休息\n11/18（三）振興路新店開張，可內用、可外帶\n新址：新竹市東區振興路5號',link:'move.html'}
+};
+let ANN_READY=false;
+const annCfg=()=>SHOP.notice||NOTICE_DEFAULT;
+function annRender(){
+  ANN_READY=true;
+  const b=(annCfg().bar)||{},el=$('annBar');if(!el)return;
+  const txt=String(b.text||'').trim();
+  if(b.on&&txt){el.innerHTML=`<span>${esc(txt)}</span>`;el.style.setProperty('--ann-dur',Math.max(12,Math.round(txt.length*0.35))+'s');el.classList.add('on')}
+  else{el.innerHTML='';el.classList.remove('on')}
+  annMaybePop();
+}
+function annKey(p){const t=[p.title,p.text,p.link].join('|');let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return 'ann_seen_'+h}
+let annTries=0;
+function annMaybePop(){                                  // 客人每次打開點餐頁，先跳一次公告（同一個分頁只跳一次）
+  if(isAdmin)return;
+  const p=annCfg().pop;if(!p||!p.on||!(p.title||p.text))return;
+  try{if(sessionStorage.getItem(annKey(p)))return}catch(e){}
+  if($('modal').classList.contains('open')){if(annTries++<20)setTimeout(annMaybePop,1500);return}   // 有其他視窗（例如付款結果）就等一下再跳
+  try{sessionStorage.setItem(annKey(p),'1')}catch(e){}
+  annOpen(false);
+}
+function annOpen(fromBar){
+  const p=annCfg().pop||{},b=annCfg().bar||{};
+  if(fromBar&&!(p.title||p.text)){if(p.link)window.open(p.link,'_blank');return}
+  if(fromBar&&$('modal').classList.contains('open'))return;
+  $('mBox').className='m-box';
+  $('mBox').innerHTML=`<h3>${esc(p.title||'📢 公告')}</h3>
+   <div class="modal-tip" style="text-align:center;font-size:15.5px;line-height:1.8">${esc(p.text||b.text||'').replace(/\n/g,'<br>')}</div>
+   <div class="m-btns">${p.link?`<button class="btn-cancel" onclick="window.open('${esc(p.link)}','_blank')">📍 看詳情・導航</button>`:''}<button class="btn-confirm" onclick="closeModal()">${isAdmin?'關閉':'知道了，開始點餐'}</button></div>`;
+  $('modal').classList.add('open');
+}
+function openNoticeSettings(){
+  if(!isAdmin)return;
+  viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box';
+  const c=annCfg(),b=c.bar||{},p=c.pop||{};
+  const ta='width:100%;min-height:70px;background:var(--s2);color:var(--tx);border:1px solid var(--ln);border-radius:8px;padding:8px;font:inherit;font-size:15px';
+  $('mBox').innerHTML=meHead('📢 公告與跑馬燈','openAdminPanel()')+`<div class="fm-sec">
+   ${SHOP.notice?'':'<div class="modal-tip" style="text-align:left">目前顯示的是預設的<b>喬遷公告</b>，按「儲存」後就會改用你在這裡設定的內容。</div>'}
+   <div class="fm-row" style="gap:8px"><input type="checkbox" id="anBarOn" ${b.on?'checked':''}><b style="font-size:15px">顯示跑馬燈</b>（店名下方，客人和店家頁面都看得到）</div>
+   <textarea id="anBarTx" style="${ta}" maxlength="300" placeholder="跑馬燈文字">${esc(b.text||'')}</textarea>
+   <div class="fm-row" style="gap:8px;margin-top:14px"><input type="checkbox" id="anPopOn" ${p.on?'checked':''}><b style="font-size:15px">客人打開點餐頁時，先跳出公告</b></div>
+   <div class="fm-row"><b>標題</b><input id="anPopTi" maxlength="40" value="${esc(p.title||'')}" placeholder="例如：🏠 我們搬家了！"></div>
+   <textarea id="anPopTx" style="${ta}" maxlength="300" placeholder="公告內容（可以換行，簡短就好）">${esc(p.text||'')}</textarea>
+   <div class="fm-row" style="margin-top:8px"><b>詳情連結</b><input id="anPopLk" maxlength="300" value="${esc(p.link||'')}" placeholder="選填，例如 move.html 或 https://…"></div>
+   <div class="mu" style="font-size:12.5px">有填詳情連結時，公告會多一個「📍 看詳情・導航」按鈕，點跑馬燈也會打開公告。喬遷頁的檔名是 move.html。</div>
+  </div>
+  <div class="m-btns"><button class="btn-cancel" onclick="annOpen(false)">預覽公告</button><button class="btn-confirm" onclick="saveNoticeSettings()">儲存</button></div>`;
+  $('modal').classList.add('open');
+}
+async function saveNoticeSettings(){
+  const v={bar:{on:$('anBarOn').checked,text:$('anBarTx').value.trim()},
+    pop:{on:$('anPopOn').checked,title:$('anPopTi').value.trim(),text:$('anPopTx').value.trim(),link:$('anPopLk').value.trim()},
+    at:svNow(),by:whoAmI()};
+  if(v.bar.on&&!v.bar.text){alert('請輸入跑馬燈文字，或取消勾選「顯示跑馬燈」');return}
+  if(v.pop.on&&!(v.pop.title||v.pop.text)){alert('請輸入公告標題或內容，或取消勾選「先跳出公告」');return}
+  if(v.pop.link&&!/^(https?:\/\/|[\w\-.\/]+\.html?)/i.test(v.pop.link)){alert('詳情連結要以 https:// 開頭，或是像 move.html 這樣的檔名');return}
+  try{await FB.set(FB.ref(FB.db,'shop/notice'),v);SHOP.notice=v;annRender();
+    logAct('公告設定',null,'',`跑馬燈：${v.bar.on?v.bar.text:'關閉'}｜彈出公告：${v.pop.on?(v.pop.title||v.pop.text):'關閉'}`);
+    toast('✅ 公告已更新，客人重新整理後就會看到');openAdminPanel()}
+  catch(e){alert('儲存失敗：'+(e.code||e.message))}
+}
+
 /* ===== 後台管理 ===== */
 /* ===== 資料備份：手動下載全部資料，並提醒太久沒備份 ===== */
 const BK_NODES=['orders','cashbook','logs','counters','stock','soldOut','shop','shopCatalog','shopPlan','shopMeta','menu','customerNotes'];
@@ -1903,6 +1978,7 @@ function openAdminPanel(){
     <button class="opt-btn" onclick="openMenuFolder()">📂 菜單與成本</button>
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
+    <button class="opt-btn" onclick="openNoticeSettings()">📢 公告與跑馬燈</button>
     <button class="opt-btn" onclick="openPrnSettings()">🖨 出單設定（出單機、錢櫃）</button>
     <button class="opt-btn" onclick="openBackup()">💾 資料備份</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
