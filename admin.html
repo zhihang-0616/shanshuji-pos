@@ -1621,6 +1621,7 @@ async function onAuth(user){
     isAdmin=true;setAdminUI(true);startOrders();startAlarm();keepAwake();updateSoundBtn();
     toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
     setTimeout(checkOpenReminder,5000);
+    setTimeout(prnAutoTest,3000);
     if(isManager())setTimeout(checkBackupReminder,9000);
   }else{
     isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();const m=authMsg;authMsg='';openAdminLogin(m);
@@ -2399,7 +2400,7 @@ async function confirmPay(){
 /* ===== 出單機（POS 電腦用）=====
    做法：網頁把單據畫成圖片（中文不會亂碼）→ 交給這台電腦上的「出單小幫手」→ 用網路線送到出單機；現金結帳時順便彈開錢櫃。
    設定只存在「這台電腦」的瀏覽器（localStorage），其他手機／平板不會出單。 */
-const PRN_DEF={on:false,url:'http://127.0.0.1:9101',kNew:true,rNew:false,drawerCash:true};
+const PRN_DEF={on:false,url:'http://127.0.0.1:9101',kNew:true,rNew:false,drawerCash:true,autoTest:false,autoDrawer:false};
 const prnCfg=()=>{try{return{...PRN_DEF,...JSON.parse(localStorage.getItem('prn_cfg')||'{}')}}catch(e){return{...PRN_DEF}}};
 const prnCfgSave=c=>{try{localStorage.setItem('prn_cfg',JSON.stringify(c))}catch(e){}};
 const PRN_W=576;                                   // 80mm 紙＝576 點
@@ -2614,6 +2615,9 @@ function openPrnSettings(){
     <label style="display:flex;gap:6px;align-items:center;font-size:15px"><input type="checkbox" id="pcN" ${c.kNew?'checked':''} onchange="prnSettingsSave()"><b>廚房單</b></label>
     <label style="display:flex;gap:6px;align-items:center;font-size:15px"><input type="checkbox" id="pcR" ${c.rNew?'checked':''} onchange="prnSettingsSave()"><b>收據</b></label></div>
    ${ck('pcD',c.drawerCash,'<b>現金</b>結帳時，自動<b>彈開錢櫃</b>')}
+   <div class="fm-row" style="gap:8px;flex-wrap:wrap"><span style="font-size:15px">每天<b>第一次打開 POS</b> 時，自動：</span>
+    <label style="display:flex;gap:6px;align-items:center;font-size:15px"><input type="checkbox" id="pcAT" ${c.autoTest?'checked':''} onchange="prnSettingsSave()"><b>印一張測試單</b></label>
+    <label style="display:flex;gap:6px;align-items:center;font-size:15px"><input type="checkbox" id="pcAD" ${c.autoDrawer?'checked':''} onchange="prnSettingsSave()"><b>彈開錢櫃</b></label></div>
    <div class="fm-row"><b style="width:auto">小幫手網址</b><input id="pcU" value="${esc(c.url)}" onchange="prnSettingsSave()"></div>
    <div id="pcSt" class="mu" style="min-height:22px;margin:6px 0"></div>
    <div class="m-btns" style="position:static;margin:0;padding:0;border:0"><button class="btn-cancel" onclick="prnCheck()">檢查連線</button><button class="btn-cancel" onclick="prnTest()">測試列印</button><button class="btn-confirm" onclick="prnDrawer()">🔓 開錢櫃</button></div>
@@ -2622,7 +2626,7 @@ function openPrnSettings(){
 }
 function prnSettingsSave(){
   const c=prnCfg();
-  c.on=$('pcOn').checked;c.kNew=$('pcN').checked;c.rNew=$('pcR').checked;c.drawerCash=$('pcD').checked;
+  c.on=$('pcOn').checked;c.kNew=$('pcN').checked;c.rNew=$('pcR').checked;c.drawerCash=$('pcD').checked;c.autoTest=$('pcAT').checked;c.autoDrawer=$('pcAD').checked;
   c.url=($('pcU').value||PRN_DEF.url).trim();prnCfgSave(c);
 }
 async function prnCheck(){
@@ -2631,6 +2635,34 @@ async function prnCheck(){
     const r=await fetch(prnCfg().url.replace(/\/$/,'')+'/ping'),j=await r.json();
     st.innerHTML=j.printer?(j.paperOk===false?'<span style="color:var(--bad)">⚠ 連得到出單機（'+esc(j.ip)+'），但：'+esc(j.status||'出單機有狀況')+'</span>':'<span style="color:var(--ok)">✔ 小幫手正常，也連得到出單機（'+esc(j.ip)+'）'+(j.status?'<br>'+esc(j.status):'')+'</span>'):'<span style="color:var(--bad)">小幫手有開，但連不到出單機（'+esc(j.ip||'')+'）。請檢查網路線、電腦的有線網路 IP（192.168.123.x）、出單機電源。</span>';
   }catch(e){st.innerHTML='<span style="color:var(--bad)">✘ 連不到「出單小幫手」。請確認這台電腦上的小幫手視窗有開著；第一次連線時，瀏覽器若跳出「存取區域網路裝置」請按「允許」。</span>'}
+}
+/* 開機自動測試：每天（營業日）第一次打開 POS，等小幫手準備好（最多等 3 分鐘），印一張測試單、彈開錢櫃，結果顯示在畫面上 */
+let prnAutoBusy=false;
+async function prnAutoTest(){
+  const c=prnCfg();
+  if(!isAdmin||!c.on||!(c.autoTest||c.autoDrawer)||prnAutoBusy)return;
+  if(localStorage.getItem('prn_auto_day')===today8())return;
+  prnAutoBusy=true;
+  let j=null;
+  for(let i=0;i<36&&isAdmin;i++){                       // 開機時小幫手可能還在啟動，每 5 秒試一次
+    try{const r=await fetch(c.url.replace(/\/$/,'')+'/ping');j=await r.json();if(j.printer)break}catch(e){j=null}
+    await new Promise(ok=>setTimeout(ok,5000));
+  }
+  prnAutoBusy=false;
+  if(!isAdmin)return;
+  if(!j){toast('🖨 開機自動測試失敗：連不到「出單小幫手」，請確認小幫手有在執行（重新整理會再試一次）',()=>openPrnSettings());return}
+  if(!j.printer){toast('🖨 開機自動測試失敗：小幫手正常，但連不到出單機，請檢查網路線與出單機電源（重新整理會再試一次）',()=>openPrnSettings());return}
+  const res=[];
+  if(c.autoTest){
+    const r=await prnPrint([{t:'開機自動測試',s:2,b:true,a:'c'},{t:'去中心鹹水雞 X 厝邊溫食',s:1,a:'c'},{dash:1},{t:fmtDT(Date.now()),s:1,a:'c'},{t:'印得出來＝出單機正常，可以開始營業',s:1,a:'c'}],{drawer:c.autoDrawer});
+    res.push(r.ok?'出單機 ✔':'出單機 ✘（'+r.err+'）');
+    if(c.autoDrawer)res.push(r.ok?'錢櫃 ✔':'錢櫃 ✘');
+  }else if(c.autoDrawer){
+    const r=await prnSend('/drawer',{});res.push(r.ok?'錢櫃 ✔':'錢櫃 ✘（'+r.err+'）');
+  }
+  const ok=!res.some(x=>x.includes('✘'));
+  if(ok)localStorage.setItem('prn_auto_day',today8());   // 成功才記錄；失敗的話下次重新整理會再測
+  toast('🖨 開機自動測試：'+res.join('、')+(j.status?'　'+j.status:'')+(ok?'':'　（重新整理會再試一次）'),ok?undefined:()=>openPrnSettings());
 }
 async function prnTest(){
   prnSettingsSave();const st=$('pcSt');st.textContent='送出測試單…';
@@ -2975,7 +3007,7 @@ async function reloadCash(){
   CASH.cnt=null;renderCash();
 }
 function cashDay(v){const d=String(v).replace(/-/g,'');if(/^\d{8}$/.test(d))openCash(d,CASH.tab)}
-function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';renderCash()}
+function cashTab(k){CASH.tab=k;CASH.cnt=null;CASH.inh='';CASH.inhTried=false;renderCash()}
 function cntInit(kind){const src=((CASH.data||{})[kind]||{}).counts||{};CASH.cnt={};DENOMS.forEach(d=>CASH.cnt[d]=(+src['d'+d]||0)*d)}   // CASH.cnt[面額] ＝ 這個面額的「金額」
 const cashTotal=()=>DENOMS.reduce((a,d)=>a+(CASH.cnt[d]||0),0);
 const cntNote=d=>{const a=CASH.cnt[d]||0;return a%d===0?`＝ ${a/d} ${d>=100?'張':'枚'}`:`⚠ 需為 ${d} 的倍數`};
@@ -2992,12 +3024,13 @@ function renderCash(){
   let body='';
   if(t==='open'||t==='close'){
     if(!CASH.cnt)cntInit(t);
+    if(t==='open'&&!D.open&&!CASH.inhTried){CASH.inhTried=true;setTimeout(()=>inheritClose(true),0)}   // 還沒開店盤點：自動帶入前一天的收店盤點（可再修改）
     const rec=D[t],nm=t==='open'?'開店':'收店';
     body=`<div class="fm-sec"><div class="fm-title">${nm}時收銀台內的現金（直接輸入每種面額的<b>總金額</b>，例如 100 元的有 $8800 就輸入 8800）</div>
       ${rec?`<div class="modal-tip">已盤點：$${rec.total}（${fmtDT(rec.at)}　${esc(rec.by||'')}）。重新輸入後按儲存即可修改。</div>`:''}
       ${DENOMS.map(d=>`<div class="er"><b style="width:96px;color:var(--ac2)">${d>=100?'紙鈔':'硬幣'} $${d}</b><input id="ca${d}" class="qt" style="width:130px" type="number" min="0" step="${d}" inputmode="numeric" value="${CASH.cnt[d]||''}" placeholder="金額" oninput="cashCnt(${d},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();cashNext(${d})}"><span style="flex:1;text-align:right;color:${(CASH.cnt[d]||0)%d===0?'var(--mu)':'var(--bad)'}" id="cs${d}">${cntNote(d)}</span></div>`).join('')}
       <div class="fm-total"><span>合計</span><b id="cashTot">$${cashTotal()}</b></div></div>
-      ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「現金進出」記一筆「<b>補鈔</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 繼承前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
+      ${t==='open'?`<div class="modal-tip">開店盤點完之後，如果又有錢放進收銀機（例如領存鈔補零錢），請到「現金進出」記一筆「<b>補鈔</b>」，收店時才對得起來。</div><div class="m-btns"><button class="btn-cancel" onclick="inheritClose()">↩ 重新帶入前一天的收店盤點</button></div>${CASH.inh?`<div class="modal-tip">${CASH.inh}</div>`:''}`:''}
       <div class="m-btns"><button class="btn-confirm" id="cashSave" onclick="saveCount('${t}')">儲存${nm}盤點</button></div>`;
   }else body=expHtml();
   $('mBox').innerHTML=`<div class="oh"><h3>💵 收銀盤點</h3><button onclick="closeModal()">關閉</button></div>
@@ -3006,23 +3039,24 @@ function renderCash(){
    <div class="chips">${tabs.map(([k,n,ok])=>`<button class="chip${t===k?' on':''}" onclick="cashTab('${k}')">${ok?'✔ ':''}${n}</button>`).join('')}</div>${body}`;
 }
 /* 開店盤點：直接帶入「前一次」收店盤點的張數（遇到公休日會往前找，最多 14 天） */
-async function inheritClose(){
-  let d=CASH.day,found=null;
+async function inheritClose(auto){
+  let d=CASH.day,found=null;const day0=CASH.day;
   try{
     for(let i=0;i<14&&!found;i++){
       d=shiftDay(d,-1);
       const sn=await FB.get(FB.ref(FB.db,'cashbook/'+d+'/close'));
       if(sn.exists())found={day:d,rec:sn.val()};
     }
-    if(!found){alert('往前 14 天內找不到收店盤點紀錄');return}
+    if(!found){if(auto){if(CASH.day===day0&&CASH.tab==='open'){CASH.inh='往前 14 天內找不到收店盤點紀錄，請直接輸入開店金額。';renderCash()}}else alert('往前 14 天內找不到收店盤點紀錄');return}
     let moved=0;                                   // 這段期間（收店後到今天開店前）另外有的支出、存鈔
     for(let k=shiftDay(found.day,1);k<CASH.day;k=shiftDay(k,1)){
       const ex=(await FB.get(FB.ref(FB.db,'cashbook/'+k+'/expenses'))).val()||{};
       Object.values(ex).forEach(e=>{moved+=(+e.amount||0)});
     }
+    if(auto&&(CASH.day!==day0||CASH.tab!=='open'||(CASH.data||{}).open||(CASH.cnt&&cashTotal()>0)))return;   // 等讀取的期間已經換頁或開始輸入，就不要蓋掉
     if(!CASH.cnt)cntInit('open');
     DENOMS.forEach(x=>{CASH.cnt[x]=(+((found.rec.counts||{})['d'+x])||0)*x});
-    CASH.inh=`已帶入 ${dayLabel(found.day)} 的收店盤點 $${found.rec.total}（${fmtDT(found.rec.at)}）。${moved?`<b>這段期間另有支出／存鈔共 $${moved}</b>，如果錢已經從收銀機拿出去，請把張數修正後再儲存。`:''}確認無誤後按「儲存開店盤點」。`;
+    CASH.inh=`${auto?'<b>已自動</b>':'已'}帶入 ${dayLabel(found.day)} 的收店盤點 $${found.rec.total}（${fmtDT(found.rec.at)}）。${moved?`<b>這段期間另有支出／存鈔共 $${moved}</b>，如果錢已經從收銀機拿出去，請把張數修正後再儲存。`:''}要修改直接改上面的金額，確認無誤後按「<b>儲存開店盤點</b>」（還沒按儲存就不算數）。`;
   }catch(e){alert('讀取失敗：'+(e.code||e.message));return}
   renderCash();
 }
