@@ -1622,6 +1622,7 @@ async function onAuth(user){
     toast(isManager()?'已登入：店長':'已登入：店員（可接單、結帳；無法刪單與查看統計）');
     setTimeout(checkOpenReminder,5000);
     setTimeout(prnAutoTest,3000);
+    cdStart();
     if(isManager())setTimeout(checkBackupReminder,9000);
   }else{
     isAdmin=false;ROLE='staff';setAdminUI(false);stopOrders();stopAlarm();const m=authMsg;authMsg='';openAdminLogin(m);
@@ -1922,6 +1923,74 @@ async function saveNoticeSettings(){
   catch(e){alert('儲存失敗：'+(e.code||e.message))}
 }
 
+/* ===== 客顯螢幕：POS 電腦的第二個螢幕（面向客人）顯示 customer.html =====
+   同一台電腦、同一個 Chrome 裡，店家頁面每 0.5 秒把「點餐中的品項、金額、結帳收款、找零」傳給客顯頁（BroadcastChannel），不經過資料庫。
+   設定只存在這台電腦（localStorage）。 */
+const CD_DEF={on:false,auto:false};
+const cdCfg=()=>{try{return{...CD_DEF,...JSON.parse(localStorage.getItem('cd_cfg')||'{}')}}catch(e){return{...CD_DEF}}};
+const cdCfgSave=c=>{try{localStorage.setItem('cd_cfg',JSON.stringify(c))}catch(e){}};
+let cdCh=null,cdLast='',cdLastAt=0,cdThanks=null,cdTimer=null,cdWin=null;
+function cdState(){
+  let bar='';try{const b=annCfg().bar||{};bar=b.on?String(b.text||''):''}catch(e){}
+  if(cdThanks&&Date.now()<cdThanks.until)return{mode:'thanks',...cdThanks.d,bar};
+  const mOpen=$('modal').classList.contains('open');
+  if(mOpen&&PAY&&PAY.o&&$('payBtn')){
+    const o=PAY.o,total=payTotal(),r=parseFloat(PAY.recv);
+    const items=(o.items||[]).map(x=>({name:String(x.name||''),qty:+x.qty||0,price:+x.price||0}));
+    return{mode:'pay',no:o.no||'',items,total,discount:Math.max(0,(PAY.base||0)-total),pay:PAY.pay||'',recv:isNaN(r)?0:r,bar};
+  }
+  if(cart.length){
+    const multi=CK.people.length>1;
+    const items=cart.map(x=>({name:String(x.name||''),qty:+x.qty||0,price:+x.price||0,g:multi?plabel(x.p):'',p:x.p||0})).sort((a,b)=>a.p-b.p).map(({p,...x})=>x);
+    return{mode:'cart',items,total:items.reduce((a,x)=>a+x.qty*x.price,0),bar};
+  }
+  let closed=false;try{closed=isClosed()}catch(e){}
+  return{mode:'idle',closed,bar};
+}
+function cdTick(){
+  if(!isAdmin||!cdCfg().on)return;
+  let st;try{st=cdState()}catch(e){return}
+  const j=JSON.stringify(st);
+  if(j===cdLast&&Date.now()-cdLastAt<5000)return;   // 沒變化就 5 秒送一次心跳
+  cdLast=j;cdLastAt=Date.now();
+  try{if(!cdCh)cdCh=new BroadcastChannel('pos-customer');cdCh.postMessage(st)}catch(e){}
+}
+function cdStart(){
+  if(!cdTimer)cdTimer=setInterval(cdTick,500);
+  try{if(!cdCh){cdCh=new BroadcastChannel('pos-customer');cdCh.onmessage=e=>{if(e.data&&e.data.hello){cdLast='';cdTick()}}}}catch(e){}
+  const c=cdCfg();if(isAdmin&&c.on&&c.auto)setTimeout(()=>cdOpen(true),4000);
+}
+async function cdOpen(auto){
+  let feat='popup,width=1024,height=768';
+  try{
+    if(window.getScreenDetails){
+      const sd=await window.getScreenDetails();
+      const s=sd.screens.find(x=>x!==sd.currentScreen)||sd.screens.find(x=>!x.isPrimary);
+      if(s)feat=`popup,left=${s.availLeft},top=${s.availTop},width=${s.availWidth},height=${s.availHeight}`;
+    }
+  }catch(e){}
+  cdWin=window.open('customer.html','pos_customer',feat);
+  if(!cdWin){toast(auto?'🖥 客顯螢幕沒有自動打開：瀏覽器擋住了彈出視窗。請按網址列右邊的圖示 → 選「一律允許」':'🖥 瀏覽器擋住了彈出視窗：請按網址列右邊的圖示 → 選「一律允許」，再按一次',()=>openCdSettings());return}
+  cdLast='';setTimeout(cdTick,800);
+}
+function openCdSettings(){
+  if(!isAdmin)return;
+  viewingOrders=viewingStats=viewingTrack=false;$('mBox').className='m-box';
+  const c=cdCfg();
+  const ck=(id,v,t)=>`<div class="fm-row" style="gap:8px"><input type="checkbox" id="${id}" ${v?'checked':''} onchange="cdSettingsSave()"><span style="font-size:15px">${t}</span></div>`;
+  $('mBox').innerHTML=meHead('🖥 客顯螢幕（第二螢幕）','openAdminPanel()')+`<div class="fm-sec">
+   <div class="modal-tip" style="text-align:left">POS 電腦接兩個螢幕時，面向客人的那個螢幕會顯示：<br>
+   ・平常：店名、Logo、歡迎光臨、跑馬燈<br>・點餐時：客人點的品項和目前金額（即時更新）<br>・結帳時：應付金額、付款方式、收您／找您；轉帳會顯示轉帳 QR Code<br>・結帳完成：謝謝光臨＋取餐號碼（8 秒後回到平常畫面）<br>
+   設定<b>只存在這台電腦</b>。</div>
+   ${ck('cdOn',c.on,'<b>啟用客顯螢幕</b>')}
+   ${ck('cdAuto',c.auto,'打開 POS 時，<b>自動</b>開啟客顯螢幕（要先允許這個網站的彈出視窗）')}
+   <div class="mu" style="font-size:12.5px;margin:6px 0">第一次按「開啟客顯螢幕」時，Chrome 可能會問「管理所有螢幕上的視窗」，請按<b>允許</b>，客顯畫面就會自動跑到第二個螢幕。打開後在客顯畫面上點一下，就會變成全螢幕。</div>
+  </div>
+  <div class="m-btns"><button class="btn-cancel" onclick="openAdminPanel()">返回</button><button class="btn-confirm" onclick="cdSettingsSave();cdOpen()">開啟客顯螢幕</button></div>`;
+  $('modal').classList.add('open');
+}
+function cdSettingsSave(){const c=cdCfg();c.on=$('cdOn').checked;c.auto=$('cdAuto').checked;if(!c.on)c.auto=false;cdCfgSave(c);$('cdAuto').checked=c.auto;if(c.on)cdStart()}
+
 /* ===== 後台管理 ===== */
 /* ===== 資料備份：手動下載全部資料，並提醒太久沒備份 ===== */
 const BK_NODES=['orders','cashbook','logs','counters','stock','soldOut','shop','shopCatalog','shopPlan','shopMeta','menu','customerNotes'];
@@ -1980,6 +2049,7 @@ function openAdminPanel(){
     <button class="opt-btn" onclick="openDayReport()">💵 日報表</button>
     <button class="opt-btn" onclick="openMonthReport()">📅 月報表與彙整匯出</button>
     <button class="opt-btn" onclick="openNoticeSettings()">📢 公告與跑馬燈</button>
+    <button class="opt-btn" onclick="openCdSettings()">🖥 客顯螢幕（第二螢幕）</button>
     <button class="opt-btn" onclick="openPrnSettings()">🖨 出單設定（出單機、錢櫃）</button>
     <button class="opt-btn" onclick="openBackup()">💾 資料備份</button>
     <button class="opt-btn" onclick="openLogs()">🧾 操作紀錄（拒單／刪除／修改）</button>
@@ -2389,7 +2459,8 @@ async function confirmPay(){
     if(total!==(+o.total||0))adj.push(`金額 $${o.total}→$${total}`);
     if(adj.length)logAct('結帳調整',PAY.id,o.no,adj.join('｜'));
   }catch(e){alert('結帳失敗：'+(e.code||e.message));b.disabled=false;b.textContent='結帳';return}
-  prnAfterPay({...o,...data,id:PAY.id});      // 結帳 → 自動印收據、現金彈開錢櫃（出單設定開啟才會做）
+  prnAfterPay({...o,...data,id:PAY.id});
+  cdThanks={until:Date.now()+8000,d:{no:o.no,pay:PAY.pay,change:chg,total}};   // 客顯螢幕顯示「謝謝光臨」8 秒      // 結帳 → 自動印收據、現金彈開錢櫃（出單設定開啟才會做）
   $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>結帳完成 #${esc(o.no)}</h3>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
     ${cash?`<div class="rc-no">找零 $${chg}</div><div class="rc-row" style="justify-content:center;gap:8px"><span>收到</span><span>$${recv}</span></div>`:''}

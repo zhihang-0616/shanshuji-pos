@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>去中心鹹水雞 X 厝邊溫食</title>
+<!-- 客顯螢幕：放在 POS 電腦的第二個螢幕（面向客人）。
+     由同一台電腦、同一個 Chrome 裡的店家 POS 頁面（admin.html）即時傳資料過來，不會連資料庫、不會影響訂單。 -->
+<style>
+:root{--bg:#120a04;--s1:#2a1a0c;--s2:#3b2512;--ln:#7a5420;--tx:#fbefd0;--mu:#d3b887;--ac:#e0b040;--ac2:#ffe9a8;--ok:#4caf7d;--bad:#d9534f}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg) url(bg-parchment.jpg) center/cover fixed;color:var(--tx);font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;overflow:hidden;cursor:default;user-select:none}
+body::before{content:"";position:fixed;inset:0;background:rgba(18,10,4,.78);z-index:0}
+#app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:18px;padding:18px 32px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.2));border-bottom:2px solid var(--ln)}
+header img{width:64px;height:64px;border-radius:50%;box-shadow:0 0 18px rgba(224,176,64,.5)}
+header h1{font-size:clamp(22px,3vw,36px);color:var(--ac2);letter-spacing:2px;font-weight:900}
+header .clk{margin-left:auto;font-size:clamp(18px,2.2vw,28px);color:var(--mu);font-variant-numeric:tabular-nums}
+#bar{overflow:hidden;white-space:nowrap;background:linear-gradient(90deg,rgba(224,176,64,.16),rgba(224,176,64,.3),rgba(224,176,64,.16));border-bottom:1px solid var(--ln);color:var(--ac2);font-weight:700;font-size:clamp(18px,2vw,26px);padding:8px 0;display:none}
+#bar.on{display:block}
+#bar span{display:inline-block;padding-left:100%;animation:run var(--dur,24s) linear infinite}
+@keyframes run{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+main{flex:1;display:flex;min-height:0}
+.view{flex:1;display:none;min-height:0}
+.view.on{display:flex}
+/* 待機 */
+#idle{flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:22px;padding:30px}
+#idle img{width:min(38vh,38vw);border-radius:50%;box-shadow:0 0 60px rgba(224,176,64,.45);animation:glow 4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 90px rgba(224,176,64,.7)}}
+#idle h2{font-size:clamp(34px,5vw,64px);color:var(--ac2);letter-spacing:6px;font-weight:900}
+#idle p{font-size:clamp(18px,2.2vw,28px);color:var(--mu)}
+/* 點餐中／結帳 */
+#order{gap:0}
+.list{flex:1.4;display:flex;flex-direction:column;min-width:0;border-right:2px solid var(--ln)}
+.list h3{font-size:clamp(20px,2.2vw,28px);color:var(--ac);padding:18px 28px 10px}
+.items{flex:1;overflow:hidden;padding:0 28px 20px;display:flex;flex-direction:column;gap:10px}
+.it{display:flex;align-items:baseline;gap:14px;font-size:clamp(20px,2.4vw,32px);padding:10px 16px;background:rgba(59,37,18,.7);border:1px solid var(--ln);border-radius:12px}
+.it .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it .q{color:var(--mu);font-size:.85em}
+.it .p{color:var(--ac2);font-weight:800;font-variant-numeric:tabular-nums}
+.it.new{animation:flash .9s}
+@keyframes flash{from{background:rgba(224,176,64,.55)}}
+.grp{font-size:clamp(16px,1.8vw,22px);color:var(--ac);padding:6px 4px 0}
+.more{color:var(--mu);text-align:center;font-size:clamp(16px,1.8vw,22px)}
+.side{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;padding:24px;text-align:center}
+.lab{font-size:clamp(20px,2.4vw,30px);color:var(--mu)}
+.big{font-size:clamp(64px,10vw,140px);font-weight:900;color:var(--ac);line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 0 30px rgba(224,176,64,.35)}
+.row{display:flex;justify-content:space-between;gap:30px;width:min(420px,90%);font-size:clamp(20px,2.4vw,30px);border-top:1px dashed var(--ln);padding-top:10px}
+.row b{color:var(--ac2);font-variant-numeric:tabular-nums}
+.chg b{color:var(--ok);font-size:1.3em}
+.pm{display:inline-block;padding:8px 26px;border:2px solid var(--ac);border-radius:999px;color:var(--ac2);font-size:clamp(20px,2.4vw,30px);font-weight:800}
+.qr{width:min(34vh,30vw);border-radius:14px;background:#fff;padding:6px}
+/* 謝謝 */
+#thanks{flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center}
+#thanks .ok{font-size:clamp(70px,10vw,130px)}
+#thanks h2{font-size:clamp(40px,6vw,80px);color:var(--ac2);font-weight:900;letter-spacing:4px}
+#thanks p{font-size:clamp(22px,2.6vw,34px);color:var(--mu)}
+#thanks .no{font-size:clamp(28px,3.4vw,46px);color:var(--ac);font-weight:900}
+/* 未連線、全螢幕提示 */
+#tip{position:fixed;right:14px;bottom:12px;z-index:5;font-size:14px;color:var(--mu);background:rgba(0,0,0,.55);border:1px solid var(--ln);border-radius:10px;padding:6px 12px;transition:opacity .6s}
+#tip.hide{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+ <header><img src="logo.png" alt=""><h1>去中心鹹水雞 X 厝邊溫食</h1><div class="clk" id="clk"></div></header>
+ <div id="bar"></div>
+ <main>
+  <section class="view on" id="idle">
+   <img src="logo.png" alt="">
+   <h2>歡迎光臨</h2>
+   <p id="idleMsg">請稍候，店員將為您點餐</p>
+  </section>
+  <section class="view" id="order">
+   <div class="list"><h3 id="lTitle">您的餐點</h3><div class="items" id="items"></div></div>
+   <div class="side" id="side"></div>
+  </section>
+  <section class="view" id="thanks">
+   <div class="ok">✅</div>
+   <h2>謝謝光臨</h2>
+   <div class="no" id="tNo"></div>
+   <p id="tMsg"></p>
+  </section>
+ </main>
+</div>
+<div id="tip">點一下畫面＝全螢幕</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+(Math.round(+n||0)).toLocaleString('en-US');
+let last='',lastSeen=0,prevKeys=new Set();
+
+function tick(){
+  const d=new Date();
+  $('clk').textContent=d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',weekday:'short'})+'　'+d.toTimeString().slice(0,5);
+  // 超過 15 秒沒收到店家 POS 的訊號：回到待機畫面
+  if(lastSeen&&Date.now()-lastSeen>15000){show('idle');$('idleMsg').textContent='歡迎光臨';lastSeen=0;last=''}
+}
+setInterval(tick,1000);tick();
+
+function show(v){['idle','order','thanks'].forEach(k=>$(k).classList.toggle('on',k===v))}
+function setBar(t){
+  const b=$('bar');t=String(t||'').trim();
+  if(!t){b.classList.remove('on');b.innerHTML='';return}
+  if(b.dataset.t===t)return;
+  b.dataset.t=t;b.innerHTML='<span>'+esc(t)+'</span>';b.style.setProperty('--dur',Math.max(14,Math.round(t.length*.35))+'s');b.classList.add('on');
+}
+function itemsHtml(items){
+  const max=Math.max(4,Math.floor((window.innerHeight-260)/72));
+  let h='',cnt=0,grp=null;const keys=new Set();
+  for(const x of items){
+    if(cnt>=max){h+=`<div class="more">⋯ 還有 ${items.length-cnt} 項</div>`;break}
+    if(x.g&&x.g!==grp){grp=x.g;h+=`<div class="grp">👤 ${esc(grp)}</div>`}
+    const k=x.name+'|'+x.qty+'|'+(x.g||'');keys.add(k);
+    h+=`<div class="it${prevKeys.size&&!prevKeys.has(k)?' new':''}"><span class="n">${esc(x.name)}</span><span class="q">×${x.qty}</span><span class="p">${money(x.price*x.qty)}</span></div>`;
+    cnt++;
+  }
+  prevKeys=keys;
+  return h||'<div class="more" style="margin-top:30px">尚未點餐</div>';
+}
+function render(st){
+  setBar(st.bar);
+  if(st.mode==='idle'){show('idle');$('idleMsg').textContent=st.closed?'目前休息中，謝謝您的光臨':'請稍候，店員將為您點餐';prevKeys=new Set();return}
+  if(st.mode==='thanks'){
+    show('thanks');
+    $('tNo').textContent=st.no?'取餐號碼 #'+st.no:'';
+    $('tMsg').innerHTML=(st.pay==='現金'&&st.change>0?'找零 <b style="color:var(--ok)">'+money(st.change)+'</b>　':'')+'祝您用餐愉快 😊';
+    prevKeys=new Set();return;
+  }
+  show('order');
+  $('items').innerHTML=itemsHtml(st.items||[]);
+  const n=(st.items||[]).reduce((a,x)=>a+x.qty,0);
+  if(st.mode==='cart'){
+    $('lTitle').textContent='您的餐點';
+    $('side').innerHTML=`<div class="lab">共 ${n} 項・目前金額</div><div class="big">${money(st.total)}</div>`;
+  }else{   // pay
+    $('lTitle').textContent=st.no?'訂單 #'+st.no:'您的餐點';
+    let h=`<div class="lab">應付金額</div><div class="big">${money(st.total)}</div>`;
+    if(st.discount>0)h+=`<div class="row"><span>已折扣</span><b>−${money(st.discount)}</b></div>`;
+    h+=`<div class="pm">${esc(st.pay||'')}</div>`;
+    if(st.pay==='現金'&&st.recv>0){
+      h+=`<div class="row"><span>收您</span><b>${money(st.recv)}</b></div>`;
+      h+=st.recv>=st.total?`<div class="row chg"><span>找您</span><b>${money(st.recv-st.total)}</b></div>`:`<div class="row"><span>還差</span><b style="color:var(--bad)">${money(st.total-st.recv)}</b></div>`;
+    }
+    if(st.pay==='轉帳')h+=`<img class="qr" src="transfer-qr.jpg" alt="轉帳 QR Code"><div class="lab" style="font-size:clamp(16px,1.8vw,22px)">請用銀行 App 掃描轉帳 ${money(st.total)}</div>`;
+    $('side').innerHTML=h;
+  }
+}
+function onMsg(st){
+  if(!st||typeof st!=='object')return;
+  lastSeen=Date.now();
+  const s=JSON.stringify(st);if(s===last)return;last=s;
+  render(st);
+}
+try{const ch=new BroadcastChannel('pos-customer');ch.onmessage=e=>onMsg(e.data);ch.postMessage({hello:1})}catch(e){}
+window.addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.posCD)onMsg(e.data.posCD)});
+
+// 點一下進全螢幕（瀏覽器規定一定要點一下）
+document.addEventListener('click',()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{})});
+document.addEventListener('fullscreenchange',()=>$('tip').classList.toggle('hide',!!document.fullscreenElement));
+setTimeout(()=>{if(document.fullscreenElement)$('tip').classList.add('hide')},500);
+</script>
+</body>
+</html>
