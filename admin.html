@@ -1739,8 +1739,9 @@ function renderOrders(){
     const opt=o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / ');
     const gear=(o.gear||[]).join('、');
     const nx=NEXT[o.status];
-    return `<div class="oc st-${o.status}">
-     <div class="oc-h"><b>#${esc(o.no)}</b><span class="oc-t">取餐 ${esc(o.time)}</span>${o.late?'<span class="mu" style="color:var(--bad)">【補單】</span>':''}${o.src&&o.src!=='線上'?`<span class="mu">【${esc(o.src)}】</span>`:''}<span class="oc-s">${ST[o.status]||esc(o.status)}</span></div>
+    const cdOn=cdCfg().on,cdCur=cdShow&&cdShow.id===o.id;
+    return `<div class="oc st-${o.status}"${cdCur?' style="outline:3px solid var(--ac);outline-offset:2px"':''}>
+     <div class="oc-h"${cdOn?` onclick="cdShowOrder('${o.id}')" style="cursor:pointer" title="點一下：在客顯螢幕顯示這張訂單"`:''}><b>#${esc(o.no)}</b>${cdCur?'<span style="background:var(--ac);color:#000;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:800">🖥 客人螢幕顯示中</span>':''}<span class="oc-t">取餐 ${esc(o.time)}</span>${o.late?'<span class="mu" style="color:var(--bad)">【補單】</span>':''}${o.src&&o.src!=='線上'?`<span class="mu">【${esc(o.src)}】</span>`:''}<span class="oc-s">${ST[o.status]||esc(o.status)}</span></div>
      <div class="oc-b">
       <div>${esc(o.name)}　<a href="tel:${esc(o.phone)}">${esc(o.phone)}</a> <span class="cb" data-ph="${esc(o.phone||'')}"></span></div>
       ${anomalies(o).length?`<div style="color:#fff;background:var(--bad);border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⚠ 金額異常，請核對：${esc(anomalies(o).join('；'))}</div>`:''}
@@ -1757,6 +1758,7 @@ function renderOrders(){
       ${o.lp==='pending'&&o.status!=='cancelled'?'<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">⏳ 顧客線上支付中（尚未付款），可先製作；成功會再通知　<button class="rb" onclick="lpRetry(\''+o.id+'\')">開啟付款頁</button> <button class="rb" onclick="lpToCash(\''+o.id+'\')">改現場掃碼</button></div>':''}
      </div>
      <div class="oc-a">
+      ${cdOn?`<button class="oc-no" style="${cdCur?'background:var(--ac);color:#000;font-weight:800':''}" onclick="cdShowOrder('${o.id}')">${cdCur?'🖥 取消顯示':'🖥 給客人看'}</button>`:''}
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
       ${o.lp==='paid'&&isManager()?`<button class="oc-no" style="color:var(--bad)" onclick="lpRefundUI('${o.id}')">↩️ LINE Pay 退款</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
@@ -1770,6 +1772,7 @@ function renderOrders(){
   $('mBox').innerHTML=`
    <div class="oh"><h3>📦 訂單管理</h3><button onclick="closeModal()">關閉</button></div>
    <div class="ofl">${F.map(([k,t,n])=>`<button class="chip${ordFilter===k?' on':''}" onclick="setOrdFilter('${k}')">${t} ${n}</button>`).join('')}</div>
+   ${cdShow&&ORDERS[cdShow.id]?`<div class="modal-tip" style="display:flex;align-items:center;gap:10px;justify-content:space-between;font-size:15px"><span>🖥 客人螢幕正在顯示 <b>#${esc(ORDERS[cdShow.id].no)}</b> 的訂單資訊</span><button class="oc-no" onclick="cdShowOrder(null)">取消顯示</button></div>`:''}
    ${sqBox('ord','搜尋訂單：單號、姓名、電話、餐點、備註（搜尋時會找全部狀態）',{item:'.oc',re:()=>renderOrders()})}
    ${cards||'<div style="text-align:center;color:var(--mu);padding:30px">目前沒有訂單</div>'}`;
   $('mBox').scrollTop=y;fillCustBadges();sqApply('ord');
@@ -1930,14 +1933,38 @@ const CD_DEF={on:false,auto:false};
 const cdCfg=()=>{try{return{...CD_DEF,...JSON.parse(localStorage.getItem('cd_cfg')||'{}')}}catch(e){return{...CD_DEF}}};
 const cdCfgSave=c=>{try{localStorage.setItem('cd_cfg',JSON.stringify(c))}catch(e){}};
 let cdCh=null,cdLast='',cdLastAt=0,cdThanks=null,cdTimer=null,cdWin=null;
+let cdShow=null;   // 訂單管理裡按「給客人看」的那張單
+function cdShowOrder(id){
+  cdShow=(!id||(cdShow&&cdShow.id===id))?null:{id};
+  cdLast='';cdTick();renderOrders();
+  if(cdShow)toast('🖥 客人螢幕已顯示 #'+((ORDERS[id]||{}).no||'')+' 的訂單');
+}
+const cdPh3=p=>{const d=String(p||'').replace(/\D/g,'');return d.length>=3?d.slice(-3):''};
+function cdItems(o){                                   // 品項（含套餐內容、多人分組）
+  const P=peopleOf(o),one=x=>({name:String(x.name||''),qty:+x.qty||0,price:+x.price||0,inc:String(x.inc!=null?x.inc:'')});
+  if(!P)return(o.items||[]).map(one);
+  const out=[];P.forEach(pp=>pp.items.forEach(x=>out.push({...one(x),g:String(pp.name||''),go:[pp.flavor,pp.spice,pp.salt].filter(Boolean).join(' / ')+(pp.note?'｜備註：'+pp.note:'')})));
+  return out;
+}
+function cdOrderInfo(o){
+  const sub=(o.items||[]).reduce((a,x)=>a+(+x.price||0)*(+x.qty||0),0);
+  return{no:String(o.no||''),name:String(o.name||''),ph3:cdPh3(o.phone),time:String(o.time||''),src:String(o.src||''),
+    status:ST[o.status]||'',items:cdItems(o),opt:o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / '),
+    gear:(o.gear||[]).join('、'),note:String(o.note||''),sub,extra:+o.extra||0,discount:+o.discount||0,total:+o.total||0,
+    pay:String(o.pay||''),paid:!!o.paid&&o.status!=='cancelled',lp:o.lp==='paid'?'LINE Pay 線上已付款':o.lp==='refunded'?'已退款':o.lp==='pending'?'線上付款中':''};
+}
 function cdState(){
   let bar='';try{const b=annCfg().bar||{};bar=b.on?String(b.text||''):''}catch(e){}
   if(cdThanks&&Date.now()<cdThanks.until)return{mode:'thanks',...cdThanks.d,bar};
   const mOpen=$('modal').classList.contains('open');
   if(mOpen&&PAY&&PAY.o&&$('payBtn')){
     const o=PAY.o,total=payTotal(),r=parseFloat(PAY.recv);
-    const items=(o.items||[]).map(x=>({name:String(x.name||''),qty:+x.qty||0,price:+x.price||0}));
-    return{mode:'pay',no:o.no||'',items,total,discount:Math.max(0,(PAY.base||0)-total),pay:PAY.pay||'',recv:isNaN(r)?0:r,bar};
+    return{mode:'pay',no:o.no||'',name:String(o.name||''),ph3:cdPh3(o.phone),items:cdItems(o),total,discount:Math.max(0,(PAY.base||0)-total),pay:PAY.pay||'',recv:isNaN(r)?0:r,bar};
+  }
+  if(cdShow){
+    const o=ORDERS[cdShow.id];
+    if(mOpen&&viewingOrders&&o)return{mode:'order',...cdOrderInfo(o),bar};
+    if(!mOpen||!viewingOrders||!o)cdShow=null;          // 關掉訂單管理就不再顯示
   }
   if(cart.length){
     const multi=CK.people.length>1;
@@ -1980,7 +2007,7 @@ function openCdSettings(){
   const ck=(id,v,t)=>`<div class="fm-row" style="gap:8px"><input type="checkbox" id="${id}" ${v?'checked':''} onchange="cdSettingsSave()"><span style="font-size:15px">${t}</span></div>`;
   $('mBox').innerHTML=meHead('🖥 客顯螢幕（第二螢幕）','openAdminPanel()')+`<div class="fm-sec">
    <div class="modal-tip" style="text-align:left">POS 電腦接兩個螢幕時，面向客人的那個螢幕會顯示：<br>
-   ・平常：店名、Logo、歡迎光臨、跑馬燈<br>・點餐時：客人點的品項和目前金額（即時更新）<br>・結帳時：應付金額、付款方式、收您／找您；轉帳會顯示轉帳 QR Code<br>・結帳完成：謝謝光臨＋取餐號碼（8 秒後回到平常畫面）<br>
+   ・平常：店名、Logo、歡迎光臨、跑馬燈<br>・點餐時：客人點的品項和目前金額（即時更新）<br>・結帳時：應付金額、付款方式、收您／找您；轉帳會顯示轉帳 QR Code<br>・結帳完成：謝謝光臨＋取餐號碼（8 秒後回到平常畫面）<br>・訂單管理：按訂單上的「🖥 給客人看」（或點訂單編號那一列），客人螢幕就會顯示那張訂單；個資只顯示姓名和電話末三碼<br>
    設定<b>只存在這台電腦</b>。</div>
    ${ck('cdOn',c.on,'<b>啟用客顯螢幕</b>')}
    ${ck('cdAuto',c.auto,'打開 POS 時，<b>自動</b>開啟客顯螢幕（要先允許這個網站的彈出視窗）')}
@@ -2460,7 +2487,7 @@ async function confirmPay(){
     if(adj.length)logAct('結帳調整',PAY.id,o.no,adj.join('｜'));
   }catch(e){alert('結帳失敗：'+(e.code||e.message));b.disabled=false;b.textContent='結帳';return}
   prnAfterPay({...o,...data,id:PAY.id});
-  cdThanks={until:Date.now()+8000,d:{no:o.no,pay:PAY.pay,change:chg,total}};   // 客顯螢幕顯示「謝謝光臨」8 秒      // 結帳 → 自動印收據、現金彈開錢櫃（出單設定開啟才會做）
+  cdThanks={until:Date.now()+8000,d:{no:o.no,pay:PAY.pay,change:chg,total}};cdShow=null;   // 客顯螢幕顯示「謝謝光臨」8 秒      // 結帳 → 自動印收據、現金彈開錢櫃（出單設定開啟才會做）
   $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>結帳完成 #${esc(o.no)}</h3>
     <div class="rc-row" style="justify-content:center;gap:8px"><span>${esc(PAY.pay)}</span><span style="color:var(--ac);font-weight:800">$${total}</span></div>
     ${cash?`<div class="rc-no">找零 $${chg}</div><div class="rc-row" style="justify-content:center;gap:8px"><span>收到</span><span>$${recv}</span></div>`:''}

@@ -42,6 +42,19 @@ main{flex:1;display:flex;min-height:0}
 .it.new{animation:flash .9s}
 @keyframes flash{from{background:rgba(224,176,64,.55)}}
 .grp{font-size:clamp(16px,1.8vw,22px);color:var(--ac);padding:6px 4px 0}
+.grp small{color:var(--mu);font-weight:400;margin-left:10px}
+.it{flex-wrap:wrap}
+.it .inc{flex-basis:100%;font-size:.62em;color:var(--mu);line-height:1.35}
+.ext{font-size:clamp(16px,1.8vw,22px);color:var(--mu);padding:4px 6px;line-height:1.5}
+.ext b{color:var(--ac2)}
+.ono{font-size:clamp(54px,8vw,110px);font-weight:900;color:var(--ac2);line-height:1}
+.who{font-size:clamp(22px,2.6vw,34px);color:var(--tx);font-weight:700}
+.who span{color:var(--mu);font-weight:400;font-size:.8em;margin-left:12px}
+.big.sm{font-size:clamp(46px,7vw,96px)}
+.side .row{width:min(460px,92%)}
+.tag{display:inline-block;padding:4px 16px;border-radius:999px;font-weight:800;font-size:clamp(18px,2vw,26px)}
+.tag.ok{background:var(--ok);color:#fff}
+.tag.no{border:2px solid var(--ac);color:var(--ac2)}
 .more{color:var(--mu);text-align:center;font-size:clamp(16px,1.8vw,22px)}
 .side{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;padding:24px;text-align:center}
 .lab{font-size:clamp(20px,2.4vw,30px);color:var(--mu)}
@@ -107,17 +120,25 @@ function setBar(t){
   b.dataset.t=t;b.innerHTML='<span>'+esc(t)+'</span>';b.style.setProperty('--dur',Math.max(14,Math.round(t.length*.35))+'s');b.classList.add('on');
 }
 function itemsHtml(items){
-  const max=Math.max(4,Math.floor((window.innerHeight-260)/72));
-  let h='',cnt=0,grp=null;const keys=new Set();
+  let h='',grp=null;const keys=new Set();
   for(const x of items){
-    if(cnt>=max){h+=`<div class="more">⋯ 還有 ${items.length-cnt} 項</div>`;break}
-    if(x.g&&x.g!==grp){grp=x.g;h+=`<div class="grp">👤 ${esc(grp)}</div>`}
+    if(x.g!=null&&x.g!==''&&x.g!==grp){grp=x.g;h+=`<div class="grp">👤 ${esc(grp)}${x.go?`<small>${esc(x.go)}</small>`:''}</div>`}
     const k=x.name+'|'+x.qty+'|'+(x.g||'');keys.add(k);
-    h+=`<div class="it${prevKeys.size&&!prevKeys.has(k)?' new':''}"><span class="n">${esc(x.name)}</span><span class="q">×${x.qty}</span><span class="p">${money(x.price*x.qty)}</span></div>`;
-    cnt++;
+    h+=`<div class="it${prevKeys.size&&!prevKeys.has(k)?' new':''}"><span class="n">${esc(x.name)}</span><span class="q">×${x.qty}</span><span class="p">${money(x.price*x.qty)}</span>${x.inc?`<span class="inc">${esc(x.inc)}</span>`:''}</div>`;
   }
   prevKeys=keys;
   return h||'<div class="more" style="margin-top:30px">尚未點餐</div>';
+}
+function fitItems(){                                   // 放不下就收起最後幾項，顯示「還有 N 項」
+  const box=$('items');let hidden=0;
+  while(box.scrollHeight>box.clientHeight+2){
+    const its=[...box.querySelectorAll('.it,.grp')].filter(e=>!e.dataset.cut);
+    const last=its[its.length-1];if(!last||its.length<=3)break;
+    if(last.classList.contains('it'))hidden++;
+    last.remove();
+    let m=box.querySelector('.more');if(!m){m=document.createElement('div');m.className='more';box.appendChild(m)}
+    m.textContent='⋯ 還有 '+hidden+' 項';
+  }
 }
 function render(st){
   setBar(st.bar);
@@ -129,13 +150,27 @@ function render(st){
     prevKeys=new Set();return;
   }
   show('order');
-  $('items').innerHTML=itemsHtml(st.items||[]);
+  $('items').innerHTML=itemsHtml(st.items||[])+(st.mode==='order'?extHtml(st):'');
+  fitItems();
   const n=(st.items||[]).reduce((a,x)=>a+x.qty,0);
   if(st.mode==='cart'){
     $('lTitle').textContent='您的餐點';
     $('side').innerHTML=`<div class="lab">共 ${n} 項・目前金額</div><div class="big">${money(st.total)}</div>`;
+  }else if(st.mode==='order'){   // 訂單管理按「給客人看」：個資只有姓名、電話末三碼
+    $('lTitle').textContent=`訂單內容・共 ${n} 項`;
+    let h=`<div class="ono">#${esc(st.no)}</div>`;
+    h+=`<div class="who">${esc(st.name||'')}${st.ph3?`<span>電話末三碼 ${esc(st.ph3)}</span>`:''}</div>`;
+    if(st.time)h+=`<div class="row"><span>取餐時間</span><b>${esc(st.time)}</b></div>`;
+    if(st.status)h+=`<div class="row"><span>訂單狀態</span><b>${esc(st.status)}${st.src?'（'+esc(st.src)+'）':''}</b></div>`;
+    if(st.extra||st.discount)h+=`<div class="row"><span>小計</span><b>${money(st.sub)}</b></div>`;
+    if(st.extra)h+=`<div class="row"><span>加價</span><b>+${money(st.extra)}</b></div>`;
+    if(st.discount)h+=`<div class="row"><span>折扣</span><b>−${money(st.discount)}</b></div>`;
+    h+=`<div class="lab">${st.paid?'金額':'應付金額'}</div><div class="big sm">${money(st.total)}</div>`;
+    h+=`<div>${st.pay?`<span class="tag no">${esc(st.pay)}</span> `:''}<span class="tag ${st.paid?'ok':'no'}">${st.paid?'已付款':'尚未付款'}</span></div>`;
+    if(st.lp)h+=`<div class="lab" style="font-size:clamp(16px,1.8vw,22px)">${esc(st.lp)}</div>`;
+    $('side').innerHTML=h;
   }else{   // pay
-    $('lTitle').textContent=st.no?'訂單 #'+st.no:'您的餐點';
+    $('lTitle').textContent=(st.no?'訂單 #'+st.no:'您的餐點')+(st.name?'　'+st.name:'')+(st.ph3?'（末三碼 '+st.ph3+'）':'');
     let h=`<div class="lab">應付金額</div><div class="big">${money(st.total)}</div>`;
     if(st.discount>0)h+=`<div class="row"><span>已折扣</span><b>−${money(st.discount)}</b></div>`;
     h+=`<div class="pm">${esc(st.pay||'')}</div>`;
@@ -146,6 +181,13 @@ function render(st){
     if(st.pay==='轉帳')h+=`<img class="qr" src="transfer-qr.jpg" alt="轉帳 QR Code"><div class="lab" style="font-size:clamp(16px,1.8vw,22px)">請用銀行 App 掃描轉帳 ${money(st.total)}</div>`;
     $('side').innerHTML=h;
   }
+}
+function extHtml(st){                                // 口味、配備、備註
+  const r=[];
+  if(st.opt)r.push(`<div class="ext">口味：<b>${esc(st.opt)}</b></div>`);
+  if(st.gear)r.push(`<div class="ext">配備：<b>${esc(st.gear)}</b></div>`);
+  if(st.note)r.push(`<div class="ext">備註：<b>${esc(st.note)}</b></div>`);
+  return r.join('');
 }
 function onMsg(st){
   if(!st||typeof st!=='object')return;
