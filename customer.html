@@ -174,11 +174,12 @@ function render(st){
     let h=`<div class="lab">應付金額</div><div class="big">${money(st.total)}</div>`;
     if(st.discount>0)h+=`<div class="row"><span>已折扣</span><b>−${money(st.discount)}</b></div>`;
     h+=`<div class="pm">${esc(st.pay||'')}</div>`;
+    if(st.cashPart>0&&st.cashPart<st.total)h+=`<div class="row"><span>現金</span><b>${money(st.cashPart)}</b></div><div class="row"><span>${esc(st.pay||'')}</span><b>${money(st.total-st.cashPart)}</b></div>`;
     if(st.pay==='現金'&&st.recv>0){
       h+=`<div class="row"><span>收您</span><b>${money(st.recv)}</b></div>`;
       h+=st.recv>=st.total?`<div class="row chg"><span>找您</span><b>${money(st.recv-st.total)}</b></div>`:`<div class="row"><span>還差</span><b style="color:var(--bad)">${money(st.total-st.recv)}</b></div>`;
     }
-    if(st.pay==='轉帳')h+=`<img class="qr" src="transfer-qr.jpg" alt="轉帳 QR Code"><div class="lab" style="font-size:clamp(16px,1.8vw,22px)">請用銀行 App 掃描轉帳 ${money(st.total)}</div>`;
+    if(st.pay==='轉帳')h+=`<img class="qr" src="transfer-qr.jpg" alt="轉帳 QR Code"><div class="lab" style="font-size:clamp(16px,1.8vw,22px)">請用銀行 App 掃描轉帳 ${money(st.total-(st.cashPart>0&&st.cashPart<st.total?st.cashPart:0))}</div>`;
     $('side').innerHTML=h;
   }
 }
