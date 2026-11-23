@@ -1793,7 +1793,8 @@ function renderOrders(){
       <div class="mu">${esc(opt)}${gear?(opt?'｜':'')+'配備：'+esc(gear):''}</div>
       ${o.note?`<div class="mu">備註：${esc(o.note)}</div>`:''}
       ${o.status==='cancelled'&&o.voidReason?`<div class="mu" style="color:var(--bad)">拒單原因：${esc(o.voidReason)}（${esc(o.voidBy||'')} ${o.voidAt?fmtT(o.voidAt):''}）</div>`:''}
-      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上支付）</span>':''}</div>
+      <div><b style="color:var(--ac)">$${o.total}</b>　<span class="mu">${(o.extraPays||o.addDue)&&o.paid?esc(o.pay)+' $'+mainPaid(o)+(o.extraPays||[]).map(x=>'＋'+esc(x.pay)+' $'+x.amt+'（加點）').join(''):esc(o.pay)}</span>${o.status!=='cancelled'&&o.paid?'　<span style="color:var(--ok);font-weight:700">已收款</span>':''}${o.lp==='paid'?'　<span class="mu">（LINE Pay 線上支付）</span>':''}</div>
+      ${o.paid&&o.addDue>0&&o.status!=='cancelled'?`<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">➕ 加點 $${o.addDue} 尚未收款</div>`:''}
       ${o.pay==='轉帳'&&!o.paid&&o.status!=='cancelled'?`<div style="color:#fff;background:#d97706;border-radius:8px;padding:4px 10px;font-weight:700;font-size:13px;margin:3px 0">🏦 轉帳待確認入帳${o.x5?'｜顧客帳號後五碼 '+esc(o.x5):''}｜請查銀行 APP，入帳後按「結帳」</div>`:''}
       ${o.lpErr&&o.lp!=='paid'?`<div style="color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 10px;font-size:12px;margin:3px 0">⚠ 線上支付曾出錯（${esc(o.lpErr.stage||'')}）：${esc(o.lpErr.code||'')} ${esc(o.lpErr.msg||'')}</div>`:''}
       ${o.lpWarn?`<div style="color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 10px;font-size:12px;margin:3px 0">ℹ️ 價格與目前菜單略有出入：${esc(o.lpWarn)}</div>`:''}
@@ -1805,7 +1806,9 @@ function renderOrders(){
       ${cdOn?`<button class="oc-no" style="${cdCur?'background:var(--ac);color:#000;font-weight:800':''}" onclick="cdShowOrder('${o.id}')">${cdCur?'🖥 取消顯示':'🖥 給客人看'}</button>`:''}
       <button class="oc-no" onclick="openEdit('${o.id}','orders')">✏️ 編輯</button>
       ${o.lp==='paid'&&isManager()?`<button class="oc-no" style="color:var(--bad)" onclick="lpRefundUI('${o.id}')">↩️ LINE Pay 退款</button>`:''}
-      ${o.status!=='cancelled'?`<button class="oc-pay" onclick="openPay('${o.id}')">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
+      ${o.paid&&o.status!=='cancelled'?`<button class="oc-no" onclick="openEdit('${o.id}','orders');EDADD=true;renderEdit()">➕ 加點</button>`:''}
+      ${o.paid&&o.addDue>0&&o.status!=='cancelled'?`<button class="oc-pay" style="background:#d97706" onclick="openAddPay('${o.id}')">💰 收加點 $${o.addDue}</button>`:''}
+      ${o.status!=='cancelled'?`<button class="oc-pay" onclick="${o.paid&&(o.extraPays||o.addDue)?`if(confirm('這張單有分開付款（含加點）。重新結帳會把整張單改成「同一種付款方式」，確定嗎？'))openPay('${o.id}')`:`openPay('${o.id}')`}">💰 ${o.paid?'已收款・修改':'結帳'}</button>`:''}
       ${o.status!=='cancelled'?`<button class="oc-no" onclick="openVoid('${o.id}','orders')">拒單</button>`:''}
       ${o.status==='cancelled'&&isManager()?`<button class="oc-no" onclick="restoreOrder('${o.id}','orders')">還原</button><button class="oc-no" style="color:var(--bad)" onclick="delOrder('${o.id}','${esc(o.no)}','orders')">永久刪除</button>`:''}
       <button class="oc-no" onclick="prnManual('${o.id}','k')">🖨 廚房單</button><button class="oc-no" onclick="prnManual('${o.id}','r')">🧾 收據</button>
@@ -1995,7 +1998,7 @@ function cdOrderInfo(o){
   return{no:String(o.no||''),name:String(o.name||''),ph3:cdPh3(o.phone),time:String(o.time||''),src:String(o.src||''),
     status:ST[o.status]||'',items:cdItems(o),opt:o.people?'':[o.flavor,o.spice,o.salt].filter(Boolean).join(' / '),
     gear:(o.gear||[]).join('、'),note:String(o.note||''),sub,extra:+o.extra||0,discount:+o.discount||0,total:+o.total||0,
-    pay:String(o.pay||''),paid:!!o.paid&&o.status!=='cancelled',lp:o.lp==='paid'?'LINE Pay 線上已付款':o.lp==='refunded'?'已退款':o.lp==='pending'?'線上付款中':''};
+    pay:String(o.pay||''),paid:!!o.paid&&o.status!=='cancelled',lp:(o.lp==='paid'?'LINE Pay 線上已付款':o.lp==='refunded'?'已退款':o.lp==='pending'?'線上付款中':'')+(o.extraPays?'（加點另付 '+o.extraPays.map(x=>x.pay+' $'+x.amt).join('、')+'）':'')+(+o.addDue>0?'｜加點 $'+o.addDue+' 尚未付款':'')};
 }
 function cdState(){
   let bar='';try{const b=annCfg().bar||{};bar=b.on?String(b.text||''):''}catch(e){}
@@ -2004,6 +2007,10 @@ function cdState(){
   if(mOpen&&PAY&&PAY.o&&$('payBtn')){
     const o=PAY.o,total=payTotal(),r=parseFloat(PAY.recv);
     return{mode:'pay',no:o.no||'',name:String(o.name||''),ph3:cdPh3(o.phone),items:cdItems(o),total,discount:Math.max(0,(PAY.base||0)-total),pay:PAY.pay||'',recv:isNaN(r)?0:r,bar};
+  }
+  if(mOpen&&APAY&&$('apBtn')){
+    const o=APAY.o,r=parseFloat(APAY.recv);
+    return{mode:'pay',no:(o.no||'')+' 加點',name:String(o.name||''),ph3:cdPh3(o.phone),items:APAY.added||[{name:'加點金額',qty:1,price:APAY.due}],total:APAY.due,discount:0,pay:APAY.pay,recv:isNaN(r)?0:r,bar};
   }
   if(cdShow){
     const o=ORDERS[cdShow.id];
@@ -2400,6 +2407,68 @@ function renderEdit(){
   $('mBox').scrollTop=y;
 }
 function backFromEdit(){EDFROM==='history'?openHistory(true):openOrders()}
+/* ===== 加點收款：已付款的訂單又加點，加點的錢另外收（可用不同付款方式） ===== */
+const exSum=o=>(o.extraPays||[]).reduce((a,x)=>a+(+x.amt||0),0);
+const mainPaid=o=>Math.max(0,(+o.total||0)-exSum(o)-(+o.addDue||0));   // 原本那筆付款（例如 LINE Pay）的金額
+function edAddedItems(a,b){                                    // 這次多出來的品項（顯示給店員和客人看）
+  const k=x=>`${x.p||0}|${String(x.name).trim()}|${+x.price}`,m={};
+  (a||[]).forEach(x=>{m[k(x)]=(m[k(x)]||0)+(+x.qty||0)});
+  const out=[];(b||[]).forEach(x=>{const q=(+x.qty||0)-(m[k(x)]||0);m[k(x)]=Math.max(0,(m[k(x)]||0)-(+x.qty||0));if(q>0)out.push({name:x.name,price:+x.price||0,qty:q})});
+  return out;
+}
+let APAY=null;
+function openAddPay(id,fresh,from,added){
+  const o=fresh||ORDERS[id]||(typeof HIST!=='undefined'&&HIST.find(x=>x.id===id));if(!o)return;
+  const due=+o.addDue||0;if(!(due>0)){toast('這張單沒有待收的加點金額');return}
+  APAY={id,o,due,from:from||'orders',pay:'現金',recv:'',added:added&&added.length?added:null};
+  viewingOrders=viewingStats=viewingTrack=false;
+  $('mBox').className='m-box wide';renderAddPay();$('modal').classList.add('open');
+}
+function apBack(){APAY&&APAY.from==='history'?openHistory(true):openOrders();APAY=null}
+function apChg(){const r=parseFloat(APAY.recv);return APAY.recv===''||isNaN(r)?null:r-APAY.due}
+function renderAddPay(){
+  const o=APAY.o,cash=APAY.pay==='現金',c=apChg();
+  const line=x=>`<div class="rc-item"><span class="nm">${esc(x.name)}<small>× ${x.qty}</small></span><span class="pr">$${x.price*x.qty}</span></div>`;
+  const quick=[APAY.due,100,200,500,1000].filter((v,i,a)=>v>0&&a.indexOf(v)===i);
+  const prev=[`${o.pay||''} $${mainPaid(o)}`].concat((o.extraPays||[]).map(x=>`${x.pay} $${x.amt}`)).join('＋');
+  $('mBox').innerHTML=`
+   <div class="oh"><h3>➕ 加點收款 #${esc(o.no)}　${esc(o.name||'')}</h3><button onclick="apBack()">稍後再收</button></div>
+   <div class="modal-tip" style="text-align:left">這張單之前已付款：<b>${esc(prev)}</b>${o.lp==='paid'?'（LINE Pay 線上支付）':''}。<br>原本的付款<b>不會變動</b>，下面只收這次加點的金額，可以選不同的付款方式。</div>
+   <div class="fm-sec">
+    ${APAY.added?`<div class="fm-title">這次加點</div>${APAY.added.map(line).join('')}`:''}
+    <div class="fm-total"><span>加點應收</span><b>$${APAY.due}</b></div>
+    <div class="fm-line"><span>整張訂單合計</span><span>$${o.total}</span></div>
+   </div>
+   <div class="fm-sec">
+    <div class="fm-title">加點的付款方式</div>
+    <div class="chips">${['現金','轉帳','Linepay','全支付'].map(v=>`<button class="chip${APAY.pay===v?' on':''}" onclick="APAY.pay='${v}';APAY.recv='';renderAddPay()">${v}${v==='Linepay'?'（現場掃碼）':''}</button>`).join('')}</div>
+    ${cash?`<div class="fm-row"><b style="width:auto">收到金額</b><input id="apRecv" type="number" inputmode="numeric" value="${esc(APAY.recv)}" placeholder="輸入收到的金額" oninput="APAY.recv=this.value;apCalc()"></div>
+     <div class="chips">${quick.map((v,i)=>`<button class="chip" onclick="APAY.recv='${v}';renderAddPay()">${i===0?'剛好 $'+v:'$'+v}</button>`).join('')}</div>
+     <div class="fm-total"><span>找零</span><b id="apChg">${c==null?'$0':c>=0?'$'+c:'不足 $'+(-c)}</b></div>`
+     :`<div style="color:var(--mu);font-size:14px">${esc(APAY.pay)} 無需找零，確認加點的款項已收到即可。</div>${APAY.pay==='轉帳'?bankBox(APAY.due):''}`}
+   </div>
+   <div class="m-btns"><button class="btn-cancel" onclick="apBack()">稍後再收</button><button class="btn-confirm" id="apBtn" onclick="confirmAddPay()">收款 $${APAY.due}</button></div>`;
+  apCalc();
+}
+function apCalc(){const el=$('apChg');if(!el)return;const c=apChg();el.textContent=c==null?'$0':c>=0?'$'+c:'不足 $'+(-c);el.style.color=c!=null&&c<0?'var(--bad)':''}
+async function confirmAddPay(){
+  const A=APAY,o=A.o,cash=A.pay==='現金';
+  let recv=A.due;
+  if(cash&&A.recv!==''){recv=parseFloat(A.recv);if(!(recv>=A.due)){alert('收到的金額不足 $'+A.due);return}}
+  const chg=cash?recv-A.due:0;
+  const ex=[...(o.extraPays||[]),{amt:A.due,pay:A.pay,at:Date.now(),by:whoAmI(),received:recv,change:chg}];
+  const b=$('apBtn');b.disabled=true;b.textContent='處理中…';
+  try{await FB.update(FB.ref(FB.db,'orders/'+A.id),{extraPays:ex,addDue:null,updatedAt:Date.now()});
+    logAct('加點收款',A.id,o.no,`${A.pay} $${A.due}${cash?`（收 $${recv}，找 $${chg}）`:''}｜原付款 ${o.pay||''} 不變`)}
+  catch(e){alert('收款失敗：'+(e.code||e.message));b.disabled=false;b.textContent='收款 $'+A.due;return}
+  if(cash)prnAfterPay({...o,pay:'現金'});                       // 現金：彈開錢櫃（出單設定有開才會）
+  try{cdThanks={until:Date.now()+8000,d:{no:o.no,pay:A.pay,change:chg,total:A.due}};cdShow=null}catch(e){}
+  APAY=null;
+  $('mBox').innerHTML=`<div class="rc-done"><div class="ok">✅</div><h3>加點收款完成 #${esc(o.no)}</h3>
+    <div class="rc-row" style="justify-content:center;gap:14px"><span>${esc(A.pay)}</span><b>$${A.due}</b></div>
+    ${cash?`<div class="fm-total"><span>找零</span><b style="color:var(--ok)">$${chg}</b></div>`:''}
+    <div class="m-btns"><button class="btn-confirm" onclick="${A.from==='history'?'openHistory(true)':'openOrders()'}">回到訂單</button></div></div>`;
+}
 async function saveEdit(){
   if(ED.phone&&!phoneOK(ED.phone)){alert('電話格式需為 09XX-XXX-XXX，或留空');return}
   const tm24=normTime(ED.time);
@@ -2421,6 +2490,13 @@ async function saveEdit(){
     flavor:pp[0].flavor,spice:pp[0].spice,salt:pp[0].salt,people:multi?pp:null,gear:ED.gear.length?ED.gear:null,
     pay:ED.pay,status:ED.status,items,subtotal:sub,extra:adj>0?adj:0,discount:adj<0?-adj:0,total,updatedAt:Date.now()};
   if(newTs){data.createdAt=newTs;data.date=bizDay(newTs)}
+  /* 已付款的單又加點：原本的付款不動，多出來的錢記在 addDue（加點待收），可以用別的付款方式收（例如 LINE Pay 付過、加點收現金） */
+  let addNew=0,refundAmt=0;
+  if(o.paid&&o.status!=='cancelled'){
+    const due0=+o.addDue||0,delta=total-(+o.total||0);
+    addNew=Math.max(0,delta);refundAmt=Math.max(0,-(due0+delta));
+    data.addDue=Math.max(0,due0+delta)||null;
+  }
   const parts=[];
   if(ED.time!==o.time)parts.push(`取餐時間改為 ${ED.time}（原 ${o.time}）`);
   const sig=a=>(a||[]).map(x=>`${x.p||0}|${String(x.name).trim()}|${+x.price}|${+x.qty}`).join(';');
@@ -2434,9 +2510,12 @@ async function saveEdit(){
   if(ED.pay!==o.pay)ch.push(`付款 ${o.pay}→${ED.pay}`);
   if(ED.status!==o.status)ch.push(`狀態 ${ST[o.status]||o.status}→${ST[ED.status]||ED.status}`);
   if(ED.name.trim()!==o.name||ED.phone!==(o.phone||'')||ED.note.trim()!==(o.note||''))ch.push('姓名/電話/備註');
+  const addedItems=addNew?edAddedItems(o.items,items):null;   // 存檔前先算好這次多了哪些品項
   const b=$('edSave');b.disabled=true;b.textContent='儲存中…';
   try{await FB.update(FB.ref(FB.db,'orders/'+ED.id),data);if(ch.length)logAct('編輯',ED.id,ED.no,ch.join('；'));
     if(newTs&&bizDay(newTs)!==today8())toast(`✅ 已移到 ${dayPlain(bizDay(newTs)).slice(5)} 的營業日，可在「歷史訂單」或日報表查看`);
+    if(refundAmt)alert(`這張單已付款，修改後金額少了 $${refundAmt}。\n請記得把差額退給客人${o.lp==='paid'?'（LINE Pay 無法部分退款，請用現金退還）':''}。`);
+    if(data.addDue){openAddPay(ED.id,{...o,...data},EDFROM,addedItems);return}
     backFromEdit()}
   catch(e){alert('儲存失敗：'+(e.code||e.message));b.disabled=false;b.textContent='儲存'}
 }
@@ -2459,6 +2538,7 @@ const payTotal=()=>{
 };
 async function pickup(id){
   const o=ORDERS[id];if(!o)return;
+  if(o.paid&&+o.addDue>0&&confirm(`#${o.no} 還有加點 $${o.addDue} 沒收款。\n按「確定」先收加點的錢；按「取消」直接完成取餐（加點會留在未收款）。`)){openAddPay(id);return}
   if(o.paid){        // 客人先付過款的單：直接完成取餐
     try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:'picked',pickedAt:Date.now(),updatedAt:Date.now()})}
     catch(e){alert('取餐失敗：'+(e.code||e.message));return}
@@ -2517,7 +2597,7 @@ async function confirmPay(){
   let recv=total;
   if(cash&&PAY.recv!==''){recv=parseFloat(PAY.recv);if(!(recv>=total)){alert('收到的金額不足 $'+total);return}}
   const chg=cash?recv-total:0;
-  const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,total,discount:Math.max(0,PAY.base-total),updatedAt:Date.now()};
+  const data={pay:PAY.pay,paid:true,paidAt:Date.now(),received:recv,change:chg,total,discount:Math.max(0,PAY.base-total),extraPays:null,addDue:null,updatedAt:Date.now()};
   if(o.lp==='pending')data.lp='staff';      // 店員手動結帳，不再等線上支付
   if(PAY.after||o.status==='done'){data.status='picked';data.pickedAt=Date.now()}    // 結帳＝客人取餐完成，訂單結束
   const b=$('payBtn');b.disabled=true;b.textContent='處理中…';
@@ -2729,7 +2809,12 @@ function prnReceiptRows(o){
   const adj=(+o.extra||0)-(+o.discount||0);
   if(adj)R.push({l:adj>0?'加價':'折扣／折讓',r:(adj>0?'+':'-')+'$'+Math.abs(adj),s:1});
   R.push({l:'應付總額',r:'$'+o.total,s:2,b:true},{gap:4},{l:'付款方式',r:(o.pay||'')+(o.paid?'（已收）':'（未收）'),s:1});
-  if(o.pay==='現金'&&o.received!=null)R.push({l:'收到',r:'$'+o.received,s:1},{l:'找零',r:'$'+(o.change||0),s:1});
+  if(o.pay==='現金'&&o.received!=null&&!o.extraPays)R.push({l:'收到',r:'$'+o.received,s:1},{l:'找零',r:'$'+(o.change||0),s:1});
+  if(o.paid&&(o.extraPays||o.addDue)){
+    R.push({l:'　'+(o.pay||'')+(o.lp==='paid'?'（線上）':''),r:'$'+mainPaid(o),s:1});
+    (o.extraPays||[]).forEach(x=>{R.push({l:'　加點 '+x.pay,r:'$'+x.amt,s:1});if(x.pay==='現金'&&x.received!=null)R.push({l:'　　收到／找零',r:'$'+x.received+'／$'+(x.change||0),s:1})});
+    if(+o.addDue>0)R.push({l:'　加點未收',r:'$'+o.addDue,s:1});
+  }
   R.push({t:[o.name,o.phone].filter(Boolean).join('　'),s:1},{dash:1},{t:'謝謝光臨，歡迎再來！',s:1,a:'c'});
   return R;
 }
@@ -2996,18 +3081,20 @@ async function lpDoRefund(id,o){
     r=await res.json();
   }catch(e){r={ok:false,err:'連線失敗，請稍後再試'}}
   if(!r||!r.ok){alert('退款失敗：'+(r&&r.err||'未知原因'));return false}
-  logAct('LINE Pay退款',id,o.no,'$'+o.total);
+  logAct('LINE Pay退款',id,o.no,'$'+mainPaid(o)+(exSum(o)?`（加點 $${exSum(o)} 需另外退還）`:''));
+  if(exSum(o)||+o.addDue){try{await FB.update(FB.ref(FB.db,'orders/'+id+'/lpRefund'),{amount:mainPaid(o)})}catch(e){}}   // 退款紀錄只算 LINE Pay 那一筆
   return true;
 }
 async function lpRefundUI(id){
   const o=ORDERS[id];if(!o||!isManager())return;
-  if(!confirm(`確定把訂單 #${o.no} 的 $${o.total} 退回顧客的 LINE Pay？\n${o.status==='cancelled'?'':'退款後這張單會一併拒單、庫存退回。\n'}此動作無法復原。`))return;
+  const lpAmt=mainPaid(o),exAmt=exSum(o);
+  if(!confirm(`確定把訂單 #${o.no} 用 LINE Pay 付的 $${lpAmt} 退回顧客的 LINE Pay？\n${exAmt?`⚠ 加點另外收的 $${exAmt}（${(o.extraPays||[]).map(x=>x.pay).join('、')}）不會自動退，請另外退還給客人。\n`:''}${o.status==='cancelled'?'':'退款後這張單會一併拒單、庫存退回。\n'}此動作無法復原。`))return;
   if(!(await lpDoRefund(id,o)))return;
   if(o.status!=='cancelled'){
     try{await FB.update(FB.ref(FB.db,'orders/'+id),{status:'cancelled',prevStatus:o.status||'new',voidReason:'已全額退款（LINE Pay）',voidAt:Date.now(),voidBy:whoAmI(),updatedAt:Date.now()});adjustStockForOrder(o,-1)}
     catch(e){alert('退款已成功，但拒單失敗，請手動按「拒單」：'+(e.code||e.message))}
   }
-  toast('✅ 已退款 $'+o.total);
+  toast('✅ 已退款 $'+mainPaid(o)+(exSum(o)?`，加點的 $${exSum(o)} 請另外退還`:''));
 }
 function lpReturn(){
   let q;try{q=new URLSearchParams(location.search)}catch(e){return}
@@ -3052,7 +3139,10 @@ function salesOf(list){
   ok.forEach(o=>{
     const t=+o.total||0;r.revenue+=t;
     if(!o.paid){r.unpaidN++;r.unpaid+=t;return}
-    if(o.pay==='現金')r.cash+=t;else if(o.pay==='轉帳')r.transfer+=t;else if(o.pay==='Linepay')r.linepay+=t;else if(o.pay==='全支付')r.allpay+=t;
+    const put=(p,v)=>{if(p==='現金')r.cash+=v;else if(p==='轉帳')r.transfer+=v;else if(p==='Linepay')r.linepay+=v;else if(p==='全支付')r.allpay+=v};
+    put(o.pay,mainPaid(o));                                  // 原本那筆（例如 LINE Pay）
+    (o.extraPays||[]).forEach(x=>put(x.pay,+x.amt||0));       // 加點另外收的（例如現金）
+    if(+o.addDue>0){r.unpaidN++;r.unpaid+=+o.addDue}           // 加點還沒收
   });
   return r;
 }
